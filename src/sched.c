@@ -23,6 +23,7 @@
 #include <string.h>
 
 /* Local includes. */
+#include "cycle.h"
 #include "atomic.h"
 #include "lock.h"
 #include "task.h"
@@ -34,6 +35,20 @@
 
 /* Max macro. */
 #define max(a,b) ( ((a) >= (b)) ? (a) : (b) )
+
+
+/**
+ * @brief Fetch the data pointer of a task.
+ *
+ * @param s Pointer to the #sched.
+ * @param t Pointer to the #task.
+ */
+ 
+void *sched_getdata( struct sched *s , struct task *t ) {
+
+    return &s->data[ t->data ];
+    
+    }
 
 
 /**
@@ -53,9 +68,9 @@ void sched_enqueue ( struct sched *s , struct task *t ) {
 
     /* Loop over the locks and uses, and get their owners. */
     for ( j = 0 ; j < t->nr_locks ; j++ )
-        scores[ t->locks[j] ] += 1;
+        scores[ s->res_owner[ t->locks[j] ] ] += 1;
     for ( j = 0 ; j < t->nr_uses ; j++ )
-        scores[ t->uses[j] ] += 1;
+        scores[ s->res_owner[ t->uses[j] ] ] += 1;
 
     /* Find the queue with the highest score. */
     qid = 0;
@@ -64,9 +79,12 @@ void sched_enqueue ( struct sched *s , struct task *t ) {
              (scores[j] == scores[qid] && s->queues[j].count < s->queues[qid].count ) )
             qid = j;
 
+    /* Increase that queue's count. */
+    atomic_inc( &s->queues[qid].count );
+        
     /* Put the unlocked task in that queue. */
     queue_put( &s->queues[qid] , t - s->tasks );
-        
+    
     }
 
 
@@ -82,6 +100,11 @@ void sched_done ( struct sched *s , struct task *t ) {
     int k;
     struct task *t2;
     
+    /* Release this task's locks. */
+    for ( k = 0 ; k < t->nr_locks ; k++ )
+        if ( lock_unlock( &s->res[ t->locks[k] ] ) != 0 )
+            error( "Failed to unlock resource." );
+    
     /* Loop over the task's unlocks... */
     for ( k = 0 ; k < t->nr_unlocks ; k++ ) {
     
@@ -93,6 +116,9 @@ void sched_done ( struct sched *s , struct task *t ) {
             sched_enqueue( s , t2 );
             
         }
+        
+    /* Set the task stats. */
+    t->toc = getticks();
 
     }
 
@@ -126,12 +152,12 @@ struct task *sched_gettask ( struct sched *s , int qid ) {
         maxq = qid;
     
         /* Try to get a task from my own queue. */
-        if ( ( tid = queue_get( &s->queues[qid] ) ) < 0 ) {
+        if ( qid >= s->nr_queues || ( tid = queue_get( &s->queues[qid] ) ) < 0 ) {
             
             /* Otherwise, look for the largest queue. */
             maxq = 0;
-            for ( k = 1 ; k < s->nr_queues ; k++ )
-                if ( k != qid && s->queues[qid].count > s->queues[maxq].count )
+            for ( k = 0 ; k < s->nr_queues ; k++ )
+                if ( k != qid && s->queues[k].count > s->queues[maxq].count )
                     maxq = k;
             if ( ( tid = queue_get( &s->queues[maxq] ) ) < 0 )
                 continue;
@@ -143,7 +169,7 @@ struct task *sched_gettask ( struct sched *s , int qid ) {
         
         /* Try to lock all the task's locks. */
         for ( k = 0 ; k < t->nr_locks ; k++ )
-            if ( !lock_trylock( &s->locks[ t->locks[k] ] ) )
+            if ( lock_trylock( &s->res[ t->locks[k] ] ) != 0 )
                 break;
         
         /* If I didn't get all the locks... */
@@ -166,6 +192,10 @@ struct task *sched_gettask ( struct sched *s , int qid ) {
             
             /* Decrease the number of tasks in this space. */
             atomic_dec( &s->waiting );
+            
+            /* Set some stats data. */
+            t->tic = getticks();
+            t->qid = qid;
             
             /* Return the task. */
             return t;
@@ -233,17 +263,17 @@ void sched_sort ( int *restrict data , int *restrict ind , int N , int min , int
         /* Recurse on the left? */
         if ( j > 0  && pivot > min ) {
             #pragma omp task untied
-            sched_sort_rec( data , ind , j+1 , min , pivot );
+            sched_sort( data , ind , j+1 , min , pivot );
             }
 
         /* Recurse on the right? */
         if ( i < N && pivot+1 < max ) {
             #pragma omp task untied
-            sched_sort_rec( &data[i], &ind[i], N-i , pivot+1 , max );
+            sched_sort( &data[i], &ind[i], N-i , pivot+1 , max );
             }
             
         }
-    
+        
     }
 
 
@@ -600,7 +630,7 @@ int sched_newtask ( struct sched *s , int type , int subtype , int flags , void 
     data_size2 = ( data_size + (sched_data_round-1) ) & ~(sched_data_round-1);
         
     /* Do the task data need to be re-allocated? */
-    if ( s->count_data + data_size2 == s->size_data ) {
+    if ( s->count_data + data_size2 > s->size_data ) {
     
         /* Scale the task list size. */
         s->size_data *= max( s->size + data_size2 , s->size_data * sched_stretch );
@@ -632,6 +662,7 @@ int sched_newtask ( struct sched *s , int type , int subtype , int flags , void 
     t->nr_conflicts = 0;
     t->nr_unlocks = 0;
     t->nr_locks = 0;
+    t->nr_uses = 0;
     
     /* Add a relative pointer to the data. */
     memcpy( &s->data[ s->count_data ] , data , data_size );
@@ -646,6 +677,39 @@ int sched_newtask ( struct sched *s , int type , int subtype , int flags , void 
     
     /* Return the task ID. */
     return id;
+
+    }
+    
+    
+/**
+ * @brief Clean up a #sched, free all associated memory.
+ *
+ * @param s Pointer to the #sched.
+ */
+ 
+void sched_free ( struct sched *s ) {
+
+    int k;
+
+    /* Clear all the buffers if allocated. */
+    if ( s->tasks != NULL ) free( s->tasks );
+    if ( s->deps != NULL ) free( s->deps );
+    if ( s->deps_key != NULL ) free( s->deps_key );
+    if ( s->locks != NULL ) free( s->locks );
+    if ( s->locks_key != NULL ) free( s->locks_key );
+    if ( s->uses != NULL ) free( s->uses );
+    if ( s->uses_key != NULL ) free( s->uses_key );
+    if ( s->res != NULL ) free( (void *)s->res );
+    if ( s->res_owner != NULL ) free( s->res_owner );
+    if ( s->data != NULL ) free( s->data );
+    
+    /* Loop over the queues and free them too. */
+    for ( k = 0 ; k < s->nr_queues ; k++ )
+        queue_free( &s->queues[k] );
+    free( s->queues );
+        
+    /* Clear the flags. */
+    s->flags = sched_flag_none;
 
     }
 
@@ -681,18 +745,38 @@ void sched_init ( struct sched *s , int nr_queues , int size ) {
     s->count = 0;
     
     /* Allocate the initial deps. */
-    s->size_deps = sched_init_depsperqueue * size;
+    s->size_deps = sched_init_depspertask * size;
     if ( ( s->deps = (int *)malloc( sizeof(int) * s->size_deps ) ) == NULL ||
          ( s->deps_key = (int *)malloc( sizeof(int) * s->size_deps ) ) == NULL )
         error( "Failed to allocate memory for deps." );
     s->count_deps = 0;
 
     /* Allocate the initial locks. */
-    s->size_locks = sched_init_locksperqueue * size;
+    s->size_locks = sched_init_lockspertask * size;
     if ( ( s->locks = (int *)malloc( sizeof(int) * s->size_locks ) ) == NULL ||
          ( s->locks_key = (int *)malloc( sizeof(int) * s->size_locks ) ) == NULL )
         error( "Failed to allocate memory for locks." );
     s->count_locks = 0;
+    
+    /* Allocate the initial res. */
+    s->size_res = sched_init_respertask * size;
+    if ( ( s->res = (lock_type *)malloc( sizeof(lock_type) * s->size_res ) ) == NULL ||
+         ( s->res_owner = (int *)malloc( sizeof(int) * s->size_res ) ) == NULL )
+        error( "Failed to allocate memory for res." );
+    s->count_res = 0;
+    
+    /* Allocate the initial uses. */
+    s->size_uses = sched_init_usespertask * size;
+    if ( ( s->uses = (int *)malloc( sizeof(int) * s->size_uses ) ) == NULL ||
+         ( s->uses_key = (int *)malloc( sizeof(int) * s->size_uses ) ) == NULL )
+        error( "Failed to allocate memory for uses." );
+    s->count_uses = 0;
+    
+    /* Allocate the initial data. */
+    s->size_data = sched_init_datapertask * size;
+    if ( ( s->data = malloc( sizeof(int) * s->size_data ) ) == NULL )
+        error( "Failed to allocate memory for data." );
+    s->count_data = 0;
     
     /* Init the sched lock. */
     lock_init( &s->lock );

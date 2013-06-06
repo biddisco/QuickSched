@@ -1,6 +1,6 @@
 
 # This file is part of QuickSched.
-# Coypright (c) 2012 Pedro Gonnet (pedro.gonnet@durham.ac.uk),
+# Coypright (c) 2013 Pedro Gonnet (pedro.gonnet@durham.ac.uk),
 # 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -27,7 +27,7 @@ AM_LDFLAGS = -version-info 0:0:0
 
 # Build the libquicksched library
 lib_LTLIBRARIES = libquicksched.la
-libquicksched_la_SOURCES = sched.o queue.o
+libquicksched_la_SOURCES = sched.c queue.c
 
 # List required headers
 include_HEADERS = atomic.h  lock.h  queue.h  sched.h  task.h

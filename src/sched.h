@@ -25,8 +25,11 @@
 /* Some sched-specific constants. */
 #define sched_stretch                   1.41
 #define sched_inc                       10
-#define sched_init_depsperqueue         2
-#define sched_init_locksperqueue        2
+#define sched_init_depspertask          2
+#define sched_init_lockspertask         2
+#define sched_init_usespertask          2
+#define sched_init_respertask           2
+#define sched_init_datapertask          2
 #define sched_data_round                16
 
 
@@ -115,5 +118,7 @@ int sched_newtask ( struct sched *s , int type , int subtype , int flags , void 
 struct task *sched_gettask ( struct sched *s , int qid );
 void sched_adduse ( struct sched *s , int t , int res );
 void sched_done ( struct sched *s , struct task *t );
+void *sched_getdata( struct sched *s , struct task *t );
+void sched_free ( struct sched *s );
 
 

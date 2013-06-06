@@ -23,6 +23,7 @@
 #include <string.h>
 
 /* Local includes. */
+#include "cycle.h"
 #include "atomic.h"
 #include "lock.h"
 #include "task.h"
@@ -57,7 +58,7 @@ int queue_get ( struct queue *q ) {
     
     /* Wait for either there to be something at that index, or
        for the queue to be empty. */
-    while ( q->count && ( tid = q->inds[ind] ) != -1 );
+    while ( q->count && ( tid = q->inds[ind] ) == -1 );
     
     /* If we got something, clear the field. */
     if ( tid >= 0 )
@@ -80,17 +81,27 @@ void queue_put ( struct queue *q , int tid ) {
 
     int ind;
     
-    /* Let everybody know a task will be inserted. */
-    atomic_inc( &q->count );
-    
     /* Get the next free index. */
     ind = atomic_inc( &q->last ) % q->size;
     
     /* Wait for the data at that position to be free. */
-    while ( q->inds[ind] < 0 );
+    while ( q->inds[ind] != -1 );
     
     /* Drop the task index in there. */
     q->inds[ind] = tid;
+
+    }
+
+
+/**
+ * @brief Clean up a queue and free its memory.
+ */
+ 
+void queue_free ( struct queue *q ) {
+
+    /* Free the inds. */
+    if ( q->inds != NULL )
+        free( (void *)q->inds );
 
     }
 

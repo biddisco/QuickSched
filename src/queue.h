@@ -43,3 +43,4 @@ struct queue {
 int queue_get ( struct queue *q );
 void queue_put ( struct queue *q , int tid );
 void queue_init ( struct queue *q , int size );
+void queue_free ( struct queue *q );

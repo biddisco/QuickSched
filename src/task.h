@@ -41,5 +41,9 @@ struct task {
 
     /* Task uses. */
     int *uses, nr_uses;
+    
+    /* Timers and other info. */
+    ticks tic, toc;
+    int qid;
 
     };
