@@ -22,13 +22,17 @@
 struct task {
 
     /* Task type, subtype, and flags. */
-    int type, subtype, flags;
+    int type, subtype;
+    unsigned int flags;
     
     /* Task payload offset. */
     int data;
     
     /* Task wait counter. */
     int wait;
+    
+    /* Task skip flag. */
+    int skip;
     
     /* Number of potential conflicts. */
     int nr_conflicts;

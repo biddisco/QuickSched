@@ -76,7 +76,7 @@ void sched_enqueue ( struct sched *s , struct task *t ) {
     qid = 0;
     for ( j = 1 ; j < s->nr_queues ; j++ )
         if ( scores[j] > scores[qid] ||
-             (scores[j] == scores[qid] && s->queues[j].count < s->queues[qid].count ) )
+             ( scores[j] == scores[qid] && s->queues[j].count < s->queues[qid].count ) )
             qid = j;
 
     /* Increase that queue's count. */
@@ -112,7 +112,7 @@ void sched_done ( struct sched *s , struct task *t ) {
         t2 = &s->tasks[ t->unlocks[k] ];
 
         /* Is the unlocked task ready to run? */
-        if ( atomic_dec( &t2->wait ) == 1 )
+        if ( atomic_dec( &t2->wait ) == 1 && !t2->skip )
             sched_enqueue( s , t2 );
             
         }
@@ -315,6 +315,7 @@ void sched_prepare ( struct sched *s ) {
         /* Run throught the tasks and link the locks and unlocks. */
         s->tasks[0].unlocks = s->deps;
         s->tasks[0].locks = s->locks;
+        s->tasks[0].uses = s->uses;
         for ( k = 1 ; k < s->count ; k++ ) {
             s->tasks[k].unlocks = &s->tasks[k-1].unlocks[ s->tasks[k-1].nr_unlocks ];
             s->tasks[k].locks = &s->tasks[k-1].locks[ s->tasks[k-1].nr_locks ];
@@ -333,14 +334,15 @@ void sched_prepare ( struct sched *s ) {
     /* Run through the tasks and set the waits... */
     for ( k = 0 ; k < s->count ; k++ ) {
         t = &s->tasks[k];
-        for ( j = 0 ; j < t->nr_unlocks ; j++ )
-            s->tasks[ t->unlocks[j] ].wait += 1;
+        if ( !t->skip )
+            for ( j = 0 ; j < t->nr_unlocks ; j++ )
+                s->tasks[ t->unlocks[j] ].wait += 1;
         }
 
     /* Run through the tasks and put the non-waiting ones in queues. */
     for ( j = 0 , k = 0 ; k < s->count ; k++ ) {
         t = &s->tasks[k];
-        if ( t->wait == 0 )
+        if ( t->wait == 0 && !t->skip )
             sched_enqueue( s , t );
         }
         
@@ -596,7 +598,7 @@ void sched_addunlock ( struct sched *s , int ta , int tb ) {
  * @param flags Task flags.
  */
  
-int sched_newtask ( struct sched *s , int type , int subtype , int flags , void *data , int data_size ) {
+int sched_newtask ( struct sched *s , int type , int subtype , unsigned int flags , void *data , int data_size ) {
 
     void *temp;
     struct task *t;
@@ -663,6 +665,7 @@ int sched_newtask ( struct sched *s , int type , int subtype , int flags , void 
     t->nr_unlocks = 0;
     t->nr_locks = 0;
     t->nr_uses = 0;
+    t->skip = 0;
     
     /* Add a relative pointer to the data. */
     memcpy( &s->data[ s->count_data ] , data , data_size );

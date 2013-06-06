@@ -114,7 +114,7 @@ void sched_prepare ( struct sched *s );
 int sched_addres ( struct sched *s );
 void sched_addlock ( struct sched *s , int t , int res );
 void sched_addunlock ( struct sched *s , int ta , int tb );
-int sched_newtask ( struct sched *s , int type , int subtype , int flags , void *data , int data_size );
+int sched_newtask ( struct sched *s , int type , int subtype , unsigned int flags , void *data , int data_size );
 struct task *sched_gettask ( struct sched *s , int qid );
 void sched_adduse ( struct sched *s , int t , int res );
 void sched_done ( struct sched *s , struct task *t );

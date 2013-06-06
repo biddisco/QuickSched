@@ -31,7 +31,7 @@
     #define lock_init( l ) ( pthread_spin_init( l , PTHREAD_PROCESS_PRIVATE ) != 0 )
     #define lock_destroy( l ) ( pthread_spin_destroy( l ) != 0 )
     #define lock_lock( l ) ( pthread_spin_lock( l ) != 0 )
-    #define lock_trylock( l ) ( pthread_spin_lock( l ) != 0 )
+    #define lock_trylock( l ) ( pthread_spin_trylock( l ) != 0 )
     #define lock_unlock( l ) ( pthread_spin_unlock( l ) != 0 )
     #define lock_unlock_blind( l ) pthread_spin_unlock( l )
 #else
