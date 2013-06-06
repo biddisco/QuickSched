@@ -22,7 +22,7 @@ AUTOMAKE_OPTIONS=gnu
 # Add the source directory and debug to CFLAGS
 AM_CFLAGS = -g -Wall -Werror -I../src $(OPENMP_CFLAGS) -DCPU_TPS=2.67e9
 
-AM_LDFLAGS =
+AM_LDFLAGS = -lm
 
 # Set-up the library
 bin_PROGRAMS = test
