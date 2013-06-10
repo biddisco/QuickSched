@@ -62,28 +62,42 @@ void sched_enqueue ( struct sched *s , struct task *t ) {
 
     int j, qid, scores[ s->nr_queues ];
     
-    /* Init the scores for each queue. */
-    for ( j = 0 ; j < s->nr_queues ; j++ )
-        scores[j] = 0;
-
-    /* Loop over the locks and uses, and get their owners. */
-    for ( j = 0 ; j < t->nr_locks ; j++ )
-        scores[ s->res_owner[ t->locks[j] ] ] += 1;
-    for ( j = 0 ; j < t->nr_uses ; j++ )
-        scores[ s->res_owner[ t->uses[j] ] ] += 1;
-
-    /* Find the queue with the highest score. */
-    qid = 0;
-    for ( j = 1 ; j < s->nr_queues ; j++ )
-        if ( scores[j] > scores[qid] ||
-             ( scores[j] == scores[qid] && s->queues[j].count < s->queues[qid].count ) )
-            qid = j;
-
-    /* Increase that queue's count. */
-    atomic_inc( &s->queues[qid].count );
+    /* If this is a virtual task, just do its unlocks and leave. */
+    if ( t->flags & task_flag_virtual ) {
         
-    /* Put the unlocked task in that queue. */
-    queue_put( &s->queues[qid] , t - s->tasks );
+        /* This task is done before it started. */
+        t->tic = getticks();
+        sched_done( s , t );
+        
+        }
+        
+    /* Otherwise, find a home (queue) for it. */
+    else {
+    
+        /* Init the scores for each queue. */
+        for ( j = 0 ; j < s->nr_queues ; j++ )
+            scores[j] = 0;
+
+        /* Loop over the locks and uses, and get their owners. */
+        for ( j = 0 ; j < t->nr_locks ; j++ )
+            scores[ s->res_owner[ t->locks[j] ] ] += 1;
+        for ( j = 0 ; j < t->nr_uses ; j++ )
+            scores[ s->res_owner[ t->uses[j] ] ] += 1;
+
+        /* Find the queue with the highest score. */
+        qid = 0;
+        for ( j = 1 ; j < s->nr_queues ; j++ )
+            if ( scores[j] > scores[qid] ||
+                 ( scores[j] == scores[qid] && s->queues[j].count < s->queues[qid].count ) )
+                qid = j;
+                
+        /* Increase that queue's count. */
+        atomic_inc( &s->queues[qid].count );
+        
+        /* Put the unlocked task in that queue. */
+        queue_put( &s->queues[qid] , t - s->tasks );
+        
+        }
     
     }
 
@@ -112,7 +126,7 @@ void sched_done ( struct sched *s , struct task *t ) {
         t2 = &s->tasks[ t->unlocks[k] ];
 
         /* Is the unlocked task ready to run? */
-        if ( atomic_dec( &t2->wait ) == 1 && !t2->skip )
+        if ( atomic_dec( &t2->wait ) == 1 && !( t2->flags & task_flag_skip ) )
             sched_enqueue( s , t2 );
             
         }
@@ -145,6 +159,10 @@ struct task *sched_gettask ( struct sched *s , int qid ) {
     if ( s->flags & sched_flag_dirty || !(s->flags & sched_flag_ready) )
         error( "Calling gettask with dirty or unprepared sched." );
         
+    /* Check if the queue ID is ok. */
+    if ( qid < 0 || qid >= s->nr_queues )
+        error( "Invalid queue ID." );
+        
     /* Main loop. */
     while ( s->waiting ) {
     
@@ -152,12 +170,14 @@ struct task *sched_gettask ( struct sched *s , int qid ) {
         maxq = qid;
     
         /* Try to get a task from my own queue. */
-        if ( qid >= s->nr_queues || ( tid = queue_get( &s->queues[qid] ) ) < 0 ) {
+        if ( ( tid = queue_get( &s->queues[qid] ) ) < 0 ) {
             
             /* Otherwise, look for the largest queue. */
             maxq = 0;
             for ( k = 0 ; k < s->nr_queues ; k++ )
-                if ( k != qid && s->queues[k].count > s->queues[maxq].count )
+                if ( k != qid &&
+                     s->queues[k].count > s->queues[maxq].count &&
+                     s->queues[k].first < s->queues[k].last )
                     maxq = k;
             if ( ( tid = queue_get( &s->queues[maxq] ) ) < 0 )
                 continue;
@@ -192,6 +212,10 @@ struct task *sched_gettask ( struct sched *s , int qid ) {
             
             /* Decrease the number of tasks in this space. */
             atomic_dec( &s->waiting );
+            
+            /* Own the resources. */
+            for ( k = 0 ; k < t->nr_uses ; k++ )
+                s->res_owner[ t->uses[k] ] = qid;
             
             /* Set some stats data. */
             t->tic = getticks();
@@ -259,17 +283,33 @@ void sched_sort ( int *restrict data , int *restrict ind , int N , int min , int
                 temp_d = data[i]; data[i] = data[j]; data[j] = temp_d;
                 }
             }
+            
+        /* Recurse in parallel? */
+        if ( N > 100 ) {
 
-        /* Recurse on the left? */
-        if ( j > 0  && pivot > min ) {
-            #pragma omp task untied
-            sched_sort( data , ind , j+1 , min , pivot );
+            /* Recurse on the left? */
+            if ( j > 0  && pivot > min ) {
+                #pragma omp task untied
+                sched_sort( data , ind , j+1 , min , pivot );
+                }
+
+            /* Recurse on the right? */
+            if ( i < N && pivot+1 < max ) {
+                #pragma omp task untied
+                sched_sort( &data[i], &ind[i], N-i , pivot+1 , max );
+                }
+
             }
+        else {
+            
+            /* Recurse on the left? */
+            if ( j > 0  && pivot > min )
+                sched_sort( data , ind , j+1 , min , pivot );
 
-        /* Recurse on the right? */
-        if ( i < N && pivot+1 < max ) {
-            #pragma omp task untied
-            sched_sort( &data[i], &ind[i], N-i , pivot+1 , max );
+            /* Recurse on the right? */
+            if ( i < N && pivot+1 < max )
+                sched_sort( &data[i], &ind[i], N-i , pivot+1 , max );
+            
             }
             
         }
@@ -334,7 +374,7 @@ void sched_prepare ( struct sched *s ) {
     /* Run through the tasks and set the waits... */
     for ( k = 0 ; k < s->count ; k++ ) {
         t = &s->tasks[k];
-        if ( !t->skip )
+        if ( !( t->flags & task_flag_skip ) )
             for ( j = 0 ; j < t->nr_unlocks ; j++ )
                 s->tasks[ t->unlocks[j] ].wait += 1;
         }
@@ -342,7 +382,7 @@ void sched_prepare ( struct sched *s ) {
     /* Run through the tasks and put the non-waiting ones in queues. */
     for ( j = 0 , k = 0 ; k < s->count ; k++ ) {
         t = &s->tasks[k];
-        if ( t->wait == 0 && !t->skip )
+        if ( t->wait == 0 && !( t->flags & task_flag_skip ) )
             sched_enqueue( s , t );
         }
         
@@ -665,7 +705,6 @@ int sched_newtask ( struct sched *s , int type , int subtype , unsigned int flag
     t->nr_unlocks = 0;
     t->nr_locks = 0;
     t->nr_uses = 0;
-    t->skip = 0;
     
     /* Add a relative pointer to the data. */
     memcpy( &s->data[ s->count_data ] , data , data_size );
@@ -695,21 +734,22 @@ void sched_free ( struct sched *s ) {
     int k;
 
     /* Clear all the buffers if allocated. */
-    if ( s->tasks != NULL ) free( s->tasks );
-    if ( s->deps != NULL ) free( s->deps );
-    if ( s->deps_key != NULL ) free( s->deps_key );
-    if ( s->locks != NULL ) free( s->locks );
-    if ( s->locks_key != NULL ) free( s->locks_key );
-    if ( s->uses != NULL ) free( s->uses );
-    if ( s->uses_key != NULL ) free( s->uses_key );
-    if ( s->res != NULL ) free( (void *)s->res );
-    if ( s->res_owner != NULL ) free( s->res_owner );
-    if ( s->data != NULL ) free( s->data );
+    if ( s->tasks != NULL ) { free( s->tasks ); s->tasks = NULL; }
+    if ( s->deps != NULL ) { free( s->deps ); s->deps = NULL; }
+    if ( s->deps_key != NULL ) { free( s->deps_key ); s->deps_key = NULL; }
+    if ( s->locks != NULL ) { free( s->locks ); s->locks = NULL; }
+    if ( s->locks_key != NULL ) { free( s->locks_key ); s->locks_key = NULL; }
+    if ( s->uses != NULL ) { free( s->uses ); s->uses = NULL; }
+    if ( s->uses_key != NULL ) { free( s->uses_key ); s->uses_key = NULL; }
+    if ( s->res != NULL ) { free( (void *)s->res ); s->res = NULL; }
+    if ( s->res_owner != NULL ) { free( s->res_owner ); s->res_owner = NULL; }
+    if ( s->data != NULL ) { free( s->data ); s->data = NULL; }
     
     /* Loop over the queues and free them too. */
     for ( k = 0 ; k < s->nr_queues ; k++ )
         queue_free( &s->queues[k] );
     free( s->queues );
+    s->queues = NULL;
         
     /* Clear the flags. */
     s->flags = sched_flag_none;

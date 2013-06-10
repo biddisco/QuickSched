@@ -17,6 +17,11 @@
  * 
  ******************************************************************************/
 
+/* Task flags. */
+#define task_flag_none                  0
+#define task_flag_skip                  1
+#define task_flag_virtual               2
+
 
 /* The task data structure. */
 struct task {
@@ -30,9 +35,6 @@ struct task {
     
     /* Task wait counter. */
     int wait;
-    
-    /* Task skip flag. */
-    int skip;
     
     /* Number of potential conflicts. */
     int nr_conflicts;
