@@ -68,7 +68,7 @@ PRE_UNINSTALL = :
 POST_UNINSTALL = :
 build_triplet = @build@
 host_triplet = @host@
-bin_PROGRAMS = test$(EXEEXT)
+bin_PROGRAMS = test$(EXEEXT) test_qr$(EXEEXT) test_bh$(EXEEXT)
 subdir = examples
 DIST_COMMON = $(srcdir)/Makefile.am $(srcdir)/Makefile.in
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
@@ -98,6 +98,18 @@ test_DEPENDENCIES = ../src/.libs/libquicksched.a
 test_LINK = $(LIBTOOL) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) \
 	--mode=link $(CCLD) $(test_CFLAGS) $(CFLAGS) $(AM_LDFLAGS) \
 	$(LDFLAGS) -o $@
+am_test_bh_OBJECTS = test_bh-test_bh.$(OBJEXT)
+test_bh_OBJECTS = $(am_test_bh_OBJECTS)
+test_bh_DEPENDENCIES = ../src/.libs/libquicksched.a
+test_bh_LINK = $(LIBTOOL) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) \
+	--mode=link $(CCLD) $(test_bh_CFLAGS) $(CFLAGS) $(AM_LDFLAGS) \
+	$(LDFLAGS) -o $@
+am_test_qr_OBJECTS = test_qr-test_qr.$(OBJEXT)
+test_qr_OBJECTS = $(am_test_qr_OBJECTS)
+test_qr_DEPENDENCIES = ../src/.libs/libquicksched.a
+test_qr_LINK = $(LIBTOOL) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) \
+	--mode=link $(CCLD) $(test_qr_CFLAGS) $(CFLAGS) $(AM_LDFLAGS) \
+	$(LDFLAGS) -o $@
 DEFAULT_INCLUDES = -I.@am__isrc@ -I$(top_builddir)
 depcomp = $(SHELL) $(top_srcdir)/depcomp
 am__depfiles_maybe = depfiles
@@ -111,8 +123,8 @@ CCLD = $(CC)
 LINK = $(LIBTOOL) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) \
 	--mode=link $(CCLD) $(AM_CFLAGS) $(CFLAGS) $(AM_LDFLAGS) \
 	$(LDFLAGS) -o $@
-SOURCES = $(test_SOURCES)
-DIST_SOURCES = $(test_SOURCES)
+SOURCES = $(test_SOURCES) $(test_bh_SOURCES) $(test_qr_SOURCES)
+DIST_SOURCES = $(test_SOURCES) $(test_bh_SOURCES) $(test_qr_SOURCES)
 am__can_run_installinfo = \
   case $$AM_UPDATE_INFO_DIR in \
     n|no|NO) false;; \
@@ -270,13 +282,25 @@ top_srcdir = @top_srcdir@
 AUTOMAKE_OPTIONS = gnu
 
 # Add the source directory and debug to CFLAGS
-AM_CFLAGS = -g -Wall -Werror -I../src $(OPENMP_CFLAGS) -DCPU_TPS=2.67e9
-AM_LDFLAGS = -lm
+AM_CFLAGS = -g -Wall -Werror -I../src $(OPENMP_CFLAGS) -DCPU_TPS=2.67e9 \
+    -fsanitize=address -fno-omit-frame-pointer
+
+AM_LDFLAGS = -lm -fsanitize=address
 
 # Sources for test
 test_SOURCES = test.c
 test_CFLAGS = $(AM_CFLAGS)
 test_LDADD = ../src/.libs/libquicksched.a
+
+# Sources for test_qr
+test_qr_SOURCES = test_qr.c
+test_qr_CFLAGS = $(AM_CFLAGS)
+test_qr_LDADD = ../src/.libs/libquicksched.a -lblas
+
+# Sources for test_bh
+test_bh_SOURCES = test_bh.c
+test_bh_CFLAGS = $(AM_CFLAGS)
+test_bh_LDADD = ../src/.libs/libquicksched.a
 all: all-am
 
 .SUFFIXES:
@@ -360,6 +384,12 @@ clean-binPROGRAMS:
 test$(EXEEXT): $(test_OBJECTS) $(test_DEPENDENCIES) $(EXTRA_test_DEPENDENCIES) 
 	@rm -f test$(EXEEXT)
 	$(test_LINK) $(test_OBJECTS) $(test_LDADD) $(LIBS)
+test_bh$(EXEEXT): $(test_bh_OBJECTS) $(test_bh_DEPENDENCIES) $(EXTRA_test_bh_DEPENDENCIES) 
+	@rm -f test_bh$(EXEEXT)
+	$(test_bh_LINK) $(test_bh_OBJECTS) $(test_bh_LDADD) $(LIBS)
+test_qr$(EXEEXT): $(test_qr_OBJECTS) $(test_qr_DEPENDENCIES) $(EXTRA_test_qr_DEPENDENCIES) 
+	@rm -f test_qr$(EXEEXT)
+	$(test_qr_LINK) $(test_qr_OBJECTS) $(test_qr_LDADD) $(LIBS)
 
 mostlyclean-compile:
 	-rm -f *.$(OBJEXT)
@@ -368,6 +398,8 @@ distclean-compile:
 	-rm -f *.tab.c
 
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/test-test.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/test_bh-test_bh.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/test_qr-test_qr.Po@am__quote@
 
 .c.o:
 @am__fastdepCC_TRUE@	$(COMPILE) -MT $@ -MD -MP -MF $(DEPDIR)/$*.Tpo -c -o $@ $<
@@ -403,6 +435,34 @@ test-test.obj: test.c
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	source='test.c' object='test-test.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_CFLAGS) $(CFLAGS) -c -o test-test.obj `if test -f 'test.c'; then $(CYGPATH_W) 'test.c'; else $(CYGPATH_W) '$(srcdir)/test.c'; fi`
+
+test_bh-test_bh.o: test_bh.c
+@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_bh_CFLAGS) $(CFLAGS) -MT test_bh-test_bh.o -MD -MP -MF $(DEPDIR)/test_bh-test_bh.Tpo -c -o test_bh-test_bh.o `test -f 'test_bh.c' || echo '$(srcdir)/'`test_bh.c
+@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/test_bh-test_bh.Tpo $(DEPDIR)/test_bh-test_bh.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='test_bh.c' object='test_bh-test_bh.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_bh_CFLAGS) $(CFLAGS) -c -o test_bh-test_bh.o `test -f 'test_bh.c' || echo '$(srcdir)/'`test_bh.c
+
+test_bh-test_bh.obj: test_bh.c
+@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_bh_CFLAGS) $(CFLAGS) -MT test_bh-test_bh.obj -MD -MP -MF $(DEPDIR)/test_bh-test_bh.Tpo -c -o test_bh-test_bh.obj `if test -f 'test_bh.c'; then $(CYGPATH_W) 'test_bh.c'; else $(CYGPATH_W) '$(srcdir)/test_bh.c'; fi`
+@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/test_bh-test_bh.Tpo $(DEPDIR)/test_bh-test_bh.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='test_bh.c' object='test_bh-test_bh.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_bh_CFLAGS) $(CFLAGS) -c -o test_bh-test_bh.obj `if test -f 'test_bh.c'; then $(CYGPATH_W) 'test_bh.c'; else $(CYGPATH_W) '$(srcdir)/test_bh.c'; fi`
+
+test_qr-test_qr.o: test_qr.c
+@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_qr_CFLAGS) $(CFLAGS) -MT test_qr-test_qr.o -MD -MP -MF $(DEPDIR)/test_qr-test_qr.Tpo -c -o test_qr-test_qr.o `test -f 'test_qr.c' || echo '$(srcdir)/'`test_qr.c
+@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/test_qr-test_qr.Tpo $(DEPDIR)/test_qr-test_qr.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='test_qr.c' object='test_qr-test_qr.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_qr_CFLAGS) $(CFLAGS) -c -o test_qr-test_qr.o `test -f 'test_qr.c' || echo '$(srcdir)/'`test_qr.c
+
+test_qr-test_qr.obj: test_qr.c
+@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_qr_CFLAGS) $(CFLAGS) -MT test_qr-test_qr.obj -MD -MP -MF $(DEPDIR)/test_qr-test_qr.Tpo -c -o test_qr-test_qr.obj `if test -f 'test_qr.c'; then $(CYGPATH_W) 'test_qr.c'; else $(CYGPATH_W) '$(srcdir)/test_qr.c'; fi`
+@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/test_qr-test_qr.Tpo $(DEPDIR)/test_qr-test_qr.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='test_qr.c' object='test_qr-test_qr.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_qr_CFLAGS) $(CFLAGS) -c -o test_qr-test_qr.obj `if test -f 'test_qr.c'; then $(CYGPATH_W) 'test_qr.c'; else $(CYGPATH_W) '$(srcdir)/test_qr.c'; fi`
 
 mostlyclean-libtool:
 	-rm -f *.lo

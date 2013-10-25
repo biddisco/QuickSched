@@ -22,14 +22,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 #include <math.h>
 #include <omp.h>
 
 /* Local includes. */
 #include "quicksched.h"
-
-/* Error macro. */
-#define error(s) { fprintf( stderr , "%s:%s():%i: %s\n" , __FILE__ , __FUNCTION__ , __LINE__ , s ); abort(); }
 
 
 /**
@@ -41,7 +39,7 @@ void matmul ( int m , int n , int k , double *a , int lda , double *b , int ldb 
     int ii, jj, kk;
     double acc;
     
-    // printf( "matmul: m=%i, n=%i, k=%i, lda=%i, ldb=%i, ldc=%i.\n" ,
+    // message( "matmul: m=%i, n=%i, k=%i, lda=%i, ldb=%i, ldc=%i." ,
     //     m , n , k , lda , ldb , ldc ); fflush(stdout);
     
     for ( ii = 0 ; ii < m ; ii++ )
@@ -58,7 +56,7 @@ void matmul ( int m , int n , int k , double *a , int lda , double *b , int ldb 
  * @brief First test: Just tasks, no dependencies or conflicts.
  *
  * Computes a tiled matrix multiplication of the form
- * C_ij = A_i: * B_:j, with k taskx C_ij += A_ik*B_kj.
+ * C_ij = A_i: * B_:j, with tasks C_ij += A_ik*B_kj.
  */
  
 void test2 ( int m , int n , int k , int nr_threads ) { 
@@ -68,6 +66,10 @@ void test2 ( int m , int n , int k , int nr_threads ) {
     struct task *t;
     double *a, *b, *c, *res, err = 0.0, irm = 1.0/RAND_MAX;
     ticks tic_task, toc_task, tic_ref, toc_ref;
+    
+    /* Tell the user something about the test. */
+    message( "computing a tiled matrix multiplication of the form "
+             "C_ij = A_i: * B_:j, with tasks for each k where C_ij += A_ik*B_kj." );
     
     /* Init the sched. */
     bzero( &s , sizeof(struct sched) );
@@ -91,11 +93,11 @@ void test2 ( int m , int n , int k , int nr_threads ) {
     /* Build a task for each tile of the matrix c. */
     for ( i = 0 ; i < m ; i++ )
         for ( j = 0 ; j < n ; j++ ) {
-            rid = sched_addres( &s );
+            rid = sched_addres( &s , -1 );
             data[0] = i; data[1] = j;
             for ( kk = 0 ; kk < k ; kk++ ) {
                 data[2] = kk;
-                tid = sched_newtask( &s , 1 , 0 , 0 , data , 3*sizeof(int) );
+                tid = sched_newtask( &s , 1 , 0 , 0 , data , 3*sizeof(int) , 1 );
                 sched_addlock( &s , tid , rid );
                 }
             }
@@ -122,7 +124,7 @@ void test2 ( int m , int n , int k , int nr_threads ) {
                 switch ( t->type ) {
                     case 1:
                         d = sched_getdata( &s , t );
-                        // printf( "test2[%02i]: working on block [ %i , %i ] with k=%i, lock[0]=%i.\n" , qid , d[0] , d[1] , d[2] , t->locks[0] ); fflush(stdout);
+                        // message( "thread %i working on block [ %i , %i ] with k=%i, lock[0]=%i." , qid , d[0] , d[1] , d[2] , t->locks[0] ); fflush(stdout);
                         matmul( 32 , 32 , 32 , &a[ d[2]*32*m*32 + d[0]*32 ] , m*32 , &b[ k*32*d[1]*32 + d[2]*32 ] , k*32 , &c[ d[0]*32 + m*32*d[1]*32 ] , m*32 );
                         break;
                     default:
@@ -145,9 +147,9 @@ void test2 ( int m , int n , int k , int nr_threads ) {
     toc_ref = getticks();
     for ( i = 0 ; i < m * n * 32 * 32 ; i++ )
         err += ( res[i] - c[i] ) * ( res[i] - c[i] );
-    printf( "test2: Frob. norm of error is %.3e.\n" , sqrt( err ) );
-    printf( "test2: tasks took %lli ticks.\n" , toc_task - tic_task );
-    printf( "test2: ref.  took %lli ticks.\n" , toc_ref - tic_ref );
+    message( "Frob. norm of error is %.3e." , sqrt( err ) );
+    message( "tasks took %lli ticks." , toc_task - tic_task );
+    message( "ref.  took %lli ticks." , toc_ref - tic_ref );
     
     /* Dump the tasks. */
     /* for ( k = 0 ; k < s.count ; k++ ) {
@@ -180,6 +182,10 @@ void test1 ( int m , int n , int k , int nr_threads ) {
     double *a, *b, *c, *res, err = 0.0, irm = 1.0/RAND_MAX;
     ticks tic_task, toc_task, tic_ref, toc_ref;
     
+    /* Tell the user something about the test. */
+    message( "computing a tiled matrix multiplication of the form "
+             "C_ij = A_i: * B_:j, with a single task per C_ij." );
+    
     /* Init the sched. */
     bzero( &s , sizeof(struct sched) );
     sched_init( &s , nr_threads , m * n );
@@ -203,8 +209,8 @@ void test1 ( int m , int n , int k , int nr_threads ) {
     for ( i = 0 ; i < m ; i++ )
         for ( j = 0 ; j < n ; j++ ) {
             data[0] = i; data[1] = j;
-            rid = sched_addres( &s );
-            tid = sched_newtask( &s , 1 , 0 , 0 , data , 2*sizeof(int) );
+            rid = sched_addres( &s , -1 );
+            tid = sched_newtask( &s , 1 , 0 , 0 , data , 2*sizeof(int) , 1 );
             sched_addlock( &s , tid , rid );
             }
             
@@ -230,7 +236,7 @@ void test1 ( int m , int n , int k , int nr_threads ) {
                 switch ( t->type ) {
                     case 1:
                         d = sched_getdata( &s , t );
-                        // printf( "test1[%02i]: working on block [ %i , %i ].\n" , qid , d[0] , d[1] ); fflush(stdout);
+                        // message( "thread %i working on block [ %i , %i ]." , qid , d[0] , d[1] ); fflush(stdout);
                         matmul( 32 , 32 , k*32 , &a[ d[0]*32 ] , m*32 , &b[ k*32*d[1]*32 ] , k*32 , &c[ d[0]*32 + m*32*d[1]*32 ] , m*32 );
                         break;
                     default:
@@ -253,9 +259,9 @@ void test1 ( int m , int n , int k , int nr_threads ) {
     toc_ref = getticks();
     for ( i = 0 ; i < m * n * 32 * 32 ; i++ )
         err += ( res[i] - c[i] ) * ( res[i] - c[i] );
-    printf( "test1: Frob. norm of error is %.3e.\n" , sqrt( err ) );
-    printf( "test1: tasks took %lli ticks.\n" , toc_task - tic_task );
-    printf( "test1: ref.  took %lli ticks.\n" , toc_ref - tic_ref );
+    message( "Frob. norm of error is %.3e." , sqrt( err ) );
+    message( "tasks took %lli ticks." , toc_task - tic_task );
+    message( "ref.  took %lli ticks." , toc_ref - tic_ref );
     
     /* Dump the tasks. */
     /* for ( k = 0 ; k < s.count ; k++ ) {
@@ -279,15 +285,46 @@ void test1 ( int m , int n , int k , int nr_threads ) {
  
 int main ( int argc , char *argv[] ) {
 
-    int nr_threads;
+    int c, nr_threads;
     int M = 4, N = 4, K = 4;
     
     /* Get the number of threads. */
     #pragma omp parallel shared(nr_threads)
     {
-        #pragma omp single
-        nr_threads = omp_get_num_threads();
+        if ( omp_get_thread_num() == 0 )
+            nr_threads = omp_get_num_threads();
     }
+    
+    /* Parse the options */
+    while ( ( c = getopt( argc , argv  , "m:n:k:t:" ) ) != -1 )
+        switch( c ) {
+	        case 'k':
+	            if ( sscanf( optarg , "%d" , &K ) != 1 )
+	                error( "Error parsing dimension M." );
+	            break;
+	        case 'm':
+	            if ( sscanf( optarg , "%d" , &M ) != 1 )
+	                error( "Error parsing dimension M." );
+	            break;
+	        case 'n':
+	            if ( sscanf( optarg , "%d" , &N ) != 1 )
+	                error( "Error parsing dimension M." );
+	            break;
+	        case 't':
+	            if ( sscanf( optarg , "%d" , &nr_threads ) != 1 )
+	                error( "Error parsing number of threads." );
+	            omp_set_num_threads( nr_threads );
+	            break;
+	        case '?':
+                fprintf( stderr , "Usage: %s [-t nr_threads] [-m M] [-n N] [-k K]\n" , argv[0] );
+                fprintf( stderr , "Computes tests with nr_threads threads for the multiplication\n"
+                                  "of a matrix of size MxK and of size KxN tiles of size 32x32.\n" );
+	            exit( EXIT_FAILURE );
+	        }
+            
+    /* Dump arguments. */
+    message( "multiplying two matrices of size %ix%i and %ix%i using %i threads." ,
+        32*M , 32*K , 32*K , 32*N , nr_threads );
     
     /* Call the first test. */
     test1( M , N , K , nr_threads );
