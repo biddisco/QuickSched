@@ -23,48 +23,87 @@
 #include <string.h>
 
 /* Local includes. */
+#include "error.h"
 #include "cycle.h"
 #include "atomic.h"
 #include "lock.h"
 #include "task.h"
-#include "queue.h"
 #include "sched.h"
-
-/* Error macro. */
-#define error(s) { fprintf( stderr , "%s:%s():%i: %s\n" , __FILE__ , __FUNCTION__ , __LINE__ , s ); abort(); }
+#include "queue.h"
 
 
 /**
  * @brief Get a task index from the given #queue.
  *
  * @param q The #queue.
+ * @param s The #sched in which this queue's tasks lives.
  *
- * @return The task ID or -1 if the queue is empty.
- *
- * This function will block until there is either an available
- * index or the queue is empty.
+ * @return The task ID or -1 if no available task could be found.
  */
  
-int queue_get ( struct queue *q ) {
+int queue_get ( struct queue *q , struct sched *s ) {
 
-    int ind, tid = -1;
+    int k, j, temp, tid, *inds, w, count;
+    struct task *tasks = s->tasks;
 
     /* Should we even try? */
     if ( q->count == 0 )
         return -1;
         
-    /* Get the next index. */
-    ind = atomic_inc( &q->first ) % q->size;
+    /* Lock this queue. */
+    if ( lock_lock( &q->lock ) != 0 )
+        error( "Failed to lock queue." );
+        
+    /* Get a pointer to the indices. */
+    inds = q->inds;
+    count = q->count;
+        
+    /* Loop over the queue entries. */
+    for ( k = 0 ; k < count ; k++ ) {
     
-    /* Wait for either there to be something at that index, or
-       for the queue to be empty. */
-    while ( q->count && ( tid = q->inds[ind] ) == -1 );
+        /* Get the task ID. */
+        tid = inds[k];
+        
+        /* If the task can be locked, break. */
+        if ( sched_locktask( s , tid ) )
+            break;
     
-    /* If we got something, clear the field. */
-    if ( tid >= 0 )
-        q->inds[ind] = -1;
+        }
+        
+    /* Did we get a task? */
+    if ( k < count ) {
     
-    /* Return whatever it is whe got. */
+        /* Swap the last element to the new heap position. */
+        q->count = ( count -= 1 );
+        inds[k] = inds[ count ];
+    
+        /* Fix the heap. */
+        w = tasks[ inds[k] ].weight;
+        while ( 1 ) {
+            if ( ( j = 2*k + 1 ) >= count )
+                break;
+            if ( j+1 < count && tasks[ inds[j] ].weight < tasks[ inds[j+1] ].weight )
+                j = j + 1;
+            if ( tasks[ inds[j] ].weight > w ) {
+                temp = inds[j];
+                inds[j] = inds[k];
+                inds[k] = temp;
+                k = j;
+                }
+            else
+                break;
+            }
+        
+        } /* did we get a task? */
+        
+    /* Otherwise, clear the task ID. */
+    else
+        tid = -1;
+        
+    /* Unlock the queue. */
+    lock_unlock_blind( &q->lock );
+
+    /* Return the task ID. */
     return tid;
 
     }
@@ -74,21 +113,65 @@ int queue_get ( struct queue *q ) {
  * @brief Add a task index to the given #queue.
  * 
  * @param q The #queue.
+ * @param s The #sched in which the tasks live.
  * @param tid The task index.
  */
  
-void queue_put ( struct queue *q , int tid ) {
+void queue_put ( struct queue *q , struct sched *s , int tid ) {
 
-    int ind;
+    int ind, j, temp;
+    struct task *tasks = s->tasks;
+    int *inds, *inds_new, w;
     
-    /* Get the next free index. */
-    ind = atomic_inc( &q->last ) % q->size;
+    /* Lock this queue. */
+    if ( lock_lock( &q->lock ) != 0 )
+        error( "Failed to lock queue." );
+        
+    /* Get a pointer to the indices. */
+    inds = q->inds;
+        
+    /* Get the index of the new task. */
+    ind = q->count;
     
-    /* Wait for the data at that position to be free. */
-    while ( q->inds[ind] != -1 );
+    /* Does the queue need to be extended? */
+    if ( ind >= q->size ) {
     
-    /* Drop the task index in there. */
-    q->inds[ind] = tid;
+        /* Increase the queue size. */
+        q->size *= queue_grow;
+        
+        /* Allocate the new indices. */
+        if ( ( inds_new = (int *)malloc( sizeof(int) * q->size ) ) == NULL )
+            error( "Failed to allocate new indices." );
+            
+        /* Copy the old indices. */
+        memcpy( inds_new , inds , sizeof(int) * q->count );
+        
+        /* Clear the old indices and replace them with the new. */
+        free( inds );
+        q->inds = ( inds = inds_new );
+    
+        }
+        
+    /* Store the task index. */
+    q->count += 1;
+    inds[ind] = tid;
+    
+    /* Bubble up the new entry. */
+    w = tasks[ inds[ind] ].weight;
+    while ( ind > 0 ) {
+        j = (ind - 1)/2;
+        if ( tasks[ inds[j] ].weight < w ) {
+            temp = inds[j];
+            inds[j] = inds[ind];
+            inds[ind] = temp;
+            ind = j;
+            }
+        else
+            break;
+        }
+        
+    /* Unlock the queue. */
+    lock_unlock_blind( &q->lock );
 
     }
 
@@ -114,14 +197,6 @@ void queue_free ( struct queue *q ) {
  */
  
 void queue_init ( struct queue *q , int size ) {
-
-    int k;
-    
-    /* Make size a power of two. */
-    size -= 1;
-    for ( k = 1 ; k < sizeof(int)*8 ; k *= 2 );
-        size |= size >> k;
-    size += 1;
     
     /* Allocate the task list if needed. */
     if ( q->inds == NULL || q->size < size ) {
@@ -132,15 +207,12 @@ void queue_init ( struct queue *q , int size ) {
             error( "Failed to allocate queue inds." );
         }
     q->size = size;
+    
+    /* Init the lock. */
+    lock_init( &q->lock );
         
-    /* Fill the list with -1. */
-    for ( k = 0 ; k < size ; k++ )
-        q->inds[k] = -1;
-        
-    /* Init counters. */
+    /* Init the count. */
     q->count = 0;
-    q->first = 0;
-    q->last = 0;
     
     }
 

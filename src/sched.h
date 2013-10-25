@@ -31,6 +31,7 @@
 #define sched_init_respertask           2
 #define sched_init_datapertask          2
 #define sched_data_round                16
+#define sched_res_none                  (-1)
 
 
 /* The sched data structre. */
@@ -52,8 +53,9 @@ struct sched {
     int *uses, *uses_key;
     
     /* The shared resources. */
-    lock_type *res;
-    int *res_owner;
+    // lock_type *res;
+    // int *res_owner;
+    struct res *res;
     
     /* The task data. */
     char *data;
@@ -111,14 +113,17 @@ void sched_init ( struct sched *s , int nr_queues , int size );
 void sched_sort ( int *restrict data , int *restrict ind , int N , int min , int max );
 void sched_sort_rec ( int *restrict data , int *restrict ind , int N , int min , int max );
 void sched_prepare ( struct sched *s );
-int sched_addres ( struct sched *s );
+int sched_addres ( struct sched *s , int parent );
 void sched_addlock ( struct sched *s , int t , int res );
 void sched_addunlock ( struct sched *s , int ta , int tb );
-int sched_newtask ( struct sched *s , int type , int subtype , unsigned int flags , void *data , int data_size );
+int sched_newtask ( struct sched *s , int type , int subtype , unsigned int flags , void *data , int data_size , int cost );
 struct task *sched_gettask ( struct sched *s , int qid );
 void sched_adduse ( struct sched *s , int t , int res );
 void sched_done ( struct sched *s , struct task *t );
 void *sched_getdata( struct sched *s , struct task *t );
 void sched_free ( struct sched *s );
-
+int sched_lockres ( struct sched *s , int rid );
+void sched_unlockres ( struct sched *s , int rid );
+int sched_locktask ( struct sched *s , int tid );
+void sched_unlocktask ( struct sched *s , int tid );
 

@@ -20,7 +20,8 @@ AUTOMAKE_OPTIONS=gnu
 
 # Add the debug flag to the whole thing
 AM_CFLAGS = -g -O3 -Wall -Werror -ffast-math -fstrict-aliasing -ftree-vectorize \
-    -funroll-loops $(SIMD_FLAGS) $(OPENMP_CFLAGS)
+    -funroll-loops $(SIMD_FLAGS) $(OPENMP_CFLAGS) \
+    -fsanitize=address -fno-omit-frame-pointer
 
 # Assign a "safe" version number
 AM_LDFLAGS = -version-info 0:0:0
@@ -30,5 +31,5 @@ lib_LTLIBRARIES = libquicksched.la
 libquicksched_la_SOURCES = sched.c queue.c
 
 # List required headers
-include_HEADERS = atomic.h  lock.h  queue.h  sched.h  task.h
+include_HEADERS = atomic.h lock.h queue.h sched.h task.h res.h error.h
 

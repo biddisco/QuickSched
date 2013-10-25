@@ -18,20 +18,20 @@
  ******************************************************************************/
 
 
+/* Some constants. */
+#define queue_grow          2
+
 /* The queue data structure. */
 struct queue {
 
-    /* Index of the first task ID. */
-    volatile unsigned int first;
-    
-    /* Index of the last task ID. */
-    volatile unsigned int last;
-    
     /* Task indices. */
-    volatile int *inds;
+    int *inds;
     
     /* Number of tasks waiting in the queue. */
-    volatile int count;
+    int count;
+    
+    /* Lock to exclusively access this queue. */
+    lock_type lock;
 
     /* Maximum number of tasks in queue. */
     int size;
@@ -40,7 +40,7 @@ struct queue {
 
 
 /* Function prototypes. */
-int queue_get ( struct queue *q );
-void queue_put ( struct queue *q , int tid );
+int queue_get ( struct queue *q , struct sched *s );
+void queue_put ( struct queue *q , struct sched *s , int tid );
 void queue_init ( struct queue *q , int size );
 void queue_free ( struct queue *q );

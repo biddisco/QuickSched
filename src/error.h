@@ -18,11 +18,8 @@
  ******************************************************************************/
 
 
-/* Local includes. */
-#include "cycle.h"
-#include "error.h"
-#include "atomic.h"
-#include "lock.h"
-#include "task.h"
-#include "sched.h"
-#include "queue.h"
+/* Error macro. */
+#define error(s, ...) { fprintf( stderr , "%s:%s():%i: " s "\n" , __FILE__ , __FUNCTION__ , __LINE__ , ##__VA_ARGS__ ); abort(); }
+
+/* Message macro. */
+#define message(s, ...) { printf( "%s: " s "\n" , __FUNCTION__ , ##__VA_ARGS__ ); fflush(stdout); }

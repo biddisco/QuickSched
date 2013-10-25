@@ -18,11 +18,19 @@
  ******************************************************************************/
 
 
-/* Local includes. */
-#include "cycle.h"
-#include "error.h"
-#include "atomic.h"
-#include "lock.h"
-#include "task.h"
-#include "sched.h"
-#include "queue.h"
+/* The res data structure. */
+struct res {
+
+    /* The locks for this resource. */
+    lock_type lock;
+    
+    /* The hold counter. */
+    volatile int hold;
+    
+    /* The current owner. */
+    int owner;
+    
+    /* The resource's parent. */
+    int parent;
+
+    };

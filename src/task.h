@@ -51,5 +51,8 @@ struct task {
     /* Timers and other info. */
     ticks tic, toc;
     int qid;
+    
+    /* Task weight for queue selection. */
+    int cost, weight; 
 
     };
