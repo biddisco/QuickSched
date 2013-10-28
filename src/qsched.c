@@ -22,6 +22,16 @@
 #include <stdlib.h>
 #include <string.h>
 
+/* OpenMP headers, only if available. */
+#ifdef HAVE_OPENMP
+    #include <omp.h>
+#endif
+
+/* Pthread headers, only if available. */
+#ifdef HAVE_PTHREAD
+    #include <pthread.h>
+#endif
+
 /* Local includes. */
 #include "cycle.h"
 #include "atomic.h"
@@ -37,9 +47,91 @@
 
 
 /**
+ * @brief Execute all the tasks in the current scheduler.
+ *
+ * @param s Pointer to the #qsched.
+ * @param nr_threads Number of threads to use.
+ * @param fun User-supplied function that will be called with the
+ *        task type and a pointer to the task data.
+ *
+ * This function is only available if QuickSched was compiled with
+ * OpenMP support.
+ */
+ 
+void qsched_run ( struct qsched *s , int nr_threads , qsched_funtype fun ) {
+
+#if defined( HAVE_OPENMP )
+
+    /* Parallel loop. */
+    #pragma omp parallel num_threads( nr_threads )
+    {
+        /* Local variable. */
+        struct task *t;
+        
+        /* Get the ID of the current thread. */
+        int qid = omp_get_thread_num() % s->nr_queues;
+        
+        /* Loop as long as there are tasks. */
+        while ( ( t = qsched_gettask( s , qid ) ) != NULL ) {
+        
+            /* Call the user-supplied function on the task with its data. */
+            fun( t->type , t->data );
+            
+            /* Mark that task as done. */
+            qsched_done( s , t );
+            
+            } /* loop as long as there are tasks. */
+            
+        } /* parallel loop. */
+        
+#elif defined( HAVE_PTHREAD )
+
+    pthread_t threads[ nr_threads ];
+    int k;
+        
+    /* The runner function. */
+    void runner ( void *data ) {
+    
+        /* Local variable. */
+        struct task *t;
+        
+        /* Extract the runner's qid. */
+        int qid = (int)data;
+        
+        /* Loop as long as there are tasks. */
+        while ( ( t = qsched_gettask( s , qid ) ) != NULL ) {
+        
+            /* Call the user-supplied function on the task with its data. */
+            fun( t->type , t->data );
+            
+            /* Mark that task as done. */
+            qsched_done( s , t );
+            
+            } /* loop as long as there are tasks. */
+            
+        } /* runner function. */
+        
+    /* Init and launch the pthreads. */
+    for ( k = 0 ; k < nr_threads ; k++ ) {
+        if ( pthread_create( &threads[k] , NULL , runner , (void *)k ) != 0 )
+            error( "Failed to create pthread." );
+            
+    /* Wait for the pthreads to come home. */
+    for ( k = 0 ; k < nr_threads ; k++ )
+        if ( pthread_join( &threads[k] , NULL ) != 0 )
+            error( "Failed to join on pthread." );
+        
+#else
+    error( "QuickSched was not compiled with OpenMP or pthread support." );
+#endif
+
+    }
+
+
+/**
  * @brief Fetch the data pointer of a task.
  *
- * @param s Pointer to the #sched.
+ * @param s Pointer to the #qsched.
  * @param t Pointer to the #task.
  */
  
@@ -53,7 +145,7 @@ void *qsched_getdata( struct qsched *s , struct task *t ) {
 /**
  * @brief Put the given task in the best possible queue.
  *
- * @param s Pointer to the #sched.
+ * @param s Pointer to the #qsched.
  * @param t Pointer to the #task.
  */
  
@@ -99,9 +191,9 @@ void qsched_enqueue ( struct qsched *s , struct task *t ) {
 
 
 /**
- * @brief Tell the #sched that a task has completed.
+ * @brief Tell the #qsched that a task has completed.
  *
- * @param s Pointer to the #sched.
+ * @param s Pointer to the #qsched.
  * @param t Pointer to the completed #task.
  */
  
@@ -136,7 +228,7 @@ void qsched_done ( struct qsched *s , struct task *t ) {
 /**
  * @brief Lock a resource and hold its parents.
  *
- * @param s Pointer to the #sched.
+ * @param s Pointer to the #qsched.
  * @param rid The ID of the resource to lock.
  *
  * @return @c 1 if the resource could be locked, @c 0 otherwise.
@@ -190,7 +282,7 @@ int qsched_lockres ( struct qsched *s , int rid ) {
 /**
  * @brief Unlock a resource and un-hold its parents.
  *
- * @param s Pointer to the #sched.
+ * @param s Pointer to the #qsched.
  * @param rid The ID of the resource to lock.
  */
  
@@ -211,7 +303,7 @@ void qsched_unlockres ( struct qsched *s , int rid ) {
 /**
  * @brief Try to get all the locks for a task.
  * 
- * @param s Pointer to the #sched.
+ * @param s Pointer to the #qsched.
  * @param tid The ID of the #task to lock.
  *
  * @return @c 1 if the resources could be locked, @c 0 otherwise.
@@ -252,7 +344,7 @@ int qsched_locktask ( struct qsched *s , int tid ) {
 /**
  * @brief Unlock the resources associated with a task.
  *
- * @param s Pointer to the #sched.
+ * @param s Pointer to the #qsched.
  * @param tid The ID of the #task to unlock.
  */
  
@@ -272,16 +364,16 @@ void qsched_unlocktask ( struct qsched *s , int tid ) {
 
 
 /**
- * @brief Get a task from the #sched.
+ * @brief Get a task from the #qsched.
  *
- * @param s Pointer to the #sched.
+ * @param s Pointer to the #qsched.
  * @param qid The queue to use.
  *
  * @return A pointer to a task object.
  *
- * Note that the #sched has to have been prepared with #qsched_prepare
+ * Note that the #qsched has to have been prepared with #qsched_prepare
  * before any tasks can be extracted. Adding dependencies or locks
- * will require the #sched to be re-prepared.
+ * will require the #qsched to be re-prepared.
  */
  
 struct task *qsched_gettask ( struct qsched *s , int qid ) {
@@ -430,9 +522,9 @@ void qsched_sort ( int *restrict data , int *restrict ind , int N , int min , in
 
 
 /**
- * @brief Prepare a #sched for execution.
+ * @brief Prepare a #qsched for execution.
  * 
- * @param s Pointer to the #sched.
+ * @param s Pointer to the #qsched.
  */
  
 void qsched_prepare ( struct qsched *s ) {
@@ -550,9 +642,9 @@ void qsched_prepare ( struct qsched *s ) {
 
 
 /**
- * @brief Add a new resource to the #sched.
+ * @brief Add a new resource to the #qsched.
  *
- * @param s Pointer to the #sched.
+ * @param s Pointer to the #qsched.
  * @param parent ID of the parent resource or #qsched_res_none if none.
  *
  * @return The ID of the new shared resource.
@@ -610,7 +702,7 @@ int qsched_addres ( struct qsched *s , int parent ) {
 /**
  * @brief Add a resource requirement to a task.
  *
- * @param s Pointer to the #sched.
+ * @param s Pointer to the #qsched.
  * @param t ID of the task.
  * @param res ID of the resource.
  */
@@ -667,7 +759,7 @@ void qsched_addlock ( struct qsched *s , int t , int res ) {
 /**
  * @brief Add a resource use to a task.
  *
- * @param s Pointer to the #sched.
+ * @param s Pointer to the #qsched.
  * @param t ID of the task.
  * @param res ID of the resource.
  */
@@ -724,7 +816,7 @@ void qsched_adduse ( struct qsched *s , int t , int res ) {
 /**
  * @brief Add a task dependency.
  *
- * @param s Pointer to the #sched.
+ * @param s Pointer to the #qsched.
  * @param ta ID of the unlocking task.
  * @param tb ID of the unlocked task.
  *
@@ -781,9 +873,9 @@ void qsched_addunlock ( struct qsched *s , int ta , int tb ) {
 
 
 /**
- * @brief Add a new task to the #sched.
+ * @brief Add a new task to the #qsched.
  *
- * @param s Pointer to the #sched
+ * @param s Pointer to the #qsched
  * @param type Task type.
  * @param flags Task flags.
  * @param data Pointer to the task data.
@@ -877,9 +969,9 @@ int qsched_newtask ( struct qsched *s , int type , unsigned int flags , void *da
     
     
 /**
- * @brief Clean up a #sched, free all associated memory.
+ * @brief Clean up a #qsched, free all associated memory.
  *
- * @param s Pointer to the #sched.
+ * @param s Pointer to the #qsched.
  */
  
 void qsched_free ( struct qsched *s ) {
@@ -910,14 +1002,14 @@ void qsched_free ( struct qsched *s ) {
 
 
 /**
- * @brief Initialize the given #sched object.
+ * @brief Initialize the given #qsched object.
  *
- * @param s Pointer to a #sched object.
- * @param nr_queues The number of queues in the #sched.
+ * @param s Pointer to a #qsched object.
+ * @param nr_queues The number of queues in the #qsched.
  * @param size The initial number of tasks in the queue.
  *
- * Initializes the given #sched with the given number of queues.
- * The initial size is not a fixed maximum, i.e. the #sched
+ * Initializes the given #qsched with the given number of queues.
+ * The initial size is not a fixed maximum, i.e. the #qsched
  * will re-alloate its buffers if more tasks are added.
  */
  
