@@ -11,7 +11,7 @@
 %
 % For tracking purposes => this is v1.3 - March 2012
 
-\documentclass[prodmode,acmtecs]{acmsmall} % Aptara syntax
+\documentclass[prodmode,acmtopc]{acmsmall} % Aptara syntax
 
 % Package to generate and customize Algorithm as per ACM style
 \usepackage[ruled]{algorithm2e}
@@ -216,15 +216,6 @@ joined by thick dashed lines.
 None of tasks $F$, $H$, and $I$ cannot be executed concurrently,
 i.e. they must be serialized, yet in no particular order.
 
-Conflicts can be modeled as exclusive locks on a shared resource
-which have to be obtained by a task before it can execute.
-Thus, in \fig{TaskConflicts}, before executing, task $F$ has
-to obtain an exclusive lock on the resource associated with
-the conflict between tasks $F$, $H$, and $I$.
-While task $F$ is being executed, neither $H$ nor $I$ can 
-lock the same resource, and therefore will not execute until
-task $F$ is done and the lock has been released.
-
 In dependency-only systems, such conflicts can be modelled
 with dependencies, which enforce a pre-determined arbitrary
 ordering on conflicting tasks.
@@ -236,18 +227,45 @@ this problem in their respective implementations of the Fast Multipole
 Method, in which forces computed in different tasks are
 accumulated on a set of particles.
 
+Conflicts can be modeled directly as exclusive locks on a shared resource
+which have to be obtained by a task before it can execute.
+Thus, in \fig{TaskConflicts}, before executing, task $F$ has
+to obtain an exclusive lock on the resource associated with
+the conflict between tasks $F$, $H$, and $I$.
+While task $F$ is being executed, neither $H$ nor $I$ can 
+lock the same resource, and therefore will not execute until
+task $F$ is done and the lock has been released.
+
 This paper presents QuickSched, a framework for task-based
 parallel programming with constraints.
+In order to be of practical use, and to scale well with modern
+multi-core shared-memory architectures, the task scheduler
+must be:
+\begin{itemize}
+    \item {\em Correct}: All constraints, i.e.~dependencies and
+        conflicts, must be correctly enforced,
+    \item {\em Fast}: The overheads associated with task management
+        should be as small as possible,
+    \item {\em Memory/cache-efficient}: Tasks accessing similar
+        sets of data should be preferentially executed on the
+        same core to preserve memory/cache locality as far as possible, and
+    \item {\em Parallel-efficient}: Tasks should be executed in an order
+        that sufficient work is available for all computatoinal
+        threads at all times.
+\end{itemize}
+\noindent This paper presents QuickSched, a framework for task-based
+parallel programming with constraints, which aims to achieve
+all of these goals.
 Section~2 describes the underlying algorithms and data structures,
 and Section~3 describes their specific implementation in QuickSched.
 Section~4 presents two test-cases:
-\begin{itemize}
+\begin{enumerate}
     \item The tiled QR
     decomposition described in \cite{ref:Buttari2009} and for
     which the QUARK scheduler was originally developed,
     \item A task-based Barnes-Hut tree-code to compute the
     gravitational N-body problem,
-\end{itemize}
+\end{enumerate}
 These real-world examples show how QuickSched can be used in practice,
 and can be used to assess its efficiency.
 Section~5 concludes with some general observations and future work.
@@ -332,6 +350,7 @@ in detail, as well as their operations.
 
 
 \subsection{Tasks}
+\label{sec:tasks}
 
 A task consists of the following data structure, in C-like pseudo-code:
 
@@ -674,22 +693,65 @@ struct qsched {
     };
     \end{lstlisting}
 \end{minipage}\end{center}
-\noindent where\dots
+\noindent where\dots the only additional field {\tt waiting} is
+used to keep track of the number of tasks that have not been
+executed.
 Note that for brevity, and to avoid conflicts with the naming
 schemes of other standard libraries, the type name {\tt qsched}
 is used.
 
+The tasks are executed as follows:
+\begin{center}\begin{minipage}{0.9\textwidth}
+    \begin{lstlisting}
+void qsched_run ( qsched *s , void (*fun)( int , void * ) ) {
+    qsched_start( s );
+    #pragma omp parallel
+    {
+        int qid = omp_get_thread_num() % s->nr_queues;
+        struct task *t;
+        while ( ( t = qsched_gettask( s , qid ) ) != NULL ) {
+            fun( t->type , t->data );
+            qsched_done( s , t );
+            }
+        }
+    }
+    \end{lstlisting}
+\end{minipage}\end{center}
+\noindent where {\tt qsched\_start} initializes the tasks and
+fills the queues (line~1).
+For simplicity, OpenMP \cite{ref:Dagum1998}, which is available
+for most compilers, is used to create a parallel section
+in which the code between lines~4 and~12 is executed
+concurrently.
+The parallel section consists of a loop (lines~7--10) in
+which a task is acquired via the function {\tt qsched\_gettask}
+and its type and data are passed to a user-supplied execution
+function.
+Once the task has been executed, it is returned to the
+scheduler via the function {\tt qsched\_done}.
+The loop terminates when the scheduler runs out of tasks,
+i.e.~when {\tt qstack\_gettask} returns {\tt NULL}, and
+the function exits once all the threads have exited their
+loops.
+
+At the start of a parallel computation, {\tt qsched\_start}
+identifies the tasks that have no dependencies and sends them
+to queues:
 \begin{center}\begin{minipage}{0.9\textwidth}
     \begin{lstlisting}
 void qsched_start ( qsched *s ) {
     set the task waits and weights.
     s->waiting = s->nr_tasks;
     for ( k = 0 ; k < s->nr_tasks && s->tasks[tid[k]].wait == 0 ; k++ )
-        qsched_enqueue( s , tid[k] );
+        qsched_enqueue( s , &s->tasks[tid[k]] );
     }
     \end{lstlisting}
 \end{minipage}\end{center}
+\noindent where the operations in line~2 are described in \sect{tasks}.
 
+The function {\tt qsched\_enqueue} tries to identify the best
+queue for a given task by looking at which queues last used
+the resources used and locked by the task, e.g.:
 \begin{center}\begin{minipage}{0.9\textwidth}
     \begin{lstlisting}
 void qsched_enqueue ( qsched *s , struct task *t ) {
@@ -707,11 +769,17 @@ void qsched_enqueue ( qsched *s , struct task *t ) {
     }
     \end{lstlisting}
 \end{minipage}\end{center}
+\noindent where the array {\tt score} keeps a count of the
+task resources ``owned'', or last used, by each queue.
+In lines~9--12 the queue with the highest such score is 
+chosen on which the task is then put (line~13).
 
+The function {\tt qsched\_gettask} fetches a task from
+one of the queues:
 \begin{center}\begin{minipage}{0.9\textwidth}
     \begin{lstlisting}
 struct task *qsched_gettask ( qsched *s , int qid ) {
-    struct task *res;
+    struct task *res = NULL;
     int k;
     while ( s->waiting ) {
         if ( ( res = queue_get( s->queues[qid] ) ) == NULL ) {
@@ -732,10 +800,25 @@ struct task *qsched_gettask ( qsched *s , int qid ) {
     }
     \end{lstlisting}
 \end{minipage}\end{center}
+\noindent where the parameter {\tt qid} is the index of the
+prefered queue.
+If the queue is empty, or all of the tasks in that queue had
+unresolved conflicts, the scheduler uses {\em work stealing}
+\cite{ref:Blumofe1999}, i.e.~it looks for the queue with the
+largest task count, and attempts to steal a task from it
+(line~7).
+If a task could be obtained from any queue (line~13),
+the resources it locks and uses are marked as now being owned
+by the prefered queue (lines~14--17).
+Finally, the task, or {\tt NULL} if no task could be obtained,
+is returned.
 
+The final step in a task's lifecycle is, on completion,
+to unlock the tasks which depend on it.
+This is handled by the function {\tt qsched\_done}:
 \begin{center}\begin{minipage}{0.9\textwidth}
     \begin{lstlisting}
-struct task *qsched_done ( qsched *s , struct task *t ) {
+void qsched_done ( qsched *s , struct task *t ) {
     int k;
     for ( k = 0 ; k < t->nr_unlocks ; k++ )
         if ( atomic_dec( &t->unlocks[k]->wait ) == 1 )
@@ -744,23 +827,12 @@ struct task *qsched_done ( qsched *s , struct task *t ) {
     }
     \end{lstlisting}
 \end{minipage}\end{center}
-
-
-\begin{center}\begin{minipage}{0.9\textwidth}
-    \begin{lstlisting}
-struct task *qsched_run ( qsched *s , void (*fun)( int , void * ) ) {
-    #pragma omp parallel
-    {
-        int qid = omp_get_thread_num() % s->nr_queues;
-        struct task *t;
-        while ( ( t = qsched_gettask( s , qid ) ) != NULL ) {
-            fun( t->type , t->data );
-            qsched_done( s , t );
-            }
-        }
-    }
-    \end{lstlisting}
-\end{minipage}\end{center}
+\noindent If any of the unlocked tasks' wait counters
+goes to zero (line~4), then the unlocked task is ready to
+run and is immediately dispatched via {\tt qsched\_enqueue},
+as described earlier.
+Once all the dependent tasks have been unlocked, the
+{\tt waiting} counter is decremented (line~6).
 
 
 \section{User Interface}
@@ -790,9 +862,11 @@ Main points:
 \begin{acks}
 The author would like to thank Sam Townsend for implementing the
 kernels in the task-based QR decomposition as part of his MSc Thesis
-at Durham University, as well as Lydia Heck of the Institute for
+at Durham University.
+The author also thanks Lydia Heck of the Institute for
 Computational Cosmology at Durham University for providing access
-to, and expertise on, the COSMA cluster.
+to, and expertise on, the COSMA cluster used in the performance
+evaluation.
 \end{acks}
 
 % Bibliography
