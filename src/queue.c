@@ -28,7 +28,7 @@
 #include "atomic.h"
 #include "lock.h"
 #include "task.h"
-#include "sched.h"
+#include "qsched.h"
 #include "queue.h"
 
 
@@ -41,7 +41,7 @@
  * @return The task ID or -1 if no available task could be found.
  */
  
-int queue_get ( struct queue *q , struct sched *s ) {
+int queue_get ( struct queue *q , struct qsched *s ) {
 
     int k, j, temp, tid, *inds, w, count;
     struct task *tasks = s->tasks;
@@ -65,7 +65,7 @@ int queue_get ( struct queue *q , struct sched *s ) {
         tid = inds[k];
         
         /* If the task can be locked, break. */
-        if ( sched_locktask( s , tid ) )
+        if ( qsched_locktask( s , tid ) )
             break;
     
         }
@@ -117,7 +117,7 @@ int queue_get ( struct queue *q , struct sched *s ) {
  * @param tid The task index.
  */
  
-void queue_put ( struct queue *q , struct sched *s , int tid ) {
+void queue_put ( struct queue *q , struct qsched *s , int tid ) {
 
     int ind, j, temp;
     struct task *tasks = s->tasks;

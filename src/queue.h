@@ -40,7 +40,7 @@ struct queue {
 
 
 /* Function prototypes. */
-int queue_get ( struct queue *q , struct sched *s );
-void queue_put ( struct queue *q , struct sched *s , int tid );
+int queue_get ( struct queue *q , struct qsched *s );
+void queue_put ( struct queue *q , struct qsched *s , int tid );
 void queue_init ( struct queue *q , int size );
 void queue_free ( struct queue *q );

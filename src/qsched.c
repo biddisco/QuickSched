@@ -29,7 +29,7 @@
 #include "lock.h"
 #include "task.h"
 #include "res.h"
-#include "sched.h"
+#include "qsched.h"
 #include "queue.h"
 
 /* Max macro. */
@@ -43,7 +43,7 @@
  * @param t Pointer to the #task.
  */
  
-void *sched_getdata( struct sched *s , struct task *t ) {
+void *qsched_getdata( struct qsched *s , struct task *t ) {
 
     return &s->data[ t->data ];
     
@@ -57,7 +57,7 @@ void *sched_getdata( struct sched *s , struct task *t ) {
  * @param t Pointer to the #task.
  */
  
-void sched_enqueue ( struct sched *s , struct task *t ) {
+void qsched_enqueue ( struct qsched *s , struct task *t ) {
 
     int j, qid, scores[ s->nr_queues ];
     
@@ -66,7 +66,7 @@ void sched_enqueue ( struct sched *s , struct task *t ) {
         
         /* This task is done before it started. */
         t->tic = getticks();
-        sched_done( s , t );
+        qsched_done( s , t );
         
         }
         
@@ -105,14 +105,14 @@ void sched_enqueue ( struct sched *s , struct task *t ) {
  * @param t Pointer to the completed #task.
  */
  
-void sched_done ( struct sched *s , struct task *t ) {
+void qsched_done ( struct qsched *s , struct task *t ) {
 
     int k;
     struct task *t2;
     
     /* Release this task's locks. */
     for ( k = 0 ; k < t->nr_locks ; k++ )
-        sched_unlockres( s , t->locks[k] );
+        qsched_unlockres( s , t->locks[k] );
     
     /* Loop over the task's unlocks... */
     for ( k = 0 ; k < t->nr_unlocks ; k++ ) {
@@ -122,7 +122,7 @@ void sched_done ( struct sched *s , struct task *t ) {
 
         /* Is the unlocked task ready to run? */
         if ( atomic_dec( &t2->wait ) == 1 && !( t2->flags & task_flag_skip ) )
-            sched_enqueue( s , t2 );
+            qsched_enqueue( s , t2 );
             
         }
         
@@ -142,7 +142,7 @@ void sched_done ( struct sched *s , struct task *t ) {
  * @return @c 1 if the resource could be locked, @c 0 otherwise.
  */
  
-int sched_lockres ( struct sched *s , int rid ) {
+int qsched_lockres ( struct qsched *s , int rid ) {
 
     int finger, finger2;
     
@@ -158,7 +158,7 @@ int sched_lockres ( struct sched *s , int rid ) {
         
     /* Follow parents and increase their hold counter, but fail
        if any are locked. */
-    for ( finger = s->res[rid].parent ; finger != sched_res_none ; finger = s->res[finger].parent ) {
+    for ( finger = s->res[rid].parent ; finger != qsched_res_none ; finger = s->res[finger].parent ) {
         if ( lock_trylock( &s->res[finger].lock ) )
             break;
         atomic_inc( &s->res[finger].hold );
@@ -166,7 +166,7 @@ int sched_lockres ( struct sched *s , int rid ) {
         }
         
     /* Did we fail on the way up? */
-    if ( finger != sched_res_none ) {
+    if ( finger != qsched_res_none ) {
     
         /* Unlock the resource. */
         lock_unlock_blind( &s->res[rid].lock );
@@ -194,7 +194,7 @@ int sched_lockres ( struct sched *s , int rid ) {
  * @param rid The ID of the resource to lock.
  */
  
-void sched_unlockres ( struct sched *s , int rid ) {
+void qsched_unlockres ( struct qsched *s , int rid ) {
 
     int finger;
         
@@ -202,7 +202,7 @@ void sched_unlockres ( struct sched *s , int rid ) {
     lock_unlock_blind( &s->res[rid].lock );
 
     /* Go back up the tree and undo the holds. */
-    for ( finger = s->res[rid].parent ; finger != sched_res_none ; finger = s->res[finger].parent )
+    for ( finger = s->res[rid].parent ; finger != qsched_res_none ; finger = s->res[finger].parent )
         atomic_dec( &s->res[finger].hold );
             
     }
@@ -217,7 +217,7 @@ void sched_unlockres ( struct sched *s , int rid ) {
  * @return @c 1 if the resources could be locked, @c 0 otherwise.
  */
  
-int sched_locktask ( struct sched *s , int tid ) {
+int qsched_locktask ( struct qsched *s , int tid ) {
 
     int k;
     struct task *t;
@@ -227,7 +227,7 @@ int sched_locktask ( struct sched *s , int tid ) {
         
     /* Try to lock all the task's locks. */
     for ( k = 0 ; k < t->nr_locks ; k++ )
-        if ( sched_lockres( s , t->locks[k] ) == 0 )
+        if ( qsched_lockres( s , t->locks[k] ) == 0 )
             break;
 
     /* If I didn't get all the locks... */
@@ -235,7 +235,7 @@ int sched_locktask ( struct sched *s , int tid ) {
 
         /* Unroll the locks I got. */
         for ( k -= 1 ; k >= 0 ; k-- )
-            sched_unlockres( s , t->locks[k] );
+            qsched_unlockres( s , t->locks[k] );
 
         /* Fail. */
         return 0;
@@ -256,7 +256,7 @@ int sched_locktask ( struct sched *s , int tid ) {
  * @param tid The ID of the #task to unlock.
  */
  
-void sched_unlocktask ( struct sched *s , int tid ) {
+void qsched_unlocktask ( struct qsched *s , int tid ) {
 
     int k;
     struct task *t;
@@ -266,7 +266,7 @@ void sched_unlocktask ( struct sched *s , int tid ) {
         
     /* Unlock the used resources. */
     for ( k = 0 ; k < t->nr_locks ; k++ )
-        sched_unlockres( s , t->locks[k] );
+        qsched_unlockres( s , t->locks[k] );
 
     }
 
@@ -279,18 +279,18 @@ void sched_unlocktask ( struct sched *s , int tid ) {
  *
  * @return A pointer to a task object.
  *
- * Note that the #sched has to have been prepared with #sched_prepare
+ * Note that the #sched has to have been prepared with #qsched_prepare
  * before any tasks can be extracted. Adding dependencies or locks
  * will require the #sched to be re-prepared.
  */
  
-struct task *sched_gettask ( struct sched *s , int qid ) {
+struct task *qsched_gettask ( struct qsched *s , int qid ) {
 
     int k, maxq, tid;
     struct task *t;
 
     /* Check if the sched is ok. */
-    if ( s->flags & sched_flag_dirty || !(s->flags & sched_flag_ready) )
+    if ( s->flags & qsched_flag_dirty || !(s->flags & qsched_flag_ready) )
         error( "Calling gettask with dirty or unprepared sched." );
         
     /* Check if the queue ID is ok. */
@@ -358,7 +358,7 @@ struct task *sched_gettask ( struct sched *s , int qid ) {
  * This function calls itself recursively.
  */
  
-void sched_sort ( int *restrict data , int *restrict ind , int N , int min , int max ) {
+void qsched_sort ( int *restrict data , int *restrict ind , int N , int min , int max ) {
 
     int pivot = (min + max) / 2;
     int i = 0, j = N-1;
@@ -402,13 +402,13 @@ void sched_sort ( int *restrict data , int *restrict ind , int N , int min , int
             /* Recurse on the left? */
             if ( j > 0  && pivot > min ) {
                 #pragma omp task untied
-                sched_sort( data , ind , j+1 , min , pivot );
+                qsched_sort( data , ind , j+1 , min , pivot );
                 }
 
             /* Recurse on the right? */
             if ( i < N && pivot+1 < max ) {
                 #pragma omp task untied
-                sched_sort( &data[i], &ind[i], N-i , pivot+1 , max );
+                qsched_sort( &data[i], &ind[i], N-i , pivot+1 , max );
                 }
 
             }
@@ -416,11 +416,11 @@ void sched_sort ( int *restrict data , int *restrict ind , int N , int min , int
             
             /* Recurse on the left? */
             if ( j > 0  && pivot > min )
-                sched_sort( data , ind , j+1 , min , pivot );
+                qsched_sort( data , ind , j+1 , min , pivot );
 
             /* Recurse on the right? */
             if ( i < N && pivot+1 < max )
-                sched_sort( &data[i], &ind[i], N-i , pivot+1 , max );
+                qsched_sort( &data[i], &ind[i], N-i , pivot+1 , max );
             
             }
             
@@ -435,7 +435,7 @@ void sched_sort ( int *restrict data , int *restrict ind , int N , int min , int
  * @param s Pointer to the #sched.
  */
  
-void sched_prepare ( struct sched *s ) {
+void qsched_prepare ( struct qsched *s ) {
 
     int j, k, count;
     struct task *t, *tasks;
@@ -448,7 +448,7 @@ void sched_prepare ( struct sched *s ) {
     count = s->count;
     
     /* If the sched is dirty... */
-    if ( s->flags & sched_flag_dirty ) {
+    if ( s->flags & qsched_flag_dirty ) {
     
         /* Do the sorts in parallel, if possible. */
         #pragma omp parallel
@@ -456,15 +456,15 @@ void sched_prepare ( struct sched *s ) {
     
             /* Sort the unlocks. */
             #pragma omp single nowait
-            sched_sort( s->deps , s->deps_key , s->count_deps , 0 , count - 1 );
+            qsched_sort( s->deps , s->deps_key , s->count_deps , 0 , count - 1 );
 
             /* Sort the locks. */
             #pragma omp single nowait
-            sched_sort( s->locks , s->locks_key , s->count_locks , 0 , count - 1 );
+            qsched_sort( s->locks , s->locks_key , s->count_locks , 0 , count - 1 );
 
             /* Sort the uses. */
             #pragma omp single nowait
-            sched_sort( s->uses , s->uses_key , s->count_uses , 0 , count - 1 );
+            qsched_sort( s->uses , s->uses_key , s->count_uses , 0 , count - 1 );
             
         }
         
@@ -479,7 +479,7 @@ void sched_prepare ( struct sched *s ) {
             }
         
         /* All cleaned-up now! */
-        s->flags &= ~sched_flag_dirty;
+        s->flags &= ~qsched_flag_dirty;
     
         }
         
@@ -531,7 +531,7 @@ void sched_prepare ( struct sched *s ) {
     for ( k = 0 ; k < ready ; k++ ) {
         t = &tasks[tid[k]];
         if ( t->wait == 0 && !( t->flags & task_flag_skip ) )
-            sched_enqueue( s , t );
+            qsched_enqueue( s , t );
         }
         
     /* Clean up. */
@@ -541,7 +541,7 @@ void sched_prepare ( struct sched *s ) {
     s->waiting = count;
         
     /* Set the ready flag. */
-    s->flags |= sched_flag_ready;
+    s->flags |= qsched_flag_ready;
 
     /* Unlock the sched. */
     lock_unlock_blind( &s->lock );
@@ -553,12 +553,12 @@ void sched_prepare ( struct sched *s ) {
  * @brief Add a new resource to the #sched.
  *
  * @param s Pointer to the #sched.
- * @param parent ID of the parent resource or #sched_res_none if none.
+ * @param parent ID of the parent resource or #qsched_res_none if none.
  *
  * @return The ID of the new shared resource.
  */
  
-int sched_addres ( struct sched *s , int parent ) {
+int qsched_addres ( struct qsched *s , int parent ) {
 
     void *temp1, *temp2;
     int id;
@@ -570,7 +570,7 @@ int sched_addres ( struct sched *s , int parent ) {
     if ( s->count_res == s->size_res ) {
     
         /* Scale the res list size. */
-        s->size_res *= max( s->size_res + sched_inc , s->size_res * sched_stretch );
+        s->size_res *= max( s->size_res + qsched_inc , s->size_res * qsched_stretch );
         
         /* Allocate a new task list. */
         if ( ( temp1 = malloc( sizeof(lock_type) * s->size_res ) ) == NULL ||
@@ -615,7 +615,7 @@ int sched_addres ( struct sched *s , int parent ) {
  * @param res ID of the resource.
  */
  
-void sched_addlock ( struct sched *s , int t , int res ) {
+void qsched_addlock ( struct qsched *s , int t , int res ) {
 
     void *temp1, *temp2;
 
@@ -626,7 +626,7 @@ void sched_addlock ( struct sched *s , int t , int res ) {
     if ( s->count_locks == s->size_locks ) {
     
         /* Scale the locks list size. */
-        s->size_locks *= max( s->size_locks + sched_inc , s->size_locks * sched_stretch );
+        s->size_locks *= max( s->size_locks + qsched_inc , s->size_locks * qsched_stretch );
         
         /* Allocate a new task list. */
         if ( ( temp1 = malloc( sizeof(int) * s->size_locks ) ) == NULL ||
@@ -656,7 +656,7 @@ void sched_addlock ( struct sched *s , int t , int res ) {
     s->count_locks += 1;
     
     /* The sched is now dirty. */
-    s->flags |= sched_flag_dirty;
+    s->flags |= qsched_flag_dirty;
     
     /* Unlock the sched. */
     lock_unlock_blind( &s->lock );
@@ -672,7 +672,7 @@ void sched_addlock ( struct sched *s , int t , int res ) {
  * @param res ID of the resource.
  */
  
-void sched_adduse ( struct sched *s , int t , int res ) {
+void qsched_adduse ( struct qsched *s , int t , int res ) {
 
     void *temp1, *temp2;
 
@@ -683,7 +683,7 @@ void sched_adduse ( struct sched *s , int t , int res ) {
     if ( s->count_uses == s->size_uses ) {
     
         /* Scale the uses list size. */
-        s->size_uses *= max( s->size_uses + sched_inc , s->size_uses * sched_stretch );
+        s->size_uses *= max( s->size_uses + qsched_inc , s->size_uses * qsched_stretch );
         
         /* Allocate a new task list. */
         if ( ( temp1 = malloc( sizeof(int) * s->size_uses ) ) == NULL ||
@@ -713,7 +713,7 @@ void sched_adduse ( struct sched *s , int t , int res ) {
     s->count_uses += 1;
     
     /* The sched is now dirty. */
-    s->flags |= sched_flag_dirty;
+    s->flags |= qsched_flag_dirty;
     
     /* Unlock the sched. */
     lock_unlock_blind( &s->lock );
@@ -731,7 +731,7 @@ void sched_adduse ( struct sched *s , int t , int res ) {
  * A dependency is added such that @c tb depends on @c ta.
  */
  
-void sched_addunlock ( struct sched *s , int ta , int tb ) {
+void qsched_addunlock ( struct qsched *s , int ta , int tb ) {
 
     void *temp1, *temp2;
 
@@ -742,7 +742,7 @@ void sched_addunlock ( struct sched *s , int ta , int tb ) {
     if ( s->count_deps == s->size_deps ) {
     
         /* Scale the deps list size. */
-        s->size_deps *= max( s->size_deps + sched_inc , s->size_deps * sched_stretch );
+        s->size_deps *= max( s->size_deps + qsched_inc , s->size_deps * qsched_stretch );
         
         /* Allocate a new task list. */
         if ( ( temp1 = malloc( sizeof(int) * s->size_deps ) ) == NULL ||
@@ -772,7 +772,7 @@ void sched_addunlock ( struct sched *s , int ta , int tb ) {
     s->count_deps += 1;
     
     /* The sched is now dirty. */
-    s->flags |= sched_flag_dirty;
+    s->flags |= qsched_flag_dirty;
     
     /* Unlock the sched. */
     lock_unlock_blind( &s->lock );
@@ -785,14 +785,13 @@ void sched_addunlock ( struct sched *s , int ta , int tb ) {
  *
  * @param s Pointer to the #sched
  * @param type Task type.
- * @param subtype Task subtype.
  * @param flags Task flags.
  * @param data Pointer to the task data.
  * @param data_size Size, in bytes, of the task data.
  * @param cost Approximate cost for this task.
  */
  
-int sched_newtask ( struct sched *s , int type , int subtype , unsigned int flags , void *data , int data_size , int cost ) {
+int qsched_newtask ( struct qsched *s , int type , unsigned int flags , void *data , int data_size , int cost ) {
 
     void *temp;
     struct task *t;
@@ -805,7 +804,7 @@ int sched_newtask ( struct sched *s , int type , int subtype , unsigned int flag
     if ( s->count == s->size ) {
     
         /* Scale the task list size. */
-        s->size *= max( s->size + sched_inc , s->size * sched_stretch );
+        s->size *= max( s->size + qsched_inc , s->size * qsched_stretch );
         
         /* Allocate a new task list. */
         if ( ( temp = malloc( sizeof(struct task) * s->size ) ) == NULL )
@@ -823,13 +822,13 @@ int sched_newtask ( struct sched *s , int type , int subtype , unsigned int flag
         }
         
     /* Round-up the data size. */
-    data_size2 = ( data_size + (sched_data_round-1) ) & ~(sched_data_round-1);
+    data_size2 = ( data_size + (qsched_data_round-1) ) & ~(qsched_data_round-1);
         
     /* Do the task data need to be re-allocated? */
     if ( s->count_data + data_size2 > s->size_data ) {
     
         /* Scale the task list size. */
-        s->size_data *= max( s->size + data_size2 , s->size_data * sched_stretch );
+        s->size_data *= max( s->size + data_size2 , s->size_data * qsched_stretch );
         
         /* Allocate a new task list. */
         if ( ( temp = malloc( s->size_data ) ) == NULL )
@@ -852,7 +851,6 @@ int sched_newtask ( struct sched *s , int type , int subtype , unsigned int flag
     /* Init the new task. */
     t = &s->tasks[ id ];
     t->type = type;
-    t->subtype = subtype;
     t->flags = flags;
     t->cost = cost;
     t->wait = 0;
@@ -884,7 +882,7 @@ int sched_newtask ( struct sched *s , int type , int subtype , unsigned int flag
  * @param s Pointer to the #sched.
  */
  
-void sched_free ( struct sched *s ) {
+void qsched_free ( struct qsched *s ) {
 
     int k;
 
@@ -906,7 +904,7 @@ void sched_free ( struct sched *s ) {
     s->queues = NULL;
         
     /* Clear the flags. */
-    s->flags = sched_flag_none;
+    s->flags = qsched_flag_none;
 
     }
 
@@ -923,10 +921,10 @@ void sched_free ( struct sched *s ) {
  * will re-alloate its buffers if more tasks are added.
  */
  
-void sched_init ( struct sched *s , int nr_queues , int size ) {
+void qsched_init ( struct qsched *s , int nr_queues , int size ) {
     
     /* Set the flags to begin with. */
-    s->flags = sched_flag_none;
+    s->flags = qsched_flag_none;
     
     /* Allocate and clear the queues (will init when sched is
        finalized. */
@@ -942,34 +940,34 @@ void sched_init ( struct sched *s , int nr_queues , int size ) {
     s->count = 0;
     
     /* Allocate the initial deps. */
-    s->size_deps = sched_init_depspertask * size;
+    s->size_deps = qsched_init_depspertask * size;
     if ( ( s->deps = (int *)malloc( sizeof(int) * s->size_deps ) ) == NULL ||
          ( s->deps_key = (int *)malloc( sizeof(int) * s->size_deps ) ) == NULL )
         error( "Failed to allocate memory for deps." );
     s->count_deps = 0;
 
     /* Allocate the initial locks. */
-    s->size_locks = sched_init_lockspertask * size;
+    s->size_locks = qsched_init_lockspertask * size;
     if ( ( s->locks = (int *)malloc( sizeof(int) * s->size_locks ) ) == NULL ||
          ( s->locks_key = (int *)malloc( sizeof(int) * s->size_locks ) ) == NULL )
         error( "Failed to allocate memory for locks." );
     s->count_locks = 0;
     
     /* Allocate the initial res. */
-    s->size_res = sched_init_respertask * size;
+    s->size_res = qsched_init_respertask * size;
     if ( ( s->res = (struct res *)malloc( sizeof(struct res) * s->size_res ) ) == NULL )
         error( "Failed to allocate memory for res." );
     s->count_res = 0;
     
     /* Allocate the initial uses. */
-    s->size_uses = sched_init_usespertask * size;
+    s->size_uses = qsched_init_usespertask * size;
     if ( ( s->uses = (int *)malloc( sizeof(int) * s->size_uses ) ) == NULL ||
          ( s->uses_key = (int *)malloc( sizeof(int) * s->size_uses ) ) == NULL )
         error( "Failed to allocate memory for uses." );
     s->count_uses = 0;
     
     /* Allocate the initial data. */
-    s->size_data = sched_init_datapertask * size;
+    s->size_data = qsched_init_datapertask * size;
     if ( ( s->data = malloc( sizeof(int) * s->size_data ) ) == NULL )
         error( "Failed to allocate memory for data." );
     s->count_data = 0;

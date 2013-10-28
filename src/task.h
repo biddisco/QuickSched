@@ -26,8 +26,10 @@
 /* The task data structure. */
 struct task {
 
-    /* Task type, subtype, and flags. */
-    int type, subtype;
+    /* Task type. */
+    int type;
+    
+    /* Task flags. */
     unsigned int flags;
     
     /* Task payload offset. */

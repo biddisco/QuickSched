@@ -24,5 +24,5 @@
 #include "atomic.h"
 #include "lock.h"
 #include "task.h"
-#include "sched.h"
+#include "qsched.h"
 #include "queue.h"

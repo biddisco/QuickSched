@@ -18,24 +18,24 @@
  ******************************************************************************/
 
 /* Scheduler flags. */
-#define sched_flag_none                 0
-#define sched_flag_dirty                1
-#define sched_flag_ready                2
+#define qsched_flag_none                 0
+#define qsched_flag_dirty                1
+#define qsched_flag_ready                2
 
 /* Some sched-specific constants. */
-#define sched_stretch                   1.41
-#define sched_inc                       10
-#define sched_init_depspertask          2
-#define sched_init_lockspertask         2
-#define sched_init_usespertask          2
-#define sched_init_respertask           2
-#define sched_init_datapertask          2
-#define sched_data_round                16
-#define sched_res_none                  (-1)
+#define qsched_stretch                   1.41
+#define qsched_inc                       10
+#define qsched_init_depspertask          2
+#define qsched_init_lockspertask         2
+#define qsched_init_usespertask          2
+#define qsched_init_respertask           2
+#define qsched_init_datapertask          2
+#define qsched_data_round                16
+#define qsched_res_none                  (-1)
 
 
 /* The sched data structre. */
-struct sched {
+struct qsched {
 
     /* Flags for this scheduler. */
     unsigned int flags;
@@ -109,21 +109,21 @@ struct sched {
 
 
 /* Function prototypes. */
-void sched_init ( struct sched *s , int nr_queues , int size );
-void sched_sort ( int *restrict data , int *restrict ind , int N , int min , int max );
-void sched_sort_rec ( int *restrict data , int *restrict ind , int N , int min , int max );
-void sched_prepare ( struct sched *s );
-int sched_addres ( struct sched *s , int parent );
-void sched_addlock ( struct sched *s , int t , int res );
-void sched_addunlock ( struct sched *s , int ta , int tb );
-int sched_newtask ( struct sched *s , int type , int subtype , unsigned int flags , void *data , int data_size , int cost );
-struct task *sched_gettask ( struct sched *s , int qid );
-void sched_adduse ( struct sched *s , int t , int res );
-void sched_done ( struct sched *s , struct task *t );
-void *sched_getdata( struct sched *s , struct task *t );
-void sched_free ( struct sched *s );
-int sched_lockres ( struct sched *s , int rid );
-void sched_unlockres ( struct sched *s , int rid );
-int sched_locktask ( struct sched *s , int tid );
-void sched_unlocktask ( struct sched *s , int tid );
+void qsched_init ( struct qsched *s , int nr_queues , int size );
+void qsched_sort ( int *restrict data , int *restrict ind , int N , int min , int max );
+void qsched_sort_rec ( int *restrict data , int *restrict ind , int N , int min , int max );
+void qsched_prepare ( struct qsched *s );
+int qsched_addres ( struct qsched *s , int parent );
+void qsched_addlock ( struct qsched *s , int t , int res );
+void qsched_addunlock ( struct qsched *s , int ta , int tb );
+int qsched_newtask ( struct qsched *s , int type , unsigned int flags , void *data , int data_size , int cost );
+struct task *qsched_gettask ( struct qsched *s , int qid );
+void qsched_adduse ( struct qsched *s , int t , int res );
+void qsched_done ( struct qsched *s , struct task *t );
+void *qsched_getdata( struct qsched *s , struct task *t );
+void qsched_free ( struct qsched *s );
+int qsched_lockres ( struct qsched *s , int rid );
+void qsched_unlockres ( struct qsched *s , int rid );
+int qsched_locktask ( struct qsched *s , int tid );
+void qsched_unlocktask ( struct qsched *s , int tid );
 
