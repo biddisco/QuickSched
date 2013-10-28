@@ -485,7 +485,8 @@ void iact_self ( struct cell *c ) {
  
 void create_tasks ( struct qsched *s , struct cell *ci , struct cell *cj ) {
 
-    int j, k, tid;
+    int j, k;
+    qsched_task_t tid;
     struct cell *data[2];
     double dx, r2;
     

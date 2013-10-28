@@ -61,7 +61,9 @@ void matmul ( int m , int n , int k , double *a , int lda , double *b , int ldb 
  
 void test2 ( int m , int n , int k , int nr_threads ) { 
 
-    int i, j, kk, qid, data[3], *d, tid, rid;
+    int i, j, kk, qid, data[3], *d;
+    qsched_task_t tid;
+    qsched_res_t rid;
     struct qsched s;
     struct task *t;
     double *a, *b, *c, *res, err = 0.0, irm = 1.0/RAND_MAX;
@@ -176,7 +178,9 @@ void test2 ( int m , int n , int k , int nr_threads ) {
  
 void test1 ( int m , int n , int k , int nr_threads ) { 
 
-    int i, j, qid, data[2], *d, tid, rid;
+    int i, j, qid, data[2], *d;
+    qsched_task_t tid;
+    qsched_res_t rid;
     struct qsched s;
     struct task *t;
     double *a, *b, *c, *res, err = 0.0, irm = 1.0/RAND_MAX;

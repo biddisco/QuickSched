@@ -397,7 +397,8 @@ void test_qr ( int m , int n , int nr_threads ) {
     int k, j, i;
     double *A, *A_orig, *tau;
     struct qsched s;
-    int *tid, *rid, tid_new;
+    qsched_task_t *tid, tid_new;
+    qsched_res_t *rid;
     int data[3];
     
     enum task_types { task_DGEQRF , task_DLARFT , task_DTSQRF , task_DSSRFT };
@@ -425,8 +426,8 @@ void test_qr ( int m , int n , int nr_threads ) {
     qsched_init( &s , nr_threads , m*n );
     
     /* Allocate and init the task ID and resource ID matrix. */
-    if ( ( tid = (int *)malloc( sizeof(int) * m * n ) ) == NULL ||
-         ( rid = (int *)malloc( sizeof(int) * m * n ) ) == NULL )
+    if ( ( tid = (qsched_task_t *)malloc( sizeof(qsched_task_t) * m * n ) ) == NULL ||
+         ( rid = (qsched_res_t *)malloc( sizeof(qsched_res_t) * m * n ) ) == NULL )
         error( "Failed to allocate tid/rid matrix." );
     for ( k = 0 ; k < m * n ; k++ ) {
         tid[k] = -1;
