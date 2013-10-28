@@ -21,18 +21,20 @@
 #define qsched_flag_none                 0
 #define qsched_flag_dirty                1
 #define qsched_flag_ready                2
-#define qsched_flag_spin                 4
+#define qsched_flag_yield                4
+#define qsched_flag_pthread              8
 
 /* Some sched-specific constants. */
-#define qsched_stretch                   1.41
-#define qsched_inc                       10
+#define qsched_stretch                   2
+#define qsched_size_init                 1000
 #define qsched_init_depspertask          2
 #define qsched_init_lockspertask         2
 #define qsched_init_usespertask          2
 #define qsched_init_respertask           2
-#define qsched_init_datapertask          2
+#define qsched_init_datapertask          8
 #define qsched_data_round                16
 #define qsched_res_none                  (-1)
+#define qsched_task_none                 (-1)
 
 
 /** Type used for task identifiers. */
@@ -117,7 +119,13 @@ struct qsched {
     
     /* A lock for the sched itself. */
     lock_type lock;
-
+    
+    /* Pthread stuff for condition variable for yielding threads. */
+    #ifdef HAVE_PTHREAD
+        pthread_cond_t cond;
+        pthread_mutex_t mutex;
+    #endif
+    
     };
 
 
@@ -132,14 +140,15 @@ int qsched_lockres ( struct qsched *s , int rid );
 void qsched_unlockres ( struct qsched *s , int rid );
 int qsched_locktask ( struct qsched *s , int tid );
 void qsched_unlocktask ( struct qsched *s , int tid );
+void qsched_prepare ( struct qsched *s );
 
 /* External functions. */
-void qsched_init ( struct qsched *s , int nr_queues , int size );
-void qsched_prepare ( struct qsched *s );
+void qsched_init ( struct qsched *s , int nr_queues , int flags );
 qsched_res_t qsched_addres ( struct qsched *s , qsched_res_t parent );
 void qsched_addlock ( struct qsched *s , qsched_task_t t , qsched_res_t res );
 void qsched_addunlock ( struct qsched *s , qsched_task_t ta , qsched_task_t tb );
-qsched_task_t qsched_newtask ( struct qsched *s , int type , unsigned int flags , void *data , int data_size , int cost );
+qsched_task_t qsched_addtask ( struct qsched *s , int type , unsigned int flags , void *data , int data_size , int cost );
 void qsched_adduse ( struct qsched *s , qsched_task_t t , qsched_res_t res );
 void qsched_free ( struct qsched *s );
 void qsched_run ( struct qsched *s , int nr_threads , qsched_funtype fun );
+void qsched_reset ( struct qsched *s );

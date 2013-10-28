@@ -17,6 +17,9 @@
  * 
  ******************************************************************************/
 
+/* Config parameters. */
+#include "../config.h"
+
 /* Standard includes. */
 #include <stdio.h>
 #include <stdlib.h>
@@ -27,7 +30,7 @@
     #include <omp.h>
 #endif
 
-/* Pthread headers, only if available. */
+// /* Pthread headers, only if available. */
 #ifdef HAVE_PTHREAD
     #include <pthread.h>
 #endif
@@ -42,12 +45,30 @@
 #include "qsched.h"
 #include "queue.h"
 
-/* Max macro. */
-#define max(a,b) ( ((a) >= (b)) ? (a) : (b) )
+
+/**
+ * @brief Clear the tasks and resources in a scheduler.
+ *
+ * @param s Pointer to the #qsched.
+ */
+ 
+void qsched_reset ( struct qsched *s ) {
+
+    /* Simply clear the counts, leave the buffers allocated. */
+    s->count = 0;
+    s->waiting = 0;
+    s->count_data = 0;
+    s->count_deps = 0;
+    s->count_locks = 0;
+    s->count_uses = 0;
+    s->count_res = 0;
+
+    }
 
 
 /**
- * @brief Execute all the tasks in the current scheduler.
+ * @brief Execute all the tasks in the current scheduler using
+ *        OpenMP.
  *
  * @param s Pointer to the #qsched.
  * @param nr_threads Number of threads to use.
@@ -58,9 +79,12 @@
  * OpenMP support.
  */
  
-void qsched_run ( struct qsched *s , int nr_threads , qsched_funtype fun ) {
+void qsched_run_openmp ( struct qsched *s , int nr_threads , qsched_funtype fun ) {
 
 #if defined( HAVE_OPENMP )
+
+    /* Prepare the scheduler. */
+    qsched_prepare( s );
 
     /* Parallel loop. */
     #pragma omp parallel num_threads( nr_threads )
@@ -75,7 +99,7 @@ void qsched_run ( struct qsched *s , int nr_threads , qsched_funtype fun ) {
         while ( ( t = qsched_gettask( s , qid ) ) != NULL ) {
         
             /* Call the user-supplied function on the task with its data. */
-            fun( t->type , t->data );
+            fun( t->type , &s->data[ t->data ] );
             
             /* Mark that task as done. */
             qsched_done( s , t );
@@ -84,47 +108,106 @@ void qsched_run ( struct qsched *s , int nr_threads , qsched_funtype fun ) {
             
         } /* parallel loop. */
         
-#elif defined( HAVE_PTHREAD )
+#else
+    error( "QuickSched was not compiled with OpenMP support." );
+#endif
+
+    }
+    
+        
+/**
+ * @brief Execute all the tasks in the current scheduler using
+ *        pthreads.
+ *
+ * @param s Pointer to the #qsched.
+ * @param nr_threads Number of threads to use.
+ * @param fun User-supplied function that will be called with the
+ *        task type and a pointer to the task data.
+ *
+ * This function is only available if QuickSched was compiled with
+ * pthread support.
+ */
+ 
+void qsched_run_pthread ( struct qsched *s , int nr_threads , qsched_funtype fun ) {
+
+#if defined( HAVE_PTHREAD )
 
     pthread_t threads[ nr_threads ];
     int k;
         
+    /* Prepare the scheduler. */
+    qsched_prepare( s );
+
     /* The runner function. */
-    void runner ( void *data ) {
+    void *runner ( void *data ) {
     
         /* Local variable. */
         struct task *t;
         
         /* Extract the runner's qid. */
-        int qid = (int)data;
+        int qid = (size_t)data;
         
         /* Loop as long as there are tasks. */
         while ( ( t = qsched_gettask( s , qid ) ) != NULL ) {
         
             /* Call the user-supplied function on the task with its data. */
-            fun( t->type , t->data );
+            fun( t->type , &s->data[ t->data ] );
             
             /* Mark that task as done. */
             qsched_done( s , t );
             
             } /* loop as long as there are tasks. */
             
+        /* Bail. */
+        return NULL;
+        
         } /* runner function. */
         
     /* Init and launch the pthreads. */
-    for ( k = 0 ; k < nr_threads ; k++ ) {
-        if ( pthread_create( &threads[k] , NULL , runner , (void *)k ) != 0 )
+    for ( k = 0 ; k < nr_threads ; k++ )
+        if ( pthread_create( &threads[k] , NULL , runner , (void *)(size_t)k ) != 0 )
             error( "Failed to create pthread." );
             
     /* Wait for the pthreads to come home. */
     for ( k = 0 ; k < nr_threads ; k++ )
-        if ( pthread_join( &threads[k] , NULL ) != 0 )
+        if ( pthread_join( threads[k] , NULL ) != 0 )
             error( "Failed to join on pthread." );
-        
+            
 #else
-    error( "QuickSched was not compiled with OpenMP or pthread support." );
+    error( "QuickSched was not compiled with pthread support." );
 #endif
 
+    }
+    
+    
+/**
+ * @brief Execute all the tasks in the current scheduler using
+ *        pthreads.
+ *
+ * @param s Pointer to the #qsched.
+ * @param nr_threads Number of threads to use.
+ * @param fun User-supplied function that will be called with the
+ *        task type and a pointer to the task data.
+ *
+ * Depending on what type of threads QuickSched was compiled with,
+ * i.e. OpenMP and/or pthreads, and if the #qsched_flag_spin or
+ * #qsched_flag_pthread flags were set, this function calls
+ * #qsched_run_openmp or #qsched_run_pthread respectively.
+ */
+ 
+void qsched_run ( struct qsched *s , int nr_threads , qsched_funtype fun ) {
+
+    /* Force use of pthreads? */
+    if ( !HAVE_OPENMP || s->flags & ( qsched_flag_yield | qsched_flag_pthread ) )
+        qsched_run_pthread( s , nr_threads , fun );
+        
+    /* Otherwise, default to OpenMP. */
+    else if ( HAVE_OPENMP )
+        qsched_run_openmp( s , nr_threads , fun );
+        
+    else
+        error( "QuickSched was not compiled with OpenMP or pthreads." );
+        
     }
 
 
@@ -222,6 +305,18 @@ void qsched_done ( struct qsched *s , struct task *t ) {
     t->toc = getticks();
     t->cost = t->toc - t->tic;
 
+    /* Decrease the number of tasks in this space. */
+    atomic_dec( &s->waiting );
+
+    /* Ring a bell? */
+    #ifdef HAVE_PTHREAD
+        if ( s->flags & qsched_flag_yield ) {
+            pthread_mutex_lock( &s->mutex );
+            pthread_cond_broadcast( &s->cond );
+            pthread_mutex_unlock( &s->mutex );
+            }
+    #endif
+                
     }
     
     
@@ -378,7 +473,7 @@ void qsched_unlocktask ( struct qsched *s , int tid ) {
  
 struct task *qsched_gettask ( struct qsched *s , int qid ) {
 
-    int k, maxq, tid;
+    int naq, k, tid, qids[ s->nr_queues ];
     struct task *t;
 
     /* Check if the sched is ok. */
@@ -392,19 +487,20 @@ struct task *qsched_gettask ( struct qsched *s , int qid ) {
     /* Main loop. */
     while ( s->waiting ) {
     
-        /* Init some things. */
-        maxq = qid;
-    
         /* Try to get a task from my own queue. */
         if ( ( tid = queue_get( &s->queues[qid] , s ) ) < 0 ) {
             
-            /* Otherwise, look for the largest queue. */
-            maxq = 0;
-            for ( k = 0 ; k < s->nr_queues ; k++ )
-                if ( k != qid && s->queues[k].count > s->queues[maxq].count )
-                    maxq = k;
-            if ( ( tid = queue_get( &s->queues[maxq] , s ) ) < 0 )
-                continue;
+            /* Otherwise, hit the other queues. */
+            for ( naq = 0 , k = 0 ; k < s->nr_queues ; k++ )
+                if ( k != qid && s->queues[k].count > 0 )
+                    qids[ naq++ ] = k;
+            while ( naq > 0 ) {
+                k = rand() % naq;
+                if ( ( tid = queue_get( &s->queues[ qids[k] ] , s ) ) < 0 )
+                    qids[k] = qids[ --naq ];
+                else
+                    break;
+                }
                 
             }
             
@@ -414,10 +510,9 @@ struct task *qsched_gettask ( struct qsched *s , int qid ) {
             /* Get a pointer to the task. */
             t = &s->tasks[tid];
         
-            /* Decrease the number of tasks in this space. */
-            atomic_dec( &s->waiting );
-            
             /* Own the resources. */
+            for ( k = 0 ; k < t->nr_locks ; k++ )
+                s->res[ t->locks[k] ].owner = qid;
             for ( k = 0 ; k < t->nr_uses ; k++ )
                 s->res[ t->uses[k] ].owner = qid;
             
@@ -429,6 +524,16 @@ struct task *qsched_gettask ( struct qsched *s , int qid ) {
             return t;
             
             }
+        
+        /* Otherwise, take a nap? */
+        #ifdef HAVE_PTHREAD
+        else if ( s->flags & qsched_flag_yield ) {
+            pthread_mutex_lock( &s->mutex );
+            if ( s->waiting )
+                pthread_cond_wait( &s->cond , &s->mutex );
+            pthread_mutex_unlock( &s->mutex );
+            }
+        #endif
     
         }
         
@@ -662,7 +767,7 @@ int qsched_addres ( struct qsched *s , int parent ) {
     if ( s->count_res == s->size_res ) {
     
         /* Scale the res list size. */
-        s->size_res *= max( s->size_res + qsched_inc , s->size_res * qsched_stretch );
+        s->size_res *= qsched_stretch;
         
         /* Allocate a new task list. */
         if ( ( temp1 = malloc( sizeof(lock_type) * s->size_res ) ) == NULL ||
@@ -718,7 +823,7 @@ void qsched_addlock ( struct qsched *s , int t , int res ) {
     if ( s->count_locks == s->size_locks ) {
     
         /* Scale the locks list size. */
-        s->size_locks *= max( s->size_locks + qsched_inc , s->size_locks * qsched_stretch );
+        s->size_locks *= qsched_stretch;
         
         /* Allocate a new task list. */
         if ( ( temp1 = malloc( sizeof(int) * s->size_locks ) ) == NULL ||
@@ -775,7 +880,7 @@ void qsched_adduse ( struct qsched *s , int t , int res ) {
     if ( s->count_uses == s->size_uses ) {
     
         /* Scale the uses list size. */
-        s->size_uses *= max( s->size_uses + qsched_inc , s->size_uses * qsched_stretch );
+        s->size_uses *= qsched_stretch;
         
         /* Allocate a new task list. */
         if ( ( temp1 = malloc( sizeof(int) * s->size_uses ) ) == NULL ||
@@ -834,7 +939,7 @@ void qsched_addunlock ( struct qsched *s , int ta , int tb ) {
     if ( s->count_deps == s->size_deps ) {
     
         /* Scale the deps list size. */
-        s->size_deps *= max( s->size_deps + qsched_inc , s->size_deps * qsched_stretch );
+        s->size_deps *= qsched_stretch;
         
         /* Allocate a new task list. */
         if ( ( temp1 = malloc( sizeof(int) * s->size_deps ) ) == NULL ||
@@ -883,7 +988,7 @@ void qsched_addunlock ( struct qsched *s , int ta , int tb ) {
  * @param cost Approximate cost for this task.
  */
  
-int qsched_newtask ( struct qsched *s , int type , unsigned int flags , void *data , int data_size , int cost ) {
+int qsched_addtask ( struct qsched *s , int type , unsigned int flags , void *data , int data_size , int cost ) {
 
     void *temp;
     struct task *t;
@@ -896,7 +1001,7 @@ int qsched_newtask ( struct qsched *s , int type , unsigned int flags , void *da
     if ( s->count == s->size ) {
     
         /* Scale the task list size. */
-        s->size *= max( s->size + qsched_inc , s->size * qsched_stretch );
+        s->size *= qsched_stretch;
         
         /* Allocate a new task list. */
         if ( ( temp = malloc( sizeof(struct task) * s->size ) ) == NULL )
@@ -920,7 +1025,7 @@ int qsched_newtask ( struct qsched *s , int type , unsigned int flags , void *da
     if ( s->count_data + data_size2 > s->size_data ) {
     
         /* Scale the task list size. */
-        s->size_data *= max( s->size + data_size2 , s->size_data * qsched_stretch );
+        s->size_data *= qsched_stretch;
         
         /* Allocate a new task list. */
         if ( ( temp = malloc( s->size_data ) ) == NULL )
@@ -994,6 +1099,13 @@ void qsched_free ( struct qsched *s ) {
         queue_free( &s->queues[k] );
     free( s->queues );
     s->queues = NULL;
+    
+    /* Destroy the mutex and condition. */
+    #ifdef HAVE_PTHREAD
+        if ( pthread_cond_destroy( &s->cond ) != 0 ||
+             pthread_mutex_destroy( &s->mutex ) != 0 )
+            error( "Error destroying pthread cond/mutex pair." );
+    #endif
         
     /* Clear the flags. */
     s->flags = qsched_flag_none;
@@ -1006,17 +1118,15 @@ void qsched_free ( struct qsched *s ) {
  *
  * @param s Pointer to a #qsched object.
  * @param nr_queues The number of queues in the #qsched.
- * @param size The initial number of tasks in the queue.
+ * @param flags Flags specifying the behaviour of this #qsched.
  *
  * Initializes the given #qsched with the given number of queues.
- * The initial size is not a fixed maximum, i.e. the #qsched
- * will re-alloate its buffers if more tasks are added.
  */
  
-void qsched_init ( struct qsched *s , int nr_queues , int size ) {
+void qsched_init ( struct qsched *s , int nr_queues , int flags ) {
     
     /* Set the flags to begin with. */
-    s->flags = qsched_flag_none;
+    s->flags = flags;
     
     /* Allocate and clear the queues (will init when sched is
        finalized. */
@@ -1026,43 +1136,50 @@ void qsched_init ( struct qsched *s , int nr_queues , int size ) {
     s->nr_queues = nr_queues;
     
     /* Allocate the task list. */
-    if ( ( s->tasks = (struct task *)malloc( sizeof(struct task) * size ) ) == NULL )
+    s->size = qsched_size_init;
+    if ( ( s->tasks = (struct task *)malloc( sizeof(struct task) * s->size ) ) == NULL )
         error( "Failed to allocate memory for tasks." );
-    s->size = size;
     s->count = 0;
     
     /* Allocate the initial deps. */
-    s->size_deps = qsched_init_depspertask * size;
+    s->size_deps = qsched_init_depspertask * s->size;
     if ( ( s->deps = (int *)malloc( sizeof(int) * s->size_deps ) ) == NULL ||
          ( s->deps_key = (int *)malloc( sizeof(int) * s->size_deps ) ) == NULL )
         error( "Failed to allocate memory for deps." );
     s->count_deps = 0;
 
     /* Allocate the initial locks. */
-    s->size_locks = qsched_init_lockspertask * size;
+    s->size_locks = qsched_init_lockspertask * s->size;
     if ( ( s->locks = (int *)malloc( sizeof(int) * s->size_locks ) ) == NULL ||
          ( s->locks_key = (int *)malloc( sizeof(int) * s->size_locks ) ) == NULL )
         error( "Failed to allocate memory for locks." );
     s->count_locks = 0;
     
     /* Allocate the initial res. */
-    s->size_res = qsched_init_respertask * size;
+    s->size_res = qsched_init_respertask * s->size;
     if ( ( s->res = (struct res *)malloc( sizeof(struct res) * s->size_res ) ) == NULL )
         error( "Failed to allocate memory for res." );
     s->count_res = 0;
     
     /* Allocate the initial uses. */
-    s->size_uses = qsched_init_usespertask * size;
+    s->size_uses = qsched_init_usespertask * s->size;
     if ( ( s->uses = (int *)malloc( sizeof(int) * s->size_uses ) ) == NULL ||
          ( s->uses_key = (int *)malloc( sizeof(int) * s->size_uses ) ) == NULL )
         error( "Failed to allocate memory for uses." );
     s->count_uses = 0;
     
     /* Allocate the initial data. */
-    s->size_data = qsched_init_datapertask * size;
-    if ( ( s->data = malloc( sizeof(int) * s->size_data ) ) == NULL )
+    s->size_data = qsched_init_datapertask * s->size;
+    if ( ( s->data = malloc( s->size_data ) ) == NULL )
         error( "Failed to allocate memory for data." );
     s->count_data = 0;
+    
+    /* Init the pthread stuff. */
+    #ifdef HAVE_PTHREAD
+        if ( pthread_cond_init( &s->cond , NULL ) != 0 ||
+             pthread_mutex_init( &s->mutex , NULL ) != 0 )
+            error( "Error initializing cond/mutex pair." );
+    #endif
     
     /* Init the sched lock. */
     lock_init( &s->lock );
