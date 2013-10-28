@@ -18,6 +18,9 @@
  ******************************************************************************/
 
 
+/* Config parameters. */
+#include "../config.h"
+
 /* Standard includes. */
 #include <stdio.h>
 #include <stdlib.h>
@@ -402,6 +405,37 @@ void test_qr ( int m , int n , int nr_threads ) {
     int data[3];
     
     enum task_types { task_DGEQRF , task_DLARFT , task_DTSQRF , task_DSSRFT };
+
+
+    /* Runner function to pass to the scheduler. */
+    void runner ( int type , void *data ) {
+    
+        /* Decode the task data. */
+        int *idata = (int *)data;
+        int i = idata[0], j = idata[1], k = idata[2];
+        double buff[ 2*32*32 ];
+        
+        /* Decode and execute the task. */
+        switch ( type ) {
+            case task_DGEQRF:
+                DGEQRF( &A[ j*m*32*32 + i*32 ] , &tau[ j*m*32 + i*32 ] , 32 , 32 , 32*m , buff );
+                break;
+            case task_DLARFT:
+                DLARFT( &A[ j*m*32*32 + i*32 ] , &A[ i*m*32*32 + i*32 ] , &tau[ i*m*32 + i*32 ] , 32 , 32 , 32*m );
+                break;
+            case task_DTSQRF:
+                DTSQRF( &A[ j*m*32*32 + j*32 ] , &A[ j*m*32*32 + i*32 ] , &tau[ j*m*32 + i*32 ] , 32 , 32 , 32 , 32*m , buff );
+                break;
+            case task_DSSRFT:
+                DSSRFT(	&A[ k*m*32 + i*32 ] , &A[ j*m*32*32 + k*32 ] , &A[ j*m*32*32 + i*32 ] , &tau[ k*m*32 + i*32 ] , 32 , 32 , 32*m );
+                break;
+            default:
+                error( "Unknown task type." );
+            }
+
+        }
+        
+    
     
     /* Allocate and fill the original matrix. */
     if ( ( A = (double *)malloc( sizeof(double) * m * n * 32 * 32 ) ) == NULL ||
@@ -423,7 +457,7 @@ void test_qr ( int m , int n , int nr_threads ) {
     printf( "];\n" ); */
     
     /* Initialize the scheduler. */
-    qsched_init( &s , nr_threads , m*n );
+    qsched_init( &s , nr_threads , qsched_flag_none );
     
     /* Allocate and init the task ID and resource ID matrix. */
     if ( ( tid = (qsched_task_t *)malloc( sizeof(qsched_task_t) * m * n ) ) == NULL ||
@@ -439,7 +473,7 @@ void test_qr ( int m , int n , int nr_threads ) {
     
         /* Add kth corner task. */
         data[0] = k; data[1] = k; data[2] = k;
-        tid_new = qsched_newtask( &s , task_DGEQRF , task_flag_none , data , sizeof(int)*3 , 2 );
+        tid_new = qsched_addtask( &s , task_DGEQRF , task_flag_none , data , sizeof(int)*3 , 2 );
         qsched_addlock( &s , tid_new , rid[ k*m + k ] );
         if ( tid[ k*m + k ] != -1 )
             qsched_addunlock( &s , tid[ k*m + k ] , tid_new );
@@ -448,7 +482,7 @@ void test_qr ( int m , int n , int nr_threads ) {
         /* Add column tasks on kth row. */
         for ( j = k+1 ; j < n ; j++ ) {
             data[0] = k; data[1] = j; data[2] = k;
-            tid_new = qsched_newtask( &s , task_DLARFT , task_flag_none , data , sizeof(int)*3 , 3 );
+            tid_new = qsched_addtask( &s , task_DLARFT , task_flag_none , data , sizeof(int)*3 , 3 );
             qsched_addlock( &s , tid_new , rid[ j*m + k ] );
             qsched_adduse( &s , tid_new , rid[ k*m + k ] );
             qsched_addunlock( &s , tid[ k*m + k ] , tid_new );
@@ -462,7 +496,7 @@ void test_qr ( int m , int n , int nr_threads ) {
         
             /* Add the row taks for the kth column. */
             data[0] = i; data[1] = k; data[2] = k;
-            tid_new = qsched_newtask( &s , task_DTSQRF , task_flag_none , data , sizeof(int)*3 , 3 );
+            tid_new = qsched_addtask( &s , task_DTSQRF , task_flag_none , data , sizeof(int)*3 , 3 );
             qsched_addlock( &s , tid_new , rid[ k*m + i ] );
             qsched_adduse( &s , tid_new , rid[ k*m + k ] );
             qsched_addunlock( &s , tid[ k*m + (i-1) ] , tid_new );
@@ -473,7 +507,7 @@ void test_qr ( int m , int n , int nr_threads ) {
             /* Add the inner tasks. */
             for ( j = k+1 ; j < n ; j++ ) {
                 data[0] = i; data[1] = j; data[2] = k;
-                tid_new = qsched_newtask( &s , task_DSSRFT , task_flag_none , data , sizeof(int)*3 , 5 );
+                tid_new = qsched_addtask( &s , task_DSSRFT , task_flag_none , data , sizeof(int)*3 , 5 );
                 qsched_addlock( &s , tid_new , rid[ j*m + i ] );
                 qsched_adduse( &s , tid_new , rid[ k*m + i ] );
                 qsched_adduse( &s , tid_new , rid[ j*m + k ] );
@@ -488,57 +522,9 @@ void test_qr ( int m , int n , int nr_threads ) {
     
         } /* build the tasks. */
         
-    /* Prepare the scheduler. */
-    qsched_prepare( &s );
-
-    /* Parallel loop. */
-    #pragma omp parallel
-    {
+    /* Execute the the tasks. */
+    qsched_run( &s , nr_threads , runner );
     
-        int *d, qid;
-        double buff[ 2*32*32 ];
-        struct task *t;
-    
-        /* Get the ID of this runner. */
-        if ( ( qid = omp_get_thread_num() ) < nr_threads ) {
-    
-            /* Main loop. */
-            while ( 1 ) {
-
-                /* Get a task, break if unsucessful. */
-                if ( ( t = qsched_gettask( &s , qid ) ) == NULL )
-                    break;
-                    
-                /* Get the task's data. */
-                d = qsched_getdata( &s , t );
-                i = d[0]; j = d[1]; k = d[2];
-
-                /* Decode and execute the task. */
-                switch ( t->type ) {
-                    case task_DGEQRF:
-                        DGEQRF( &A[ j*m*32*32 + i*32 ] , &tau[ j*m*32 + i*32 ] , 32 , 32 , 32*m , buff );
-                        break;
-                    case task_DLARFT:
-                        DLARFT( &A[ j*m*32*32 + i*32 ] , &A[ i*m*32*32 + i*32 ] , &tau[ i*m*32 + i*32 ] , 32 , 32 , 32*m );
-                        break;
-                    case task_DTSQRF:
-                        DTSQRF( &A[ j*m*32*32 + j*32 ] , &A[ j*m*32*32 + i*32 ] , &tau[ j*m*32 + i*32 ] , 32 , 32 , 32 , 32*m , buff );
-                        break;
-                    case task_DSSRFT:
-                        DSSRFT(	&A[ k*m*32 + i*32 ] , &A[ j*m*32*32 + k*32 ] , &A[ j*m*32*32 + i*32 ] , &tau[ k*m*32 + i*32 ] , 32 , 32 , 32*m );
-                        break;
-                    default:
-                        error( "Unknown task type." );
-                    }
-
-                /* Clean up afterwards. */
-                qsched_done( &s , t );
-
-                } /* main loop. */
-                
-            } /* valid thread. */
-    
-        } /* parallel loop. */
         
     /* Dump A. */
     /* message( "A = [" );

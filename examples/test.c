@@ -18,6 +18,9 @@
  ******************************************************************************/
 
 
+/* Config parameters. */
+#include "../config.h"
+
 /* Standard includes. */
 #include <stdio.h>
 #include <stdlib.h>
@@ -61,13 +64,33 @@ void matmul ( int m , int n , int k , double *a , int lda , double *b , int ldb 
  
 void test2 ( int m , int n , int k , int nr_threads ) { 
 
-    int i, j, kk, qid, data[3], *d;
+    int i, j, kk, data[3];
     qsched_task_t tid;
     qsched_res_t rid;
     struct qsched s;
-    struct task *t;
     double *a, *b, *c, *res, err = 0.0, irm = 1.0/RAND_MAX;
     ticks tic_task, toc_task, tic_ref, toc_ref;
+    
+    
+    /* Runner function to pass to the scheduler. */
+    void runner ( int type , void *data ) {
+    
+        /* Decode the task data. */
+        int *d = (int *)data;
+        
+        /* Decode and execute the task. */
+        switch ( type ) {
+            case 1:
+                // message( "thread %i working on block [ %i , %i ] with k=%i, lock[0]=%i." , qid , d[0] , d[1] , d[2] , t->locks[0] ); fflush(stdout);
+                matmul( 32 , 32 , 32 , &a[ d[2]*32*m*32 + d[0]*32 ] , m*32 , &b[ k*32*d[1]*32 + d[2]*32 ] , k*32 , &c[ d[0]*32 + m*32*d[1]*32 ] , m*32 );
+                break;
+            default:
+                error( "Unknown task type." );
+            }
+
+        }
+        
+    
     
     /* Tell the user something about the test. */
     message( "computing a tiled matrix multiplication of the form "
@@ -75,7 +98,7 @@ void test2 ( int m , int n , int k , int nr_threads ) {
     
     /* Init the sched. */
     bzero( &s , sizeof(struct qsched) );
-    qsched_init( &s , nr_threads , m * n );
+    qsched_init( &s , nr_threads, qsched_flag_none );
 
     /* Allocate the matrices. */
     if ( ( a = (double *)malloc( sizeof(double) * m * k * 32 * 32 ) ) == NULL ||
@@ -99,50 +122,18 @@ void test2 ( int m , int n , int k , int nr_threads ) {
             data[0] = i; data[1] = j;
             for ( kk = 0 ; kk < k ; kk++ ) {
                 data[2] = kk;
-                tid = qsched_newtask( &s , 1 , task_flag_none , data , 3*sizeof(int) , 1 );
+                tid = qsched_addtask( &s , 1 , task_flag_none , data , 3*sizeof(int) , 1 );
                 qsched_addlock( &s , tid , rid );
                 }
             }
             
-    /* Prepare the sched for execution. */
-    qsched_prepare( &s );
-            
-    /* Parallel loop. */
+
+    /* Run the scheduler. */
     tic_task = getticks();
-    #pragma omp parallel private(t,qid,d)
-    {
-    
-        /* Get the ID of this runner. */
-        if ( ( qid = omp_get_thread_num() ) < nr_threads ) {
-    
-            /* Main loop. */
-            while ( 1 ) {
-
-                /* Get a task, break if unsucessful. */
-                if ( ( t = qsched_gettask( &s , qid ) ) == NULL )
-                    break;
-
-                /* Decode and execute the task. */
-                switch ( t->type ) {
-                    case 1:
-                        d = qsched_getdata( &s , t );
-                        // message( "thread %i working on block [ %i , %i ] with k=%i, lock[0]=%i." , qid , d[0] , d[1] , d[2] , t->locks[0] ); fflush(stdout);
-                        matmul( 32 , 32 , 32 , &a[ d[2]*32*m*32 + d[0]*32 ] , m*32 , &b[ k*32*d[1]*32 + d[2]*32 ] , k*32 , &c[ d[0]*32 + m*32*d[1]*32 ] , m*32 );
-                        break;
-                    default:
-                        error( "Unknown task type." );
-                    }
-
-                /* Clean up afterwards. */
-                qsched_done( &s , t );
-
-                } /* main loop. */
-                
-            } /* valid queue? */
-    
-        }
+    qsched_run( &s , nr_threads , runner );
     toc_task = getticks();
-    
+            
+
     /* Verify the result. */
     tic_ref = getticks();
     matmul( m*32 , n*32 , k*32 , a , m*32 , b , k*32 , res , m*32 );
@@ -178,13 +169,31 @@ void test2 ( int m , int n , int k , int nr_threads ) {
  
 void test1 ( int m , int n , int k , int nr_threads ) { 
 
-    int i, j, qid, data[2], *d;
+    int i, j, data[2];
     qsched_task_t tid;
     qsched_res_t rid;
     struct qsched s;
-    struct task *t;
     double *a, *b, *c, *res, err = 0.0, irm = 1.0/RAND_MAX;
     ticks tic_task, toc_task, tic_ref, toc_ref;
+    
+    
+    /* Runner function to pass to the scheduler. */
+    void runner ( int type , void *data ) {
+    
+        /* Decode the task data. */
+        int *d = (int *)data;
+        
+        /* Decode and execute the task. */
+        switch ( type ) {
+            case 1:
+                matmul( 32 , 32 , k*32 , &a[ d[0]*32 ] , m*32 , &b[ k*32*d[1]*32 ] , k*32 , &c[ d[0]*32 + m*32*d[1]*32 ] , m*32 );
+                break;
+            default:
+                error( "Unknown task type." );
+            }
+
+        }
+        
     
     /* Tell the user something about the test. */
     message( "computing a tiled matrix multiplication of the form "
@@ -192,7 +201,7 @@ void test1 ( int m , int n , int k , int nr_threads ) {
     
     /* Init the sched. */
     bzero( &s , sizeof(struct qsched) );
-    qsched_init( &s , nr_threads , m * n );
+    qsched_init( &s , nr_threads , qsched_flag_none );
 
     /* Allocate the matrices. */
     if ( ( a = (double *)malloc( sizeof(double) * m * k * 32 * 32 ) ) == NULL ||
@@ -214,49 +223,17 @@ void test1 ( int m , int n , int k , int nr_threads ) {
         for ( j = 0 ; j < n ; j++ ) {
             data[0] = i; data[1] = j;
             rid = qsched_addres( &s , -1 );
-            tid = qsched_newtask( &s , 1 , task_flag_none , data , 2*sizeof(int) , 1 );
+            tid = qsched_addtask( &s , 1 , task_flag_none , data , 2*sizeof(int) , 1 );
             qsched_addlock( &s , tid , rid );
             }
             
-    /* Prepare the sched for execution. */
-    qsched_prepare( &s );
             
-    /* Parallel loop. */
+    /* Run the scheduler. */
     tic_task = getticks();
-    #pragma omp parallel private(t,qid,d)
-    {
-    
-        /* Get the ID of this runner. */
-        if ( ( qid = omp_get_thread_num() ) < nr_threads ) {
-    
-            /* Main loop. */
-            while ( 1 ) {
-
-                /* Get a task, break if unsucessful. */
-                if ( ( t = qsched_gettask( &s , qid ) ) == NULL )
-                    break;
-
-                /* Decode and execute the task. */
-                switch ( t->type ) {
-                    case 1:
-                        d = qsched_getdata( &s , t );
-                        // message( "thread %i working on block [ %i , %i ]." , qid , d[0] , d[1] ); fflush(stdout);
-                        matmul( 32 , 32 , k*32 , &a[ d[0]*32 ] , m*32 , &b[ k*32*d[1]*32 ] , k*32 , &c[ d[0]*32 + m*32*d[1]*32 ] , m*32 );
-                        break;
-                    default:
-                        error( "Unknown task type." );
-                    }
-
-                /* Clean up afterwards. */
-                qsched_done( &s , t );
-
-                } /* main loop. */
-                
-            } /* valid thread. */
-    
-        }
+    qsched_run( &s , nr_threads , runner );
     toc_task = getticks();
-    
+            
+
     /* Verify the result. */
     tic_ref = getticks();
     matmul( m*32 , n*32 , k*32 , a , m*32 , b , k*32 , res , m*32 );

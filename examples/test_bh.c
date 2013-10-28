@@ -18,6 +18,9 @@
  ******************************************************************************/
 
 
+/* Config parameters. */
+#include "../config.h"
+
 /* Standard includes. */
 #include <stdio.h>
 #include <stdlib.h>
@@ -134,7 +137,7 @@ void cell_split ( struct cell *c , struct qsched *s ) {
         c->res = qsched_addres( s , qsched_res_none );
     
     /* Attach a center-of-mass task to the cell. */
-    c->com_tid = qsched_newtask( s , task_type_com , task_flag_none , &c , sizeof(struct cell *) , 1 );
+    c->com_tid = qsched_addtask( s , task_type_com , task_flag_none , &c , sizeof(struct cell *) , 1 );
     
     /* Does this cell need to be split? */
     if ( count > cell_maxparts ) {
@@ -520,7 +523,7 @@ void create_tasks ( struct qsched *s , struct cell *ci , struct cell *cj ) {
             data[0] = ci; data[1] = NULL;
             
             /* Create the task. */
-            tid = qsched_newtask( s , task_type_self , task_flag_none , data , sizeof(struct cell *) * 2 , ci->count*ci->count/2 );
+            tid = qsched_addtask( s , task_type_self , task_flag_none , data , sizeof(struct cell *) * 2 , ci->count*ci->count/2 );
             
             /* Add the resource. */
             qsched_addlock( s , tid , ci->res );
@@ -560,13 +563,13 @@ void create_tasks ( struct qsched *s , struct cell *ci , struct cell *cj ) {
             
                 /* Interact ci's parts with cj as a cell. */
                 data[0] = ci; data[1] = cj;
-                tid = qsched_newtask( s , task_type_pair_pc , task_flag_none , data , sizeof(struct cell *) * 2 , ci->count );
+                tid = qsched_addtask( s , task_type_pair_pc , task_flag_none , data , sizeof(struct cell *) * 2 , ci->count );
                 qsched_addlock( s , tid , ci->res );
                 qsched_addunlock( s , cj->com_tid , tid );
         
                 /* Interact cj's parts with ci as a cell. */
                 data[0] = cj; data[1] = ci;
-                tid = qsched_newtask( s , task_type_pair_pc , task_flag_none , data , sizeof(struct cell *) * 2 , ci->count );
+                tid = qsched_addtask( s , task_type_pair_pc , task_flag_none , data , sizeof(struct cell *) * 2 , ci->count );
                 qsched_addlock( s , tid , cj->res );
                 qsched_addunlock( s , ci->com_tid , tid );
         
@@ -579,7 +582,7 @@ void create_tasks ( struct qsched *s , struct cell *ci , struct cell *cj ) {
                 data[0] = ci; data[1] = cj;
 
                 /* Create the task. */
-                tid = qsched_newtask( s , task_type_pair , task_flag_none , data , sizeof(struct cell *) * 2 , ci->count*cj->count );
+                tid = qsched_addtask( s , task_type_pair , task_flag_none , data , sizeof(struct cell *) * 2 , ci->count*cj->count );
 
                 /* Add the resources. */
                 qsched_addlock( s , tid , ci->res );
@@ -614,8 +617,33 @@ void test_bh ( int N , int nr_threads ) {
     struct part *parts;
     struct qsched s;
     
+    /* Runner function. */
+    void runner ( int type , void *data ) {
+    
+        /* Decode the data. */
+        struct cell **d = (struct cell **)data;
+    
+        /* Decode and execute the task. */
+        switch ( type ) {
+            case task_type_self:
+                iact_self( d[0] );
+                break;
+            case task_type_pair:
+                iact_pair( d[0] , d[1] );
+                break;
+            case task_type_pair_pc:
+                iact_pair_pc( d[0] , d[1] );
+                break;
+            case task_type_com:
+                comp_com( d[0] );
+                break;
+            default:
+                error( "Unknown task type." );
+            }
+        }
+    
     /* Initialize the scheduler. */
-    qsched_init( &s , nr_threads , 1000 );
+    qsched_init( &s , nr_threads , qsched_flag_yield );
     
     /* Init and fill the particle array. */
     if ( ( parts = (struct part *)malloc( sizeof(struct part) * N ) ) == NULL )
@@ -642,61 +670,16 @@ void test_bh ( int N , int nr_threads ) {
     /* Create the tasks. */
     create_tasks( &s , root , NULL );
     
-    /* Prepare the scheduler. */
-    qsched_prepare( &s );
-
-    /* Parallel loop. */
-    #pragma omp parallel
-    {
-    
-        int qid;
-        struct cell **d;
-        struct task *t;
-    
-        /* Get the ID of this runner. */
-        if ( ( qid = omp_get_thread_num() ) < nr_threads ) {
-    
-            /* Main loop. */
-            while ( 1 ) {
-
-                /* Get a task, break if unsucessful. */
-                if ( ( t = qsched_gettask( &s , qid ) ) == NULL )
-                    break;
-                    
-                /* Get the task's data. */
-                d = qsched_getdata( &s , t );
-
-                /* Decode and execute the task. */
-                switch ( t->type ) {
-                    case task_type_self:
-                        iact_self( d[0] );
-                        break;
-                    case task_type_pair:
-                        iact_pair( d[0] , d[1] );
-                        break;
-                    case task_type_pair_pc:
-                        iact_pair_pc( d[0] , d[1] );
-                        break;
-                    case task_type_com:
-                        comp_com( d[0] );
-                        break;
-                    default:
-                        error( "Unknown task type." );
-                    }
-
-                /* Clean up afterwards. */
-                qsched_done( &s , t );
-
-                } /* main loop. */
-                
-            } /* valid thread. */
-    
-        } /* parallel loop. */
+    /* Execute the tasks. */
+    qsched_run( &s , nr_threads , runner );
         
     /* Dump the tasks. */
     for ( k = 0 ; k < s.count ; k++ )
         printf( " %i %i %lli %lli\n" , s.tasks[k].type , s.tasks[k].qid , s.tasks[k].tic , s.tasks[k].toc );
         
+    /* Clean up. */
+    qsched_free( &s );
+    
     }
     
 
@@ -740,7 +723,10 @@ int main ( int argc , char *argv[] ) {
     message( "Computing the N-body problem over %i particles using %i threads." ,
         N , nr_threads );
         
+    /* Run the test. */
     test_bh( N , nr_threads );
+    
+    return 0;
     
     }
     
