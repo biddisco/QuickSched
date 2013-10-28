@@ -62,7 +62,7 @@ void matmul ( int m , int n , int k , double *a , int lda , double *b , int ldb 
 void test2 ( int m , int n , int k , int nr_threads ) { 
 
     int i, j, kk, qid, data[3], *d, tid, rid;
-    struct sched s;
+    struct qsched s;
     struct task *t;
     double *a, *b, *c, *res, err = 0.0, irm = 1.0/RAND_MAX;
     ticks tic_task, toc_task, tic_ref, toc_ref;
@@ -72,8 +72,8 @@ void test2 ( int m , int n , int k , int nr_threads ) {
              "C_ij = A_i: * B_:j, with tasks for each k where C_ij += A_ik*B_kj." );
     
     /* Init the sched. */
-    bzero( &s , sizeof(struct sched) );
-    sched_init( &s , nr_threads , m * n );
+    bzero( &s , sizeof(struct qsched) );
+    qsched_init( &s , nr_threads , m * n );
 
     /* Allocate the matrices. */
     if ( ( a = (double *)malloc( sizeof(double) * m * k * 32 * 32 ) ) == NULL ||
@@ -93,17 +93,17 @@ void test2 ( int m , int n , int k , int nr_threads ) {
     /* Build a task for each tile of the matrix c. */
     for ( i = 0 ; i < m ; i++ )
         for ( j = 0 ; j < n ; j++ ) {
-            rid = sched_addres( &s , -1 );
+            rid = qsched_addres( &s , -1 );
             data[0] = i; data[1] = j;
             for ( kk = 0 ; kk < k ; kk++ ) {
                 data[2] = kk;
-                tid = sched_newtask( &s , 1 , 0 , 0 , data , 3*sizeof(int) , 1 );
-                sched_addlock( &s , tid , rid );
+                tid = qsched_newtask( &s , 1 , task_flag_none , data , 3*sizeof(int) , 1 );
+                qsched_addlock( &s , tid , rid );
                 }
             }
             
     /* Prepare the sched for execution. */
-    sched_prepare( &s );
+    qsched_prepare( &s );
             
     /* Parallel loop. */
     tic_task = getticks();
@@ -117,13 +117,13 @@ void test2 ( int m , int n , int k , int nr_threads ) {
             while ( 1 ) {
 
                 /* Get a task, break if unsucessful. */
-                if ( ( t = sched_gettask( &s , qid ) ) == NULL )
+                if ( ( t = qsched_gettask( &s , qid ) ) == NULL )
                     break;
 
                 /* Decode and execute the task. */
                 switch ( t->type ) {
                     case 1:
-                        d = sched_getdata( &s , t );
+                        d = qsched_getdata( &s , t );
                         // message( "thread %i working on block [ %i , %i ] with k=%i, lock[0]=%i." , qid , d[0] , d[1] , d[2] , t->locks[0] ); fflush(stdout);
                         matmul( 32 , 32 , 32 , &a[ d[2]*32*m*32 + d[0]*32 ] , m*32 , &b[ k*32*d[1]*32 + d[2]*32 ] , k*32 , &c[ d[0]*32 + m*32*d[1]*32 ] , m*32 );
                         break;
@@ -132,7 +132,7 @@ void test2 ( int m , int n , int k , int nr_threads ) {
                     }
 
                 /* Clean up afterwards. */
-                sched_done( &s , t );
+                qsched_done( &s , t );
 
                 } /* main loop. */
                 
@@ -158,7 +158,7 @@ void test2 ( int m , int n , int k , int nr_threads ) {
         } */
     
     /* Clean up. */
-    sched_free( &s );
+    qsched_free( &s );
     free( a );
     free( b );
     free( c );
@@ -177,7 +177,7 @@ void test2 ( int m , int n , int k , int nr_threads ) {
 void test1 ( int m , int n , int k , int nr_threads ) { 
 
     int i, j, qid, data[2], *d, tid, rid;
-    struct sched s;
+    struct qsched s;
     struct task *t;
     double *a, *b, *c, *res, err = 0.0, irm = 1.0/RAND_MAX;
     ticks tic_task, toc_task, tic_ref, toc_ref;
@@ -187,8 +187,8 @@ void test1 ( int m , int n , int k , int nr_threads ) {
              "C_ij = A_i: * B_:j, with a single task per C_ij." );
     
     /* Init the sched. */
-    bzero( &s , sizeof(struct sched) );
-    sched_init( &s , nr_threads , m * n );
+    bzero( &s , sizeof(struct qsched) );
+    qsched_init( &s , nr_threads , m * n );
 
     /* Allocate the matrices. */
     if ( ( a = (double *)malloc( sizeof(double) * m * k * 32 * 32 ) ) == NULL ||
@@ -209,13 +209,13 @@ void test1 ( int m , int n , int k , int nr_threads ) {
     for ( i = 0 ; i < m ; i++ )
         for ( j = 0 ; j < n ; j++ ) {
             data[0] = i; data[1] = j;
-            rid = sched_addres( &s , -1 );
-            tid = sched_newtask( &s , 1 , 0 , 0 , data , 2*sizeof(int) , 1 );
-            sched_addlock( &s , tid , rid );
+            rid = qsched_addres( &s , -1 );
+            tid = qsched_newtask( &s , 1 , task_flag_none , data , 2*sizeof(int) , 1 );
+            qsched_addlock( &s , tid , rid );
             }
             
     /* Prepare the sched for execution. */
-    sched_prepare( &s );
+    qsched_prepare( &s );
             
     /* Parallel loop. */
     tic_task = getticks();
@@ -229,13 +229,13 @@ void test1 ( int m , int n , int k , int nr_threads ) {
             while ( 1 ) {
 
                 /* Get a task, break if unsucessful. */
-                if ( ( t = sched_gettask( &s , qid ) ) == NULL )
+                if ( ( t = qsched_gettask( &s , qid ) ) == NULL )
                     break;
 
                 /* Decode and execute the task. */
                 switch ( t->type ) {
                     case 1:
-                        d = sched_getdata( &s , t );
+                        d = qsched_getdata( &s , t );
                         // message( "thread %i working on block [ %i , %i ]." , qid , d[0] , d[1] ); fflush(stdout);
                         matmul( 32 , 32 , k*32 , &a[ d[0]*32 ] , m*32 , &b[ k*32*d[1]*32 ] , k*32 , &c[ d[0]*32 + m*32*d[1]*32 ] , m*32 );
                         break;
@@ -244,7 +244,7 @@ void test1 ( int m , int n , int k , int nr_threads ) {
                     }
 
                 /* Clean up afterwards. */
-                sched_done( &s , t );
+                qsched_done( &s , t );
 
                 } /* main loop. */
                 
@@ -270,7 +270,7 @@ void test1 ( int m , int n , int k , int nr_threads ) {
         } */
     
     /* Clean up. */
-    sched_free( &s );
+    qsched_free( &s );
     free( a );
     free( b );
     free( c );

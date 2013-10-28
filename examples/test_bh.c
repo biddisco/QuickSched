@@ -104,7 +104,7 @@ struct cell *cell_get ( ) {
     cell_pool = cell_pool->progeny[0];
     
     /* Clean up a few things. */
-    res->res = sched_res_none;
+    res->res = qsched_res_none;
     
     /* Return the cell. */
     return res;
@@ -121,7 +121,7 @@ struct cell *cell_get ( ) {
  * @param s The #sched to store the resources.
  */
  
-void cell_split ( struct cell *c , struct sched *s ) {
+void cell_split ( struct cell *c , struct qsched *s ) {
 
     int i, j, k, count = c->count;
     struct part temp, *parts = c->parts;
@@ -130,11 +130,11 @@ void cell_split ( struct cell *c , struct sched *s ) {
     double pivot[3];
     
     /* Add a resource for this cell if it doesn't have one yet. */
-    if ( c->res == sched_res_none ) 
-        c->res = sched_addres( s , sched_res_none );
+    if ( c->res == qsched_res_none ) 
+        c->res = qsched_addres( s , qsched_res_none );
     
     /* Attach a center-of-mass task to the cell. */
-    c->com_tid = sched_newtask( s , task_type_com , 0 , 0 , &c , sizeof(struct cell *) , 1 );
+    c->com_tid = qsched_newtask( s , task_type_com , task_flag_none , &c , sizeof(struct cell *) , 1 );
     
     /* Does this cell need to be split? */
     if ( count > cell_maxparts ) {
@@ -152,7 +152,7 @@ void cell_split ( struct cell *c , struct sched *s ) {
             cp->h[0] = c->h[0]/2;
             cp->h[1] = c->h[1]/2;
             cp->h[2] = c->h[2]/2;
-            cp->res = sched_addres( s , c->res );
+            cp->res = qsched_addres( s , c->res );
             if ( k & 4 )
                 cp->loc[0] += cp->h[0];
             if ( k & 2 )
@@ -223,7 +223,7 @@ void cell_split ( struct cell *c , struct sched *s ) {
             
         /* Link the COM tasks. */
         for ( k = 0 ; k < 8 ; k++ )
-            sched_addunlock( s , c->progeny[k]->com_tid , c->com_tid );
+            qsched_addunlock( s , c->progeny[k]->com_tid , c->com_tid );
             
         } /* does the cell need to be split? */
         
@@ -483,7 +483,7 @@ void iact_self ( struct cell *c ) {
  * @param cj The second #cell.
  */
  
-void create_tasks ( struct sched *s , struct cell *ci , struct cell *cj ) {
+void create_tasks ( struct qsched *s , struct cell *ci , struct cell *cj ) {
 
     int j, k, tid;
     struct cell *data[2];
@@ -519,10 +519,10 @@ void create_tasks ( struct sched *s , struct cell *ci , struct cell *cj ) {
             data[0] = ci; data[1] = NULL;
             
             /* Create the task. */
-            tid = sched_newtask( s , task_type_self , 0 , 0 , data , sizeof(struct cell *) * 2 , ci->count*ci->count/2 );
+            tid = qsched_newtask( s , task_type_self , task_flag_none , data , sizeof(struct cell *) * 2 , ci->count*ci->count/2 );
             
             /* Add the resource. */
-            sched_addlock( s , tid , ci->res );
+            qsched_addlock( s , tid , ci->res );
         
             }
     
@@ -559,15 +559,15 @@ void create_tasks ( struct sched *s , struct cell *ci , struct cell *cj ) {
             
                 /* Interact ci's parts with cj as a cell. */
                 data[0] = ci; data[1] = cj;
-                tid = sched_newtask( s , task_type_pair_pc , 0 , 0 , data , sizeof(struct cell *) * 2 , ci->count );
-                sched_addlock( s , tid , ci->res );
-                sched_addunlock( s , cj->com_tid , tid );
+                tid = qsched_newtask( s , task_type_pair_pc , task_flag_none , data , sizeof(struct cell *) * 2 , ci->count );
+                qsched_addlock( s , tid , ci->res );
+                qsched_addunlock( s , cj->com_tid , tid );
         
                 /* Interact cj's parts with ci as a cell. */
                 data[0] = cj; data[1] = ci;
-                tid = sched_newtask( s , task_type_pair_pc , 0 , 0 , data , sizeof(struct cell *) * 2 , ci->count );
-                sched_addlock( s , tid , cj->res );
-                sched_addunlock( s , ci->com_tid , tid );
+                tid = qsched_newtask( s , task_type_pair_pc , task_flag_none , data , sizeof(struct cell *) * 2 , ci->count );
+                qsched_addlock( s , tid , cj->res );
+                qsched_addunlock( s , ci->com_tid , tid );
         
                 }
                 
@@ -578,16 +578,16 @@ void create_tasks ( struct sched *s , struct cell *ci , struct cell *cj ) {
                 data[0] = ci; data[1] = cj;
 
                 /* Create the task. */
-                tid = sched_newtask( s , task_type_pair , 0 , 0 , data , sizeof(struct cell *) * 2 , ci->count*cj->count );
+                tid = qsched_newtask( s , task_type_pair , task_flag_none , data , sizeof(struct cell *) * 2 , ci->count*cj->count );
 
                 /* Add the resources. */
-                sched_addlock( s , tid , ci->res );
-                sched_addlock( s , tid , cj->res );
+                qsched_addlock( s , tid , ci->res );
+                qsched_addlock( s , tid , cj->res );
                 
                 /* Depend on the COMs in case this task recurses. */
                 if ( ci->split || cj->split ) {
-                    sched_addunlock( s , ci->com_tid , tid );
-                    sched_addunlock( s , cj->com_tid , tid );
+                    qsched_addunlock( s , ci->com_tid , tid );
+                    qsched_addunlock( s , cj->com_tid , tid );
                     }
         
                 }
@@ -611,10 +611,10 @@ void test_bh ( int N , int nr_threads ) {
     int k;
     struct cell *root;
     struct part *parts;
-    struct sched s;
+    struct qsched s;
     
     /* Initialize the scheduler. */
-    sched_init( &s , nr_threads , 1000 );
+    qsched_init( &s , nr_threads , 1000 );
     
     /* Init and fill the particle array. */
     if ( ( parts = (struct part *)malloc( sizeof(struct part) * N ) ) == NULL )
@@ -642,7 +642,7 @@ void test_bh ( int N , int nr_threads ) {
     create_tasks( &s , root , NULL );
     
     /* Prepare the scheduler. */
-    sched_prepare( &s );
+    qsched_prepare( &s );
 
     /* Parallel loop. */
     #pragma omp parallel
@@ -659,11 +659,11 @@ void test_bh ( int N , int nr_threads ) {
             while ( 1 ) {
 
                 /* Get a task, break if unsucessful. */
-                if ( ( t = sched_gettask( &s , qid ) ) == NULL )
+                if ( ( t = qsched_gettask( &s , qid ) ) == NULL )
                     break;
                     
                 /* Get the task's data. */
-                d = sched_getdata( &s , t );
+                d = qsched_getdata( &s , t );
 
                 /* Decode and execute the task. */
                 switch ( t->type ) {
@@ -684,7 +684,7 @@ void test_bh ( int N , int nr_threads ) {
                     }
 
                 /* Clean up afterwards. */
-                sched_done( &s , t );
+                qsched_done( &s , t );
 
                 } /* main loop. */
                 

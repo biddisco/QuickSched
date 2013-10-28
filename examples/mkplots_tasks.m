@@ -84,7 +84,7 @@ print -depsc2 tasks_qr_dynamic.eps
 
 
 
-%% Plot the tiled Barnes-Hutt tasks
+%% Plot the tiled Barnes-Hut tasks
 
 %% Plot the task timelines for tasks allocation
 % Load the data
@@ -112,7 +112,7 @@ hold off;
 xlabel('time (ms)');
 ylabel('core ID');
 set(gca,'YTick',1:(max(tasks(:,1))+1))
-title('Barnes-Hutt tasks');
+title('Barnes-Hut tasks');
 axis([ 0 , max( tasks(:,3) + tasks(:,4) ) , -0.5 , nr_cores-0.5 ]);
 
 % Print this plot

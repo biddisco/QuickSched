@@ -396,7 +396,7 @@ void test_qr ( int m , int n , int nr_threads ) {
 
     int k, j, i;
     double *A, *A_orig, *tau;
-    struct sched s;
+    struct qsched s;
     int *tid, *rid, tid_new;
     int data[3];
     
@@ -422,7 +422,7 @@ void test_qr ( int m , int n , int nr_threads ) {
     printf( "];\n" ); */
     
     /* Initialize the scheduler. */
-    sched_init( &s , nr_threads , m*n );
+    qsched_init( &s , nr_threads , m*n );
     
     /* Allocate and init the task ID and resource ID matrix. */
     if ( ( tid = (int *)malloc( sizeof(int) * m * n ) ) == NULL ||
@@ -430,7 +430,7 @@ void test_qr ( int m , int n , int nr_threads ) {
         error( "Failed to allocate tid/rid matrix." );
     for ( k = 0 ; k < m * n ; k++ ) {
         tid[k] = -1;
-        rid[k] = sched_addres( &s , -1 );
+        rid[k] = qsched_addres( &s , -1 );
         }
     
     /* Build the tasks. */
@@ -438,21 +438,21 @@ void test_qr ( int m , int n , int nr_threads ) {
     
         /* Add kth corner task. */
         data[0] = k; data[1] = k; data[2] = k;
-        tid_new = sched_newtask( &s , task_DGEQRF , 0 , 0 , data , sizeof(int)*3 , 2 );
-        sched_addlock( &s , tid_new , rid[ k*m + k ] );
+        tid_new = qsched_newtask( &s , task_DGEQRF , task_flag_none , data , sizeof(int)*3 , 2 );
+        qsched_addlock( &s , tid_new , rid[ k*m + k ] );
         if ( tid[ k*m + k ] != -1 )
-            sched_addunlock( &s , tid[ k*m + k ] , tid_new );
+            qsched_addunlock( &s , tid[ k*m + k ] , tid_new );
         tid[ k*m + k ] = tid_new;
             
         /* Add column tasks on kth row. */
         for ( j = k+1 ; j < n ; j++ ) {
             data[0] = k; data[1] = j; data[2] = k;
-            tid_new = sched_newtask( &s , task_DLARFT , 0 , 0 , data , sizeof(int)*3 , 3 );
-            sched_addlock( &s , tid_new , rid[ j*m + k ] );
-            sched_adduse( &s , tid_new , rid[ k*m + k ] );
-            sched_addunlock( &s , tid[ k*m + k ] , tid_new );
+            tid_new = qsched_newtask( &s , task_DLARFT , task_flag_none , data , sizeof(int)*3 , 3 );
+            qsched_addlock( &s , tid_new , rid[ j*m + k ] );
+            qsched_adduse( &s , tid_new , rid[ k*m + k ] );
+            qsched_addunlock( &s , tid[ k*m + k ] , tid_new );
             if ( tid[ j*m + k ] != -1 )
-                sched_addunlock( &s , tid[ j*m + k ] , tid_new );
+                qsched_addunlock( &s , tid[ j*m + k ] , tid_new );
             tid[ j*m + k ] = tid_new;
             }
             
@@ -461,25 +461,25 @@ void test_qr ( int m , int n , int nr_threads ) {
         
             /* Add the row taks for the kth column. */
             data[0] = i; data[1] = k; data[2] = k;
-            tid_new = sched_newtask( &s , task_DTSQRF , 0 , 0 , data , sizeof(int)*3 , 3 );
-            sched_addlock( &s , tid_new , rid[ k*m + i ] );
-            sched_adduse( &s , tid_new , rid[ k*m + k ] );
-            sched_addunlock( &s , tid[ k*m + (i-1) ] , tid_new );
+            tid_new = qsched_newtask( &s , task_DTSQRF , task_flag_none , data , sizeof(int)*3 , 3 );
+            qsched_addlock( &s , tid_new , rid[ k*m + i ] );
+            qsched_adduse( &s , tid_new , rid[ k*m + k ] );
+            qsched_addunlock( &s , tid[ k*m + (i-1) ] , tid_new );
             if ( tid[ k*m + i ] != -1 )
-                sched_addunlock( &s , tid[ k*m + i ] , tid_new );
+                qsched_addunlock( &s , tid[ k*m + i ] , tid_new );
             tid[ k*m + i ] = tid_new;
             
             /* Add the inner tasks. */
             for ( j = k+1 ; j < n ; j++ ) {
                 data[0] = i; data[1] = j; data[2] = k;
-                tid_new = sched_newtask( &s , task_DSSRFT , 0 , 0 , data , sizeof(int)*3 , 5 );
-                sched_addlock( &s , tid_new , rid[ j*m + i ] );
-                sched_adduse( &s , tid_new , rid[ k*m + i ] );
-                sched_adduse( &s , tid_new , rid[ j*m + k ] );
-                sched_addunlock( &s , tid[ k*m + i ] , tid_new );
-                sched_addunlock( &s , tid[ j*m + k ] , tid_new );
+                tid_new = qsched_newtask( &s , task_DSSRFT , task_flag_none , data , sizeof(int)*3 , 5 );
+                qsched_addlock( &s , tid_new , rid[ j*m + i ] );
+                qsched_adduse( &s , tid_new , rid[ k*m + i ] );
+                qsched_adduse( &s , tid_new , rid[ j*m + k ] );
+                qsched_addunlock( &s , tid[ k*m + i ] , tid_new );
+                qsched_addunlock( &s , tid[ j*m + k ] , tid_new );
                 if ( tid[ j*m + i ] != -1 )
-                    sched_addunlock( &s , tid[ j*m + i ] , tid_new );
+                    qsched_addunlock( &s , tid[ j*m + i ] , tid_new );
                 tid[ j*m + i ] = tid_new;
                 }
         
@@ -488,7 +488,7 @@ void test_qr ( int m , int n , int nr_threads ) {
         } /* build the tasks. */
         
     /* Prepare the scheduler. */
-    sched_prepare( &s );
+    qsched_prepare( &s );
 
     /* Parallel loop. */
     #pragma omp parallel
@@ -505,11 +505,11 @@ void test_qr ( int m , int n , int nr_threads ) {
             while ( 1 ) {
 
                 /* Get a task, break if unsucessful. */
-                if ( ( t = sched_gettask( &s , qid ) ) == NULL )
+                if ( ( t = qsched_gettask( &s , qid ) ) == NULL )
                     break;
                     
                 /* Get the task's data. */
-                d = sched_getdata( &s , t );
+                d = qsched_getdata( &s , t );
                 i = d[0]; j = d[1]; k = d[2];
 
                 /* Decode and execute the task. */
@@ -531,7 +531,7 @@ void test_qr ( int m , int n , int nr_threads ) {
                     }
 
                 /* Clean up afterwards. */
-                sched_done( &s , t );
+                qsched_done( &s , t );
 
                 } /* main loop. */
                 
