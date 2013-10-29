@@ -36,7 +36,7 @@ test_LDADD =  ../src/.libs/libquicksched.a
 # Sources for test_qr
 test_qr_SOURCES = test_qr.c
 test_qr_CFLAGS = $(AM_CFLAGS)
-test_qr_LDADD =  ../src/.libs/libquicksched.a -lblas
+test_qr_LDADD =  ../src/.libs/libquicksched.a -llapacke -lcblas
 
 # Sources for test_bh
 test_bh_SOURCES = test_bh.c

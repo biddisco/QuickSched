@@ -29,12 +29,13 @@
 #include <math.h>
 #include <omp.h>
 
+/* LAPACKE header. */
+#include <lapacke.h>
+#include <cblas.h>
+
+
 /* Local includes. */
 #include "quicksched.h"
-
-
-/* Prototypes for BLAS function. */
-void dtrmm_ ( char * , char * , char * , char * , int * , int * , double * , double * , int * , double * , int * );
 
 
 /*
@@ -105,47 +106,6 @@ void calcvkDouble	(double topDiag,
 }
 
 
-/**
- * \brief Computes a Householder reflector \f$v\f$ of a vector \f$x\f$ for a single block
- *
- * Computes: \f[v = \textrm{sign}(x_1)||x||_2e_1+x\f]
- * Then does a non-standard normalisation \f$v\f$: \f[v = \frac{v}{v_1}\f]
- * 
- * \param x Pointer to an array containing a column vector to compute the Householder reflector of
- * \param l The number of elements in \f$x\f$
- * \param vk A pointer to an allocated array to store the resulting vector of size l - 1
- * due to the implied 1 as the first element
- *
- * \returns void
- */
-void calcvkSingle	(double* x,
-			int l,
-			double* vk)
-{
-	int sign, i;
-	double norm, div, beta;
-
-	sign = x[0] >= 0.0 ? 1 : -1;
-	beta = x[0];
-	//copy the values
-	for(i = 1; i < l; i++)
-		vk[i-1] = x[i];
-
-	//take the euclidian norm of the original vector
-	norm = do2norm(x, l);
-	//calculate the new normalisation
-	beta += norm * sign;
-
-	if(norm != 0.0)
-	{
-		//normalise 
-		div = 1/beta;
-	
-		for(i = 0; i < l-1; i++)
-			vk[i] *= div;
-	}
-}
-
 void updateDoubleQ_WY	(double* blockA,
 			double* blockB,
 			double* blockTau,
@@ -186,60 +146,6 @@ void updateDoubleQ_WY	(double* blockA,
 		blockB[(k*ldm) + i] = hhVector[i];
 
 	blockTau[k] = tau;
-}
-
-void updatekthSingleWY	(double* blockV,
-			double* tauBlock,
-			double beta,
-			int k,
-			int m, int n, int ldm,
-			double* w)
-{
-	/* Insert beta on the diagonal of Tau */
-	tauBlock[k] = beta;
-}
-
-void updateSingleQ_WY	(double* block,
-			double* tauBlock,
-			int k,
-			int m, int n, int ldm,//dims of block
-			double* workVector)
-{
-	/* Compute A = A - 2/v'v*vv'A */
-	int i, j;
-	double beta = 1.0f, prod;
-	
-	for(i = k + 1; i < m; i ++)
-	{
-		beta += workVector[i - k - 1] * workVector[i - k - 1];
-	}
-	/* Finish computation of 2/v'v */
-	beta = (-2)/beta;
-	
-	for(j = k; j < 32; j ++)
-	{
-		/* Compute prod = v'A_j */
-		prod = block[(j*ldm) + k];//(k,k) to (k,n)
-
-		for(i = k + 1; i < m; i ++)
-			prod += block[(j*ldm) + i] * workVector[i - k - 1];
-
-		/* Compute A_j = A_j - beta*v*prod */
-		block[(j*ldm) + k] += beta * prod;
-
-		for(i = k + 1; i < m; i ++)
-			block[(j*ldm) + i] += beta * prod * workVector[i - k - 1];
-	}
-
-	/* Insert nonessential vector below diagonal. */
-	for(i = k + 1; i < m; i ++)
-		block[(k*ldm) + i] = workVector[i - k - 1];
-	
-	updatekthSingleWY	(block,
-				tauBlock,
-				-beta,
-				k, m, n, ldm,
-				workVector);
 }
 
 void DTSQRF	(double* blockA,
@@ -319,74 +225,6 @@ void DSSRFT	(double* blockV,
 }
 			
 			
-void DGEQRF	(double* block,
-		double* tauBlock,
-		int m, int n, int ldm,
-		double* workVector)
-{
-	int k;
-	double* xVect;
-	
-	xVect = block;
-
-	for(k = 0; k < n; k ++)
-	{
-		/* Get kth householder vector into position starting at workVector */
-		calcvkSingle(xVect, m-k, workVector);
-
-		/* Apply householder vector (with an implied 1 in first element to block,
-		   generating WY matrices in the process.
-		   Stores vector below the diagonal. */
-		updateSingleQ_WY	(block, tauBlock,
-					k, m, n, ldm,
-					workVector);
-
-		/* Shift one along & one down */
-		xVect += ldm + 1;
-	}
-}
-
-void DLARFT	(double* block,
-		double* blockV,
-		double* tauBlock,
-		int m, int n, int ldm)
-{
-	/* 	Perform the transformation block = block - blockV*(tauBlock*(blockV^T*block)) 
-	 	Equivalent to B = B - V(T(V^TB))
-		Noting that T is upper triangular, and V is unit lower triangular. */
-	int i, j, k;
-
-	double tau, beta;
-
-	/* For each column of the block. */
-	for(j = 0; j < n; j ++)
-	{
-		/* Apply successive reflectors with b_j - tau_k*v_k*v_k'b_j */
-		for(k = 0; k < n; k ++)
-		{
-			/* tau_k is at blockV(k) */
-			tau = tauBlock[k];
-	
-			/* Compute v_k'*b_j, with v_k,k = 1 implied */
-			beta = block[(j*ldm) + k];//*1.0
-
-			/* Rest of vector. */
-			for(i = k+1; i < m; i ++)
-				beta += blockV[(k*ldm) + i] * block[(j*ldm) + i];
-
-			beta *= tau;
-
-			/* Compute b_j = b_j - beta*v_k, again with an implied 1 at v_kk */
-			block[(j*ldm) + k] -= beta;/* *1.0 */
-			
-			/* Compute for rest of b_j */
-			for(i = k+1; i < m; i ++)
-				block[(j*ldm) + i] -= beta * blockV[(k*ldm) + i];
-		}
-	}
-}
-
-
 /**
  * @brief Computed a tiled QR factorization using QuickSched.
  *
@@ -418,10 +256,15 @@ void test_qr ( int m , int n , int nr_threads ) {
         /* Decode and execute the task. */
         switch ( type ) {
             case task_DGEQRF:
-                DGEQRF( &A[ j*m*32*32 + i*32 ] , &tau[ j*m*32 + i*32 ] , 32 , 32 , 32*m , buff );
+                LAPACKE_dgeqrf_work( LAPACK_COL_MAJOR , 32, 32 ,
+                                &A[ j*m*32*32 + i*32 ] , m*32 , &tau[ j*m*32 + i*32 ] ,
+                                buff , 2*32*32 );
                 break;
             case task_DLARFT:
-                DLARFT( &A[ j*m*32*32 + i*32 ] , &A[ i*m*32*32 + i*32 ] , &tau[ i*m*32 + i*32 ] , 32 , 32 , 32*m );
+                LAPACKE_dlarft_work( LAPACK_COL_MAJOR , 'F' , 'C' ,
+                                32 , 32 , &A[ i*m*32*32 + i*32 ] ,
+                                m*32 , &tau[ i*m*32 + i*32 ] , &A[ j*m*32*32 + i*32 ] ,
+                                m*32 );
                 break;
             case task_DTSQRF:
                 DTSQRF( &A[ j*m*32*32 + j*32 ] , &A[ j*m*32*32 + i*32 ] , &tau[ j*m*32 + i*32 ] , 32 , 32 , 32 , 32*m , buff );
@@ -435,7 +278,6 @@ void test_qr ( int m , int n , int nr_threads ) {
 
         }
         
-    
     
     /* Allocate and fill the original matrix. */
     if ( ( A = (double *)malloc( sizeof(double) * m * n * 32 * 32 ) ) == NULL ||
@@ -464,8 +306,8 @@ void test_qr ( int m , int n , int nr_threads ) {
          ( rid = (qsched_res_t *)malloc( sizeof(qsched_res_t) * m * n ) ) == NULL )
         error( "Failed to allocate tid/rid matrix." );
     for ( k = 0 ; k < m * n ; k++ ) {
-        tid[k] = -1;
-        rid[k] = qsched_addres( &s , -1 );
+        tid[k] = qsched_task_none;
+        rid[k] = qsched_addres( &s , qsched_res_none );
         }
     
     /* Build the tasks. */
@@ -549,6 +391,9 @@ void test_qr ( int m , int n , int nr_threads ) {
         int *d = (int *)&s.data[ s.tasks[k].data ];
         printf( " %i %i %i %i %lli %lli\n" , s.tasks[k].type , s.tasks[k].qid , d[0] , d[1] , s.tasks[k].tic , s.tasks[k].toc );
         }
+        
+    /* Clean up. */
+    qsched_free( &s );
         
     }
 
