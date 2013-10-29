@@ -31,6 +31,7 @@
 
 % My own macros
 \usepackage{epsfig}
+%\usepackage{hyperref}
 \usepackage{listings}
 \lstset{%
     language=C,
@@ -357,15 +358,18 @@ A task consists of the following data structure, in C-like pseudo-code:
 \begin{center}\begin{minipage}{0.9\textwidth}
     \begin{lstlisting}
 struct task {
-    int type, wait;
-    void *data;
-    struct task **unlocks;
-    struct resource **locks, **uses;
-    int size_data, nr_unlocks, nr_locks, nr_uses;
-    int cost, weight;
-    };
+  int type, wait;
+  void *data;
+  struct task **unlocks;
+  struct resource **locks, **uses;
+  int size_data, nr_unlocks, nr_locks, nr_uses;
+  int cost, weight;
+  };
     \end{lstlisting}
 \end{minipage}\end{center}
+\noindent where the {\tt data}, {\tt unlocks}, {\tt locks},
+and {\tt uses} arrays are pointers to the contents of other
+arrays, i.e.~they are not allocated individually.
 
 What the task does is determined by the {\tt type}
 field, e.g.~which can be mapped to any particular function,
@@ -392,10 +396,10 @@ be set as follows:
     \begin{lstlisting}
 int j, k;
 for ( k = 0 ; k < N ; k++ )
-    tasks[k].wait = 0;
+  tasks[k].wait = 0;
 for ( k = 0 ; k < N ; k++ )
-    for ( j = 0 ; j < tasks[k].nr_unlocks ; j++ )
-        tasks[k].unlocks[j]->wait += 1;
+  for ( j = 0 ; j < tasks[k].nr_unlocks ; j++ )
+    tasks[k].unlocks[j]->wait += 1;
     \end{lstlisting}
 \end{minipage}\end{center}
 
@@ -420,14 +424,14 @@ as per \citeN{ref:Kahn1962}:
 int top[N], j, k, sorted = 0, maxweight;
 set the task waits as described above.
 for ( k = 0 ; k < N ; k++ )
-    if ( tasks[k].wait == 0 )
-        top[ sorted++ ] = k;
+  if ( tasks[k].wait == 0 )
+    top[ sorted++ ] = k;
 for ( k = 0 ; k < sorted ; k++ )
-    for ( j = 0 ; j < tasks[ top[k] ].nr_unlocks ; j++ )
-        if ( ( tasks[ top[k] ].unlock[j]->wait -= 1 ) == 0 )
-            top[ sorted++ ] = k;
+  for ( j = 0 ; j < tasks[ top[k] ].nr_unlocks ; j++ )
+    if ( ( tasks[ top[k] ].unlock[j]->wait -= 1 ) == 0 )
+      top[ sorted++ ] = k;
 if ( k < N )
-    error( "Circular dependencies detected." );
+  error( "Circular dependencies detected." );
     \end{lstlisting}
 \end{minipage}\end{center}
 \noindent where the array {\tt top} contains the task indices
@@ -438,12 +442,12 @@ The weights themselves are then computed as follows
 \begin{center}\begin{minipage}{0.9\textwidth}
     \begin{lstlisting}
 for ( k = N-1 ; k >= 0 ; k-- ) {
-    for ( w = 0 , j = 0 ; j < tasks[ top[k] ].nr_unlocks ; j++ ) {
-        tasks[ top[k] ].unlock[j]->wait += 1;
-        w = max( tasks[ top[k] ].unlock[j]->weight , w );
-        }
-    tasks[ top[k] ].weight = tasks[ top[k] ].cost + w;
+  for ( w = 0 , j = 0 ; j < tasks[ top[k] ].nr_unlocks ; j++ ) {
+    tasks[ top[k] ].unlock[j]->wait += 1;
+    w = max( tasks[ top[k] ].unlock[j]->weight , w );
     }
+  tasks[ top[k] ].weight = tasks[ top[k] ].cost + w;
+  }
     \end{lstlisting}
 \end{minipage}\end{center}
 \noindent where the tasks are traversed in reverse
@@ -458,10 +462,10 @@ The data structure for the resources is as follows:
 \begin{center}\begin{minipage}{0.9\textwidth}
     \begin{lstlisting}
 struct resource {
-    struct resource *parent;
-    volatile int lock, hold;
-    int owner;
-    };
+  struct resource *parent;
+  volatile int lock, hold;
+  int owner;
+  };
     \end{lstlisting}
 \end{minipage}\end{center}
 
@@ -500,12 +504,12 @@ as follows:
 \begin{center}\begin{minipage}{0.9\textwidth}
     \begin{lstlisting}
 void resource_hold ( struct resource *r ) {
-    if ( atomic_cas( &r->lock , 0 , 1 ) != 0 )
-        return 0;
-    atomic_inc( &r->hold );
-    r->lock = 0;
-    return 1;
-    }
+  if ( atomic_cas( &r->lock , 0 , 1 ) != 0 )
+    return 0;
+  atomic_inc( &r->hold );
+  r->lock = 0;
+  return 1;
+  }
     \end{lstlisting}
 \end{minipage}\end{center}
 \noindent where {\tt atomic\_cas(val,old,new)} is an atomic
@@ -525,25 +529,25 @@ The locking procedure itself is implemented as follows:
 \begin{center}\begin{minipage}{0.9\textwidth}
     \begin{lstlisting}
 void resource_lock ( struct resource *r ) {
-    struct resource *up, *top;
-    if ( r->hold && atomic_cas( &r->lock , 0 , 1 ) != 0 )
-        return 0;
-    if ( r->hold ) {
-        r->lock = 0;
-        return 0;
-        }
-    for ( up = r->parent ; up != NULL ; up = up->parent ) {
-        if ( !resource_hold( up ) )
-            break;
-    if ( ( top = up ) != NULL ) {
-        for ( up = r->parent ; up != top , up = up->parent )
-            atomic_dec( &up->hold );
-        r->lock = 0;
-        return 0;
-        }
-    else
-        return 1;
+  struct resource *up, *top;
+  if ( r->hold && atomic_cas( &r->lock , 0 , 1 ) != 0 )
+    return 0;
+  if ( r->hold ) {
+    r->lock = 0;
+    return 0;
     }
+  for ( up = r->parent ; up != NULL ; up = up->parent ) {
+    if ( !resource_hold( up ) )
+      break;
+  if ( ( top = up ) != NULL ) {
+    for ( up = r->parent ; up != top , up = up->parent )
+      atomic_dec( &up->hold );
+    r->lock = 0;
+    return 0;
+    }
+  else
+    return 1;
+  }
     \end{lstlisting}
 \end{minipage}\end{center}
 \noindent where in line~3 the resource is first locked if it
@@ -563,11 +567,11 @@ Finally, unlocking a resource is relatively straight-forward:
 \begin{center}\begin{minipage}{0.9\textwidth}
     \begin{lstlisting}
 void resource_unlock ( struct resource *r ) {
-    struct resource *up;
-    r->lock = 0;
-    for ( up = r->parent ; up != NULL ; up = up->parent ) {
-        atomic_dec( &up->hold );
-    }
+  struct resource *up;
+  r->lock = 0;
+  for ( up = r->parent ; up != NULL ; up = up->parent ) {
+    atomic_dec( &up->hold );
+  }
     \end{lstlisting}
 \end{minipage}\end{center}
 \noindent where the resource itself is unlocked (line~3)
@@ -610,9 +614,9 @@ The data structure for the queue is thus defined as follows:
 \begin{center}\begin{minipage}{0.9\textwidth}
     \begin{lstlisting}
 struct queue {
-    struct task **tasks;
-    int count, lock;
-    };
+  struct task **tasks;
+  int count, lock;
+  };
     \end{lstlisting}
 \end{minipage}\end{center}
 \noindent where {\tt tasks} is an array of {\tt count} pointers
@@ -623,11 +627,11 @@ Inserting a task in the queue is relatively straight-forward:
 \begin{center}\begin{minipage}{0.9\textwidth}
     \begin{lstlisting}
 void queue_put ( struct queue *q , struct task *t ) {
-    while ( atomic_cas( q->lock , 0 , 1 ) != 0 );
-    q->tasks[ q->count++ ] = t;
-    bubble-up the q->count-1st entry of q->tasks.
-    q->lock = 0;
-    }
+  while ( atomic_cas( q->lock , 0 , 1 ) != 0 );
+  q->tasks[ q->count++ ] = t;
+  bubble-up the q->count-1st entry of q->tasks.
+  q->lock = 0;
+  }
     \end{lstlisting}
 \end{minipage}\end{center}
 \noindent where the loop in line~2 spins until an exclusive
@@ -640,27 +644,27 @@ Obtaining a task from the queue can be implemented as follows:
 \begin{center}\begin{minipage}{0.9\textwidth}
     \begin{lstlisting}
 struct task *queue_get ( struct queue *q ) {
-    struct task *res = NULL;
-    int j, k;
-    while ( atomic_cas( q->lock , 0 , 1 ) != 0 );
-    for ( k = 0 ; k < q->count ; k++ ) {
-        for ( j = 0 ; j < q->tasks[k]->nr_locks ; j++ )
-            if ( !resource_lock( q->tasks[k]->lock[j] )
-                break;
-        if ( j < q->tasks[k]->nr_locks )
-            for ( j = j-1 ; j >= 0 ; j-- )
-                resource_unlock( q->tasks[k]->lock[j] );
-        else
-            break;
-        }
-    if ( k < q->count ) {
-        res = q->tasks[k];
-        q->tasks[k] = q->tasks[ --q->count ];
-        trickle-down the kth entry of q->tasks.
-        }
-    q->lock = 0;
-    return res;
+  struct task *res = NULL;
+  int j, k;
+  while ( atomic_cas( q->lock , 0 , 1 ) != 0 );
+  for ( k = 0 ; k < q->count ; k++ ) {
+    for ( j = 0 ; j < q->tasks[k]->nr_locks ; j++ )
+      if ( !resource_lock( q->tasks[k]->lock[j] )
+        break;
+    if ( j < q->tasks[k]->nr_locks )
+      for ( j = j-1 ; j >= 0 ; j-- )
+        resource_unlock( q->tasks[k]->lock[j] );
+    else
+      break;
     }
+  if ( k < q->count ) {
+    res = q->tasks[k];
+    q->tasks[k] = q->tasks[ --q->count ];
+    trickle-down the kth entry of q->tasks.
+    }
+  q->lock = 0;
+  return res;
+  }
     \end{lstlisting}
 \end{minipage}\end{center}
 \noindent where as with the queue insertion, the queue is first
@@ -685,12 +689,12 @@ other three object types:
 \begin{center}\begin{minipage}{0.9\textwidth}
     \begin{lstlisting}
 struct qsched {
-    struct task *tasks;
-    struct queue *queues;
-    struct resource *res;
-    int nr_tasks, nr_queues, nr_resources;
-    volatile int waiting;
-    };
+  struct task *tasks;
+  struct queue *queues;
+  struct resource *res;
+  int nr_tasks, nr_queues, nr_resources;
+  volatile int waiting;
+  };
     \end{lstlisting}
 \end{minipage}\end{center}
 \noindent where\dots the only additional field {\tt waiting} is
@@ -704,17 +708,17 @@ The tasks are executed as follows:
 \begin{center}\begin{minipage}{0.9\textwidth}
     \begin{lstlisting}
 void qsched_run ( qsched *s , void (*fun)( int , void * ) ) {
-    qsched_start( s );
-    #pragma omp parallel
-    {
-        int qid = omp_get_thread_num() % s->nr_queues;
-        struct task *t;
-        while ( ( t = qsched_gettask( s , qid ) ) != NULL ) {
-            fun( t->type , t->data );
-            qsched_done( s , t );
-            }
-        }
+  qsched_start( s );
+  #pragma omp parallel
+  {
+    int qid = omp_get_thread_num() % s->nr_queues;
+    struct task *t;
+    while ( ( t = qsched_gettask( s , qid ) ) != NULL ) {
+      fun( t->type , t->data );
+      qsched_done( s , t );
+      }
     }
+  }
     \end{lstlisting}
 \end{minipage}\end{center}
 \noindent where {\tt qsched\_start} initializes the tasks and
@@ -724,7 +728,8 @@ for most compilers, is used to create a parallel section
 in which the code between lines~4 and~12 is executed
 concurrently.
 The parallel section consists of a loop (lines~7--10) in
-which a task is acquired via the function {\tt qsched\_gettask}
+which a task is acquired via the {\em execution function}
+{\tt qsched\_gettask}
 and its type and data are passed to a user-supplied execution
 function.
 Once the task has been executed, it is returned to the
@@ -740,14 +745,17 @@ to queues:
 \begin{center}\begin{minipage}{0.9\textwidth}
     \begin{lstlisting}
 void qsched_start ( qsched *s ) {
-    set the task waits and weights.
-    s->waiting = s->nr_tasks;
-    for ( k = 0 ; k < s->nr_tasks && s->tasks[tid[k]].wait == 0 ; k++ )
-        qsched_enqueue( s , &s->tasks[tid[k]] );
-    }
+  sort out pointers in tasks.
+  set the task waits and weights.
+  s->waiting = s->nr_tasks;
+  for ( k = 0 ; k < s->nr_tasks && s->tasks[tid[k]].wait == 0 ; k++ )
+    qsched_enqueue( s , &s->tasks[tid[k]] );
+  }
     \end{lstlisting}
 \end{minipage}\end{center}
-\noindent where the operations in line~2 are described in \sect{tasks}.
+\noindent where line~2 sets the {\tt unlocks}, {\tt locks},
+and {\tt uses} pointers in the tasks.
+The operations in line~3 are described in \sect{tasks}.
 
 The function {\tt qsched\_enqueue} tries to identify the best
 queue for a given task by looking at which queues last used
@@ -755,18 +763,18 @@ the resources used and locked by the task, e.g.:
 \begin{center}\begin{minipage}{0.9\textwidth}
     \begin{lstlisting}
 void qsched_enqueue ( qsched *s , struct task *t ) {
-    int k, qid, score[ s->nr_queues ];
-    for ( k = 0 ; k < s->nr_queues ; k++ )
-        score[k] = 0;
-    for ( j = 0 ; j < t->nr_locks ; j++ )
-        score[ t->locks[j]->owner ] += 1;
-    for ( j = 0 ; j < t->nr_uses ; j++ )
-        score[ t->uses[j]->owner ] += 1;
-    for ( qid = 0 , k = 1 ; k < s->nr_queues ; k++ )
-        if ( score[k] > score[qid] )
-            qid = k;
-    queue_put( &s->queues[qid] , t );
-    }
+  int k, qid, score[ s->nr_queues ];
+  for ( k = 0 ; k < s->nr_queues ; k++ )
+    score[k] = 0;
+  for ( j = 0 ; j < t->nr_locks ; j++ )
+    score[ t->locks[j]->owner ] += 1;
+  for ( j = 0 ; j < t->nr_uses ; j++ )
+    score[ t->uses[j]->owner ] += 1;
+  for ( qid = 0 , k = 1 ; k < s->nr_queues ; k++ )
+    if ( score[k] > score[qid] )
+      qid = k;
+  queue_put( &s->queues[qid] , t );
+  }
     \end{lstlisting}
 \end{minipage}\end{center}
 \noindent where the array {\tt score} keeps a count of the
@@ -779,33 +787,33 @@ one of the queues:
 \begin{center}\begin{minipage}{0.9\textwidth}
     \begin{lstlisting}
 struct task *qsched_gettask ( qsched *s , int qid ) {
-    struct task *res = NULL;
-    int k;
-    while ( s->waiting ) {
-        if ( ( res = queue_get( s->queues[qid] ) ) == NULL ) {
-            k = id of queue with largest count.
-            if ( ( res = queue_get( s->queues[k] ) ) != NULL )
-                break;
-            }
-        else
-            break;
-        }
-    if ( res != NULL ) {
-        for ( k = 0 ; k < res->nr_locks ; k++ )
-            res->locks[k]->owner = qid;
-        for ( k = 0 ; k < res->nr_uses ; k++ )
-            res->uses[k]->owner = qid;
-        }
-    return res;
+  struct task *res = NULL;
+  int k;
+  while ( s->waiting ) {
+    if ( ( res = queue_get( s->queues[qid] ) ) == NULL ) {
+      loop over all other queues in random order with index k
+        if ( ( res = queue_get( s->queues[k] ) ) != NULL )
+          break;
+      }
+    else
+      break;
     }
+  if ( res != NULL ) {
+    for ( k = 0 ; k < res->nr_locks ; k++ )
+      res->locks[k]->owner = qid;
+    for ( k = 0 ; k < res->nr_uses ; k++ )
+      res->uses[k]->owner = qid;
+    }
+  return res;
+  }
     \end{lstlisting}
 \end{minipage}\end{center}
 \noindent where the parameter {\tt qid} is the index of the
 prefered queue.
 If the queue is empty, or all of the tasks in that queue had
 unresolved conflicts, the scheduler uses {\em work stealing}
-\cite{ref:Blumofe1999}, i.e.~it looks for the queue with the
-largest task count, and attempts to steal a task from it
+\cite{ref:Blumofe1999}, i.e.~it loops over all other queues
+in a random order (line~6) and tries to get a task from them
 (line~7).
 If a task could be obtained from any queue (line~13),
 the resources it locks and uses are marked as now being owned
@@ -819,12 +827,12 @@ This is handled by the function {\tt qsched\_done}:
 \begin{center}\begin{minipage}{0.9\textwidth}
     \begin{lstlisting}
 void qsched_done ( qsched *s , struct task *t ) {
-    int k;
-    for ( k = 0 ; k < t->nr_unlocks ; k++ )
-        if ( atomic_dec( &t->unlocks[k]->wait ) == 1 )
-            qsched_enqueue( s , t->unlocks[k] );
-    atomic_dec( &s->waiting );
-    }
+  int k;
+  for ( k = 0 ; k < t->nr_unlocks ; k++ )
+    if ( atomic_dec( &t->unlocks[k]->wait ) == 1 )
+      qsched_enqueue( s , t->unlocks[k] );
+  atomic_dec( &s->waiting );
+  }
     \end{lstlisting}
 \end{minipage}\end{center}
 \noindent If any of the unlocked tasks' wait counters
@@ -837,24 +845,321 @@ Once all the dependent tasks have been unlocked, the
 
 \section{User Interface}
 
+The algorithms, as described in the previous section, have
+all been implemented as part of the Open-Source C-language
+QuickSched library.\footnote{\url{http://sourceforge.net/projects/quicksched/}}
+This section describes the interface functions and how they
+are called, whereas the following section contains
+examples of how QuickSched can be used.
+
+As mentioned previously, the {\tt qsched} object is the main
+interface to the task scheduler.
+As such, it provieds functionality for task and resource
+creation, for assigning resources to tasks, either as locks
+or uses, and for assigning dependencies between tasks.
+The tasks and resources themselves are opaque to the
+user, and handles of the types {\tt qsched\_task\_t}
+and {\tt qsched\_res\_t} are used instead.
+
+The main functions for setting up the scheduler are:
+\begin{itemize}
+    \item {\tt void qsched\_init( struct qsched *s , int nr\_queues , int flags )} \\
+        Initializes a {\tt qsched} object with the given number of queues.
+        The {\tt flags} parameter can be set to any bitwise or combination
+        of {\tt qsched\_flag\_none},
+        {\tt qsched\_flag\_yield}, and {\tt qsched\_flag\_pthread},
+        which are described further below.
+        This function must be called before any of the other
+        functions are used.
+        \vspace{1mm}
+    \item {\tt void qsched\_free( struct qsched *s )} \\
+        Releases all the memory and other resources allocated by the
+        given {\tt qsched} object.
+        After this function has been called, the {\tt qsched} will
+        need to be re-initialized for reuse.
+        \vspace{1mm}
+    \item {\tt void qsched\_reset( struct qsched *s )} \\
+        Clears the tasks and resources in the given {\tt qsched},
+        but does not release the allocated memory or change
+        the number of queues.
+        \vspace{1mm}
+    \item {\tt qsched\_task\_t qsched\_addtask( struct qsched *s , int type , unsigned int flags , void *data , int data\_size , int cost )} \\
+        Creates a new task within the given {\tt qsched} and returns
+        its handle.
+        The {\tt type} and {\tt data} field are copied into the {\tt qsched}
+        and passed to the execution function when the {\tt qsched} is run.
+        The parameter flags is either {\tt task\_flag\_none} or
+        {\tt task\_flag\_virtual}.
+        Tasks marked as virtual do not have any action associated with them,
+        e.g. they are used only to group or otherwise dependencies, and
+        are not passed to the execution function in {\tt qsched\_run}.
+        \vspace{1mm}
+    \item {\tt qsched\_res\_t qsched\_addres( struct qsched *s , qsched\_res\_t parent )} \\
+        Creates a new resource within the given {\tt qsched} and returns
+        its handle.
+        The {\tt parent} field is the handle of the heirarchical parent of
+        the new resource or {\tt qsched\_res\_none} if the resource
+        has no hierarchical parent.
+        \vspace{1mm}
+    \item {\tt void qsched\_addlock( struct qsched *s , qsched\_task\_t t , qsched\_res\_t res )} \\
+        Append the resource {\tt res} to the task {\tt t}'s list of
+        locks.
+        The task {\tt t} will then conflict with any other task that
+        also locks the resource {\tt res}, its hierarchical parents, or
+        any resource hierarchically below it.
+        \vspace{1mm}
+    \item {\tt void qsched\_adduse( struct qsched *s , qsched\_task\_t t , qsched\_res\_t res )} \\
+        Similar to {\tt qsched\_addlock}, yet the resource is only used and
+        is not part of a conflict.
+        This information is used when assinging tasks to specific queues.
+        \vspace{1mm}
+    \item {\tt void qsched\_addunlock( struct qsched *s , qsched\_task\_t ta , qsched\_task\_t tb )} \\
+        Appends the task {\tt tb} to the list of tasks that the task {\tt ta}
+        unlocks.
+        The task {\tt tb} then depends on the task {\tt ta}.
+        \vspace{1mm}
+    \item {\tt void qsched\_run( struct qsched *s , int nr\_threads , qsched\_funtype fun )} \\
+        Executes the tasks in the given {\tt qsched} using {\tt nr\_threads}
+        threads via the execution function {\tt fun}, as described in the
+        previous section.
+        Once a {\tt qsched} has been initialized and filled with
+        tasks and resources, it can be run more than once.
+        \vspace{1mm}
+\end{itemize}
+
+The library can be compiled to use either OpenMP or the
+{\tt pthreads} library \cite{ref:Pthreads1995}.
+OpenMP is the default, but calling {\tt qsched\_init} with
+either the {\tt qsched\_flag\_yield}
+or the {\tt qsched\_flag\_pthread} switches to using {\tt pthreads}
+for the parallel loop.
+
+OpenMP has the advantage of being available for most compilers
+and also potentially providing some extra platform-specific
+scheduling features, e.g.~optimal thread location and/or affinity,
+and of integrating seamlessly with other parallel parts of the
+user application.
+The disadvantage of using OpenMP is that it does not provide
+any mechanism for yielding a thread if no tasks are available,
+i.e. the main loop in {\tt qsched\_gettask}, described in the
+previous section, will spin until a task becomes available.
+This may be a problem if other parts of the user application
+are running in the background simultaneously.
+Calling {\tt qsched\_init} with the {\tt qsched\_flag\_yield}
+forces the use of {\tt pthreads} and uses conditional variables
+to wait for a new task to be enqueued if obtaining a task
+from any of the queues fails.
+This relinquishes the waiting computational thread for other
+processes.
+
 
 \section{Validation}
+
+This section presents two test cases showing both
+how QuickSched can be used in real-world applications, and
+providing benchmarks to assess its efficiency and scalability.
+
+The source code of both examples is distributed with the
+QuickSched library.
 
 
 \subsection{Task-Based QR Decomposition}
 
+\citeN{ref:Buttari2009} introduced the concept of using task-based
+parallelsim for tile-based algorithms in numerical linear algebra,
+presenting parallel codes for the Cholesky, LU, and QR
+decompositions.
+These algorithms are now part of the PLASMA and MAGMA
+libraries for parallel linear algebra \cite{ref:Agullo2009}.
+The former uses the QUARK task scheduler, which was originally
+designed for it, while the latter currently uses the StarPU
+task scheduler.
+
+\begin{figure}
+    \centerline{\epsfig{file=figures/QR.pdf,width=0.8\textwidth}}
+    \caption{Task-based QR decomposition of a matrix consisting
+        of $4\times 4$ tiles.
+        Each circle represents a tile, and its colour represents
+        the type of taks on that tile at that level.
+        Empty circles have no task associated with them.
+        The arrows represent dependencies at each level, and
+        tasks at each level also implicitly depend on the
+        task at the same location in the previous level.}
+    \label{fig:QR}
+\end{figure}
+
+The tiled QR factorization is based on four basic tasks,
+or kernels, as shown in \fig{QR}.
+For a matrix consisting of $N\times N$ tiles, $N$ passes,
+or levels, are computed, each computing a column and row of the QR
+decomposition.
+The tasks can be defined in terms of the tuples $(i,j,k)$,
+where $i$ and $j$ are the row and column of the tile, respectively,
+and $k$ is its level:
+
+\begin{center}
+    \begin{tabular}{llll}
+        Task & cond. & depends on task & locks tile \\
+        \hline
+        \epsfig{file=figures/TaskRed.pdf,height=9pt} DGEQRF & $i=j=k$ & $(i,j,k-1)$ & $(i,j)$ \\
+        \epsfig{file=figures/TaskGreen.pdf,height=9pt} DLARFT & $i=k$, $j>k$ & $(i,j,k-1)$, $(k,k,k)$ & $(i,j)$ \\
+        \epsfig{file=figures/TaskBlue.pdf,height=9pt} DTSQRF & $i>k$, $j=k$ & $(i,j,k-1)$, $(i-1,j,k)$ & $(i,j)$, $(j,j)$ \\
+        \epsfig{file=figures/TaskYellow.pdf,height=9pt} DSSRFT & $i>k$, $j>k$ & $(i,j,k-1)$, $(k,j,k)$, $(i,k,k)$ & $(i,j)$ \\
+        \hline
+    \end{tabular}
+\end{center}
+
+\noindent where the task names are the BLAS-like operation
+performed on the given tiles.
+Every task depends on the task at the same position and the
+previous level, i.e.~the task $(i,j,k)$ always depends on
+$(i,j,k-1)$ for $k>1$.
+Each task also modifies its own tile $(i,j)$, and the DTSQRF
+task additionally modifies the lower triangular part of the $(j,j)$th tile.
+
+Setting up the dependencies and locks for a matrix of
+$m\times n$ tiles is implemented as shown in \fig{CodeQR},
+
+\begin{figure}
+\begin{center}\begin{minipage}{0.9\textwidth}
+    \begin{lstlisting}
+enum { tDGEQRF , tDLARFT , tDTSQRF , tDSSRFT };
+void make_tasks ( struct qsched *s , int m , int n ) {
+  int i, j, k, data[3];
+  qsched_task_t tid[ m*n ], tid_new;
+  qsched_res_t rid[ m*n ];
+  for ( k = 0 ; k < m*n ; k++ ) {
+    tid[k] = qsched_task_none;
+    rid[k] = qsched_addres( s , qsched_res_none );
+    }
+  for ( k = 0 ; k < m && k < n ; k++ ) {
+    /* DGEQRF task at (k,k). */
+    data[0] = k; data[1] = k; data[2] = k;
+    tid_new = qsched_addtask( s , tDGEQRF , qsched_flags_none ,
+      data , sizeof(int)*3 , 2 );
+    qsched_addlock( s , tid_new , rid[ k*m + k ] )
+    if ( tid[ k*m + k ] != qsched_task_none )
+      qsched_addunlock( s , tid[ k*m + k ] , tid_new );
+    tid[ k*m + k ] = tid_new;
+    for ( j = k+1 ; j < n ; j++ ) {
+      /* DLARFT task at (k,j). */
+      data[0] = k; data[1] = j; data[2] = k;
+      tid_new = qsched_addtask( s , tDLARFT , qsched_flags_none ,
+        data , sizeof(int)*3 , 3 );
+      qsched_addlock( s , tid_new , rid[ j*m + k ] )
+      qsched_addunlock( s , tid[ k*m + k ] , tid_new );
+      if ( tid[ j*m + k ] != qsched_task_none )
+        qsched_addunlock( s , tid[ j*m + k ] , tid_new );
+      tid[ j*m + k ] = tid_new;
+      }
+    for ( i = k+1 ; i < m ; i++ ) {
+      /* DTSQRF task at (i,k). */
+      data[0] = i; data[1] = k; data[2] = k;
+      tid_new = qsched_addtask( s , tDTSQRF , qsched_flags_none ,
+        data , sizeof(int)*3 , 3 );
+      qsched_addlock( s , tid_new , rid[ k*m + i ] )
+      qsched_addlock( s , tid_new , rid[ k*m + k ] )
+      qsched_addunlock( s , tid[ k*m + k ] , tid_new );
+      if ( tid[ k*m + i ] != qsched_task_none )
+        qsched_addunlock( s , tid[ k*m + i ] , tid_new );
+      tid[ k*m + i ] = tid_new;
+      for ( j = k+1 ; j < n ; j++ ) {
+        /* DSSRFT task at (i,j). */
+        data[0] = i; data[1] = j; data[2] = k;
+        tid_new = qsched_addtask( s , tDSSRFT , qsched_flags_none ,
+          data , sizeof(int)*3 , 5 );
+        qsched_addlock( s , tid_new , rid[ j*m + i ] )
+        qsched_addunlock( s , tid[ j*m + k ] , tid_new );
+        qsched_addunlock( s , tid[ k*m + i ] , tid_new );
+        if ( tid[ j*m + i ] != qsched_task_none )
+          qsched_addunlock( s , tid[ j*m + i ] , tid_new );
+        tid[ j*m + i ] = tid_new;
+        }
+      }
+    }
+  }
+    \end{lstlisting}
+\end{minipage}\end{center}
+\caption{Example code to generate the tasks for the tiled
+    QR decomposition.}
+\label{fig:CodeQR}
+\end{figure}
+
+Setting up the dependencies and locks for a matrix of
+$m\times n$ tiles is implemented as shown in \fig{CodeQR},
+where the $m\times n$ matrix {\tt tid} stores the handles
+of the last task at position $(i,j)$ and is initialized with
+empty tasks (line~7).
+Similarly, {\tt rid} stores the handles of the resources for each
+tile of the matrix, allocated in line~8.
+
+The following loops mirror the task generation described in
+Algorithm~2 of \citeN{ref:Buttari2009}.
+E.g.~for each level {\tt k} (line~10), a DGEQRF task is created
+for tile $(k,k)$ (lines~13--14).
+A lock is added for the newly created task on the
+resource associated with the $(k,k)$th tile (line~15).
+If a task exists at that position at the previous level
+(line~16), a dependency is added between the old task and
+the new (line~17), and the new task is stored in {\tt tid}
+(line~18).
+The remaining tasks are generated in the same way, with
+their respective locks and dependencies.
+
+The execution function for these tasks simply calls the apropriate
+kernels on the matrix tiles given by the task data:
+\begin{center}\begin{minipage}{0.9\textwidth}
+    \begin{lstlisting}
+void exec_fun ( int type , void *data ) {
+  int *idata = (int *)data;
+  int i = idata[0], j = idata[1], k = idata[2];
+  switch ( type ) {
+    case tDGEQRF:
+      DGEQRF( A[i,j] , ... );
+      break;
+    case tDLARFT:
+      DLARFT( A[i,j] , A[i,i] , ... );
+      break;
+    case tDTSQRF:
+      DTSQRF( A[i,j] , A[j,j]... );
+      break;
+    case tDSSRFT:
+      DSSRFT( A[i,j] , A[i,k] , A[k,j] , ... );
+      break;
+    default:
+      error( "Unknown task type." );
+    }
+  }
+    \end{lstlisting}
+\end{minipage}\end{center}
+\noindent where {\tt A} is the matrix over which the QR
+decmposition is executed.
+
 
 \subsection{Task-Based Barnes-Hut N-Body Solver}
+
+The Barnes-Hut tree-code is an algorithm to compute the
+interactions between a set of particles 
 
 
 \section{Conclusions}
 
-Main points:
+Main points/differences to other schedulers:
 \begin{itemize}
-    \item Conflicts are better than dependencies.
+    \item Conflicts.
     \item Specifying the entire task tree before execution
         gives better scheduling.
     \item Combination of locality, weight, and availability.
+    \item Compact implementation.
+\end{itemize}
+
+Possible improvements
+\begin{itemize}
+    \item Use number of locks as well when selecting from a queue.
+    \item Use total/max queue weight when selecting for work-stealing.
+    \item Use different resource sizes when computing queue score.
+    \item Dynamically add new tasks, but potentially wrecks havoc
+        with the weights.
 \end{itemize}
 
 
@@ -870,7 +1175,7 @@ evaluation.
 \end{acks}
 
 % Bibliography
-\bibliographystyle{hacm}
+\bibliographystyle{ACM-Reference-Format-Journals}
 \bibliography{quicksched}
                              % Sample .bib file with references that match those in
                              % the 'Specifications Document (V1.5)' as well containing
