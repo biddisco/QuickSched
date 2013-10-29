@@ -59,13 +59,13 @@ struct qsched {
     struct task *tasks;
     
     /* The dependency indices. */
-    int *deps, *deps_key;
+    qsched_task_t *deps;
     
     /* The conflict/lock array. */
-    int *locks, *locks_key;
+    qsched_res_t *locks, *uses;
     
-    /* The conflict/use array. */
-    int *uses, *uses_key;
+    /* Sorting indices. */
+    qsched_task_t *deps_key, *locks_key, *uses_key;
     
     /* The shared resources. */
     // lock_type *res;
@@ -141,6 +141,7 @@ void qsched_unlockres ( struct qsched *s , int rid );
 int qsched_locktask ( struct qsched *s , int tid );
 void qsched_unlocktask ( struct qsched *s , int tid );
 void qsched_prepare ( struct qsched *s );
+void qsched_enqueue ( struct qsched *s , struct task *t );
 
 /* External functions. */
 void qsched_init ( struct qsched *s , int nr_queues , int flags );
@@ -152,3 +153,5 @@ void qsched_adduse ( struct qsched *s , qsched_task_t t , qsched_res_t res );
 void qsched_free ( struct qsched *s );
 void qsched_run ( struct qsched *s , int nr_threads , qsched_funtype fun );
 void qsched_reset ( struct qsched *s );
+void qsched_addtask_dynamic ( struct qsched *s , int type , unsigned int flags , void *data , int data_size , int cost , qsched_res_t *locks , int nr_locks , qsched_res_t *uses , int nr_uses );
+void qsched_ensure ( struct qsched *s , int nr_tasks , int nr_res , int nr_deps , int nr_locks , int nr_uses , int size_data );
