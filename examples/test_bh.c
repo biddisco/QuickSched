@@ -36,7 +36,7 @@
 /* Some local constants. */
 #define cell_pool_grow 100
 #define cell_maxparts 100
-#define task_limit 1000
+#define task_limit 4000
 #define const_G 6.6738e-11
 #define dist_min 0.5
 
@@ -684,8 +684,8 @@ void test_bh ( int N , int nr_threads , int runs ) {
         }
         
     /* Dump the tasks. */
-    for ( k = 0 ; k < s.count ; k++ )
-        printf( " %i %i %lli %lli\n" , s.tasks[k].type , s.tasks[k].qid , s.tasks[k].tic , s.tasks[k].toc );
+    /* for ( k = 0 ; k < s.count ; k++ )
+        printf( " %i %i %lli %lli\n" , s.tasks[k].type , s.tasks[k].qid , s.tasks[k].tic , s.tasks[k].toc ); */
         
     /* Dump the costs. */
     message( "costs: setup=%lli ticks, run=%lli ticks." ,
