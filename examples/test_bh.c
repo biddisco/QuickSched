@@ -610,12 +610,13 @@ void create_tasks ( struct qsched *s , struct cell *ci , struct cell *cj ) {
  * @param nr_threads Number of threads to use.
  */
  
-void test_bh ( int N , int nr_threads ) {
+void test_bh ( int N , int nr_threads , int runs ) {
 
     int k;
     struct cell *root;
     struct part *parts;
     struct qsched s;
+    ticks tic, tot_setup = 0, tot_run = 0;
     
     /* Runner function. */
     void runner ( int type , void *data ) {
@@ -666,17 +667,30 @@ void test_bh ( int N , int nr_threads ) {
     root->count = N;
     root->parts = parts;
     cell_split( root , &s );
-    
+
     /* Create the tasks. */
+    tic = getticks();
     create_tasks( &s , root , NULL );
+    tot_setup += getticks() - tic;
+
+    /* Loop over the number of runs. */
+    for ( k = 0 ; k < runs ; k++ ) {
     
-    /* Execute the tasks. */
-    qsched_run( &s , nr_threads , runner );
+        /* Execute the tasks. */
+        tic = getticks();
+        qsched_run( &s , nr_threads , runner );
+        tot_run += getticks() - tic;
+        
+        }
         
     /* Dump the tasks. */
     for ( k = 0 ; k < s.count ; k++ )
         printf( " %i %i %lli %lli\n" , s.tasks[k].type , s.tasks[k].qid , s.tasks[k].tic , s.tasks[k].toc );
         
+    /* Dump the costs. */
+    message( "costs: setup=%lli ticks, run=%lli ticks." ,
+        tot_setup , tot_run/runs );
+    
     /* Clean up. */
     qsched_free( &s );
     
@@ -690,7 +704,7 @@ void test_bh ( int N , int nr_threads ) {
 int main ( int argc , char *argv[] ) {
 
     int c, nr_threads;
-    int N = 1000;
+    int N = 1000, runs = 1;
     
     /* Get the number of threads. */
     #pragma omp parallel shared(nr_threads)
@@ -700,19 +714,23 @@ int main ( int argc , char *argv[] ) {
     }
     
     /* Parse the options */
-    while ( ( c = getopt( argc , argv  , "m:n:k:t:" ) ) != -1 )
+    while ( ( c = getopt( argc , argv  , "n:r:t:" ) ) != -1 )
         switch( c ) {
 	        case 'n':
 	            if ( sscanf( optarg , "%d" , &N ) != 1 )
 	                error( "Error parsing number of particles." );
 	            break;
+            case 'r':
+                if ( sscanf( optarg , "%d" , &runs ) != 1 )
+                    error( "Error parsing number of runs." );
+                break;
 	        case 't':
 	            if ( sscanf( optarg , "%d" , &nr_threads ) != 1 )
 	                error( "Error parsing number of threads." );
 	            omp_set_num_threads( nr_threads );
 	            break;
 	        case '?':
-                fprintf( stderr , "Usage: %s [-t nr_threads] [-n N]\n" , argv[0] );
+                fprintf( stderr , "Usage: %s [-t nr_threads] [-n N] [-r runs]\n" , argv[0] );
                 fprintf( stderr , "Solves the N-body problem using a Barnes-Hutt\n"
                                   "tree code with N random particles in [0,1]^3 using\n"
                                   "nr_threads threads.\n" );
@@ -720,11 +738,11 @@ int main ( int argc , char *argv[] ) {
 	        }
             
     /* Dump arguments. */
-    message( "Computing the N-body problem over %i particles using %i threads." ,
-        N , nr_threads );
+    message( "Computing the N-body problem over %i particles using %i threads (%i runs)." ,
+        N , nr_threads , runs );
         
     /* Run the test. */
-    test_bh( N , nr_threads );
+    test_bh( N , nr_threads, runs );
     
     return 0;
     
