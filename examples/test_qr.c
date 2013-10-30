@@ -233,7 +233,7 @@ void DSSRFT	(double* blockV,
  * @param nr_threads Number of threads to use.
  */
  
-void test_qr ( int m , int n , int nr_threads ) {
+void test_qr ( int m , int n , int nr_threads , int runs ) {
 
     int k, j, i;
     double *A, *A_orig, *tau;
@@ -241,6 +241,7 @@ void test_qr ( int m , int n , int nr_threads ) {
     qsched_task_t *tid, tid_new;
     qsched_res_t *rid;
     int data[3];
+    ticks tic, toc_run, tot_setup, tot_run = 0;
     
     enum task_types { task_DGEQRF , task_DLARFT , task_DTSQRF , task_DSSRFT };
 
@@ -302,6 +303,7 @@ void test_qr ( int m , int n , int nr_threads ) {
     qsched_init( &s , nr_threads , qsched_flag_none );
     
     /* Allocate and init the task ID and resource ID matrix. */
+    tic = getticks();
     if ( ( tid = (qsched_task_t *)malloc( sizeof(qsched_task_t) * m * n ) ) == NULL ||
          ( rid = (qsched_res_t *)malloc( sizeof(qsched_res_t) * m * n ) ) == NULL )
         error( "Failed to allocate tid/rid matrix." );
@@ -363,9 +365,20 @@ void test_qr ( int m , int n , int nr_threads ) {
             }
     
         } /* build the tasks. */
+    tot_setup = getticks() - tic;
         
-    /* Execute the the tasks. */
-    qsched_run( &s , nr_threads , runner );
+        
+    /* Loop over the number of runs. */
+    for ( k = 0 ; k < runs ; k++ ) {
+    
+        /* Execute the the tasks. */
+        tic = getticks();
+        qsched_run( &s , nr_threads , runner );
+        toc_run = getticks(); 
+	    message( "%ith run took %lli ticks..." , k , toc_run - tic );
+        tot_run += toc_run - tic;
+        
+        }
     
         
     /* Dump A. */
@@ -387,11 +400,15 @@ void test_qr ( int m , int n , int nr_threads ) {
     printf( "];\n" ); */
     
     /* Dump the tasks. */
-    for ( k = 0 ; k < s.count ; k++ ) {
+    /* for ( k = 0 ; k < s.count ; k++ ) {
         int *d = (int *)&s.data[ s.tasks[k].data ];
         printf( " %i %i %i %i %lli %lli\n" , s.tasks[k].type , s.tasks[k].qid , d[0] , d[1] , s.tasks[k].tic , s.tasks[k].toc );
-        }
+        } */
         
+    /* Dump the costs. */
+    message( "costs: setup=%lli ticks, run=%lli ticks." ,
+        tot_setup , tot_run/runs );
+    
     /* Clean up. */
     qsched_free( &s );
         
@@ -405,7 +422,7 @@ void test_qr ( int m , int n , int nr_threads ) {
 int main ( int argc , char *argv[] ) {
 
     int c, nr_threads;
-    int M = 4, N = 4;
+    int M = 4, N = 4, runs = 1;
     
     /* Get the number of threads. */
     #pragma omp parallel shared(nr_threads)
@@ -415,7 +432,7 @@ int main ( int argc , char *argv[] ) {
     }
     
     /* Parse the options */
-    while ( ( c = getopt( argc , argv  , "m:n:k:t:" ) ) != -1 )
+    while ( ( c = getopt( argc , argv  , "m:n:k:r:t:" ) ) != -1 )
         switch( c ) {
 	        case 'm':
 	            if ( sscanf( optarg , "%d" , &M ) != 1 )
@@ -425,6 +442,10 @@ int main ( int argc , char *argv[] ) {
 	            if ( sscanf( optarg , "%d" , &N ) != 1 )
 	                error( "Error parsing dimension M." );
 	            break;
+            case 'r':
+                if ( sscanf( optarg , "%d" , &runs ) != 1 )
+                    error( "Error parsing number of runs." );
+                break;
 	        case 't':
 	            if ( sscanf( optarg , "%d" , &nr_threads ) != 1 )
 	                error( "Error parsing number of threads." );
@@ -438,10 +459,10 @@ int main ( int argc , char *argv[] ) {
 	        }
             
     /* Dump arguments. */
-    message( "Computing the tiled QR decomposition of a %ix%i matrix using %i threads." ,
-        32*M , 32*N , nr_threads );
+    message( "Computing the tiled QR decomposition of a %ix%i matrix using %i threads (%i runs)." ,
+        32*M , 32*N , nr_threads , runs );
         
-    test_qr( M , N , nr_threads );
+    test_qr( M , N , nr_threads , runs );
     
     }
     
