@@ -941,7 +941,7 @@ void qsched_prepare ( struct qsched *s ) {
  
 int qsched_addres ( struct qsched *s , int parent ) {
 
-    void *temp1, *temp2;
+    struct res *res_new;
     int id;
 
     /* Lock the sched. */
@@ -954,18 +954,17 @@ int qsched_addres ( struct qsched *s , int parent ) {
         s->size_res *= qsched_stretch;
         
         /* Allocate a new task list. */
-        if ( ( temp1 = malloc( sizeof(lock_type) * s->size_res ) ) == NULL ||
-             ( temp2 = malloc( sizeof(int) * s->size_res ) ) == NULL )
+        if ( ( res_new = malloc( sizeof(struct res) * s->size_res ) ) == NULL )
             error( "Failed to allocate new res lists." );
             
         /* Copy the res and owners over to the new list. */
-        memcpy( temp1 , (void *)s->res , sizeof(struct res) * s->count_res );
+        memcpy( res_new , s->res , sizeof(struct res) * s->count_res );
         
         /* Free the old res lists. */
-        free( (int *)s->res );
+        free( s->res );
         
         /* Set the new res lists. */
-        s->res = (struct res *)temp1;
+        s->res = res_new;
     
         }
         
