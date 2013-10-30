@@ -309,7 +309,7 @@ void test_qr ( int m , int n , int K , int nr_threads , int runs ) {
         error( "Failed to allocate tid/rid matrix." );
     for ( k = 0 ; k < m * n ; k++ ) {
         tid[k] = qsched_task_none;
-        rid[k] = qsched_addres( &s , qsched_res_none );
+        rid[k] = qsched_addres( &s , qsched_owner_none , qsched_res_none );
         }
     
     /* Build the tasks. */

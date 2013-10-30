@@ -118,7 +118,7 @@ void test2 ( int m , int n , int k , int nr_threads ) {
     /* Build a task for each tile of the matrix c. */
     for ( i = 0 ; i < m ; i++ )
         for ( j = 0 ; j < n ; j++ ) {
-            rid = qsched_addres( &s , -1 );
+            rid = qsched_addres( &s , qsched_owner_none , qsched_res_none );
             data[0] = i; data[1] = j;
             for ( kk = 0 ; kk < k ; kk++ ) {
                 data[2] = kk;
@@ -222,7 +222,7 @@ void test1 ( int m , int n , int k , int nr_threads ) {
     for ( i = 0 ; i < m ; i++ )
         for ( j = 0 ; j < n ; j++ ) {
             data[0] = i; data[1] = j;
-            rid = qsched_addres( &s , -1 );
+            rid = qsched_addres( &s , qsched_owner_none , qsched_res_none );
             tid = qsched_addtask( &s , 1 , task_flag_none , data , 2*sizeof(int) , 1 );
             qsched_addlock( &s , tid , rid );
             }

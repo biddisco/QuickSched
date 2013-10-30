@@ -121,6 +121,7 @@ struct cell *cell_get ( ) {
  *        to the sched.
  *
  * @param c The #cell to be split.
+ * @param N The total number of parts.
  * @param s The #sched to store the resources.
  */
  
@@ -131,10 +132,15 @@ void cell_split ( struct cell *c , struct qsched *s ) {
     struct cell *cp;
     int left[8], right[8];
     double pivot[3];
+    static struct cell *root = NULL;
+    
+    /* Set the root cell. */
+    if ( root == NULL )
+        root = c;
     
     /* Add a resource for this cell if it doesn't have one yet. */
     if ( c->res == qsched_res_none ) 
-        c->res = qsched_addres( s , qsched_res_none );
+        c->res = qsched_addres( s , qsched_owner_none , qsched_res_none );
     
     /* Attach a center-of-mass task to the cell. */
     c->com_tid = qsched_addtask( s , task_type_com , task_flag_none , &c , sizeof(struct cell *) , 1 );
@@ -155,7 +161,7 @@ void cell_split ( struct cell *c , struct qsched *s ) {
             cp->h[0] = c->h[0]/2;
             cp->h[1] = c->h[1]/2;
             cp->h[2] = c->h[2]/2;
-            cp->res = qsched_addres( s , c->res );
+            cp->res = qsched_addres( s , qsched_owner_none , c->res );
             if ( k & 4 )
                 cp->loc[0] += cp->h[0];
             if ( k & 2 )
@@ -229,6 +235,9 @@ void cell_split ( struct cell *c , struct qsched *s ) {
             qsched_addunlock( s , c->progeny[k]->com_tid , c->com_tid );
             
         } /* does the cell need to be split? */
+        
+    /* Set this cell's resources ownership. */
+    qsched_res_own( s , c->res , s->nr_queues * ( c->parts - root->parts ) / root->count );
         
     }
     
@@ -644,7 +653,7 @@ void test_bh ( int N , int nr_threads , int runs ) {
         }
     
     /* Initialize the scheduler. */
-    qsched_init( &s , nr_threads , qsched_flag_yield );
+    qsched_init( &s , nr_threads , qsched_flag_noreown );
     
     /* Init and fill the particle array. */
     if ( ( parts = (struct part *)malloc( sizeof(struct part) * N ) ) == NULL )
@@ -679,8 +688,8 @@ void test_bh ( int N , int nr_threads , int runs ) {
         /* Execute the tasks. */
         tic = getticks();
         qsched_run( &s , nr_threads , runner );
-	toc_run = getticks();
-	message( "%ith run took %lli ticks..." , k , toc_run - tic );
+	    toc_run = getticks();
+	    message( "%ith run took %lli ticks..." , k , toc_run - tic );
         tot_run += toc_run - tic;
         
         }
