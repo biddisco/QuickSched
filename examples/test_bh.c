@@ -616,7 +616,7 @@ void test_bh ( int N , int nr_threads , int runs ) {
     struct cell *root;
     struct part *parts;
     struct qsched s;
-    ticks tic, tot_setup = 0, tot_run = 0;
+    ticks tic, toc_run, tot_setup = 0, tot_run = 0;
     
     /* Runner function. */
     void runner ( int type , void *data ) {
@@ -679,7 +679,9 @@ void test_bh ( int N , int nr_threads , int runs ) {
         /* Execute the tasks. */
         tic = getticks();
         qsched_run( &s , nr_threads , runner );
-        tot_run += getticks() - tic;
+	toc_run = getticks();
+	message( "%ith run took %lli ticks..." , k , toc_run - tic );
+        tot_run += toc_run - tic;
         
         }
         
