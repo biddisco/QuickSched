@@ -233,7 +233,7 @@ void DSSRFT	(double* blockV,
  * @param nr_threads Number of threads to use.
  */
  
-void test_qr ( int m , int n , int nr_threads , int runs ) {
+void test_qr ( int m , int n , int K , int nr_threads , int runs ) {
 
     int k, j, i;
     double *A, *A_orig, *tau;
@@ -252,26 +252,26 @@ void test_qr ( int m , int n , int nr_threads , int runs ) {
         /* Decode the task data. */
         int *idata = (int *)data;
         int i = idata[0], j = idata[1], k = idata[2];
-        double buff[ 2*32*32 ];
+        double buff[ 2*K*K ];
         
         /* Decode and execute the task. */
         switch ( type ) {
             case task_DGEQRF:
-                LAPACKE_dgeqrf_work( LAPACK_COL_MAJOR , 32, 32 ,
-                                &A[ j*m*32*32 + i*32 ] , m*32 , &tau[ j*m*32 + i*32 ] ,
-                                buff , 2*32*32 );
+                LAPACKE_dgeqrf_work( LAPACK_COL_MAJOR , K, K ,
+                                &A[ j*m*K*K + i*K ] , m*K , &tau[ j*m*K + i*K ] ,
+                                buff , 2*K*K );
                 break;
             case task_DLARFT:
                 LAPACKE_dlarft_work( LAPACK_COL_MAJOR , 'F' , 'C' ,
-                                32 , 32 , &A[ i*m*32*32 + i*32 ] ,
-                                m*32 , &tau[ i*m*32 + i*32 ] , &A[ j*m*32*32 + i*32 ] ,
-                                m*32 );
+                                K , K , &A[ i*m*K*K + i*K ] ,
+                                m*K , &tau[ i*m*K + i*K ] , &A[ j*m*K*K + i*K ] ,
+                                m*K );
                 break;
             case task_DTSQRF:
-                DTSQRF( &A[ j*m*32*32 + j*32 ] , &A[ j*m*32*32 + i*32 ] , &tau[ j*m*32 + i*32 ] , 32 , 32 , 32 , 32*m , buff );
+                DTSQRF( &A[ j*m*K*K + j*K ] , &A[ j*m*K*K + i*K ] , &tau[ j*m*K + i*K ] , K , K , K , K*m , buff );
                 break;
             case task_DSSRFT:
-                DSSRFT(	&A[ k*m*32 + i*32 ] , &A[ j*m*32*32 + k*32 ] , &A[ j*m*32*32 + i*32 ] , &tau[ k*m*32 + i*32 ] , 32 , 32 , 32*m );
+                DSSRFT(	&A[ k*m*K + i*K ] , &A[ j*m*K*K + k*K ] , &A[ j*m*K*K + i*K ] , &tau[ k*m*K + i*K ] , K , K , K*m );
                 break;
             default:
                 error( "Unknown task type." );
@@ -281,20 +281,20 @@ void test_qr ( int m , int n , int nr_threads , int runs ) {
         
     
     /* Allocate and fill the original matrix. */
-    if ( ( A = (double *)malloc( sizeof(double) * m * n * 32 * 32 ) ) == NULL ||
-         ( tau = (double *)malloc( sizeof(double) * m * n * 32 ) ) == NULL ||
-         ( A_orig = (double *)malloc( sizeof(double) * m * n * 32 * 32 ) ) == NULL )
+    if ( ( A = (double *)malloc( sizeof(double) * m * n * K * K ) ) == NULL ||
+         ( tau = (double *)malloc( sizeof(double) * m * n * K ) ) == NULL ||
+         ( A_orig = (double *)malloc( sizeof(double) * m * n * K * K ) ) == NULL )
         error( "Failed to allocate matrices." );
-    for ( k = 0 ; k < m * n * 32 * 32 ; k++ )
+    for ( k = 0 ; k < m * n * K * K ; k++ )
         A_orig[k] = 2*((double)rand()) / RAND_MAX - 1.0;
-    memcpy( A , A_orig , sizeof(double) * m * n * 32 * 32 );
-    bzero( tau , sizeof(double) * m * n * 32 );
+    memcpy( A , A_orig , sizeof(double) * m * n * K * K );
+    bzero( tau , sizeof(double) * m * n * K );
     
     /* Dump A_orig. */
     /* message( "A_orig = [" );
-    for ( k = 0 ; k < m*32 ; k++ ) {
-        for ( j = 0 ; j < n*32 ; j++ )
-            printf( "%.3f " , A_orig[ j*m*32 + k ] );
+    for ( k = 0 ; k < m*K ; k++ ) {
+        for ( j = 0 ; j < n*K ; j++ )
+            printf( "%.3f " , A_orig[ j*m*K + k ] );
         printf( "\n" );
         }
     printf( "];\n" ); */
@@ -383,18 +383,18 @@ void test_qr ( int m , int n , int nr_threads , int runs ) {
         
     /* Dump A. */
     /* message( "A = [" );
-    for ( k = 0 ; k < m*32 ; k++ ) {
-        for ( j = 0 ; j < n*32 ; j++ )
-            printf( "%.3f " , A[ j*m*32 + k ] );
+    for ( k = 0 ; k < m*K ; k++ ) {
+        for ( j = 0 ; j < n*K ; j++ )
+            printf( "%.3f " , A[ j*m*K + k ] );
         printf( "\n" );
         }
     printf( "];\n" ); */
     
     /* Dump tau. */
     /* message( "tau = [" );
-    for ( k = 0 ; k < m*32 ; k++ ) {
+    for ( k = 0 ; k < m*K ; k++ ) {
         for ( j = 0 ; j < n ; j++ )
-            printf( "%.3f " , tau[ j*m*32 + k ] );
+            printf( "%.3f " , tau[ j*m*K + k ] );
         printf( "\n" );
         }
     printf( "];\n" ); */
@@ -422,7 +422,7 @@ void test_qr ( int m , int n , int nr_threads , int runs ) {
 int main ( int argc , char *argv[] ) {
 
     int c, nr_threads;
-    int M = 4, N = 4, runs = 1;
+    int M = 4, N = 4, runs = 1, K = 32;
     
     /* Get the number of threads. */
     #pragma omp parallel shared(nr_threads)
@@ -442,6 +442,10 @@ int main ( int argc , char *argv[] ) {
 	            if ( sscanf( optarg , "%d" , &N ) != 1 )
 	                error( "Error parsing dimension M." );
 	            break;
+	        case 'k':
+	            if ( sscanf( optarg , "%d" , &K ) != 1 )
+	                error( "Error parsing tile size." );
+	            break;
             case 'r':
                 if ( sscanf( optarg , "%d" , &runs ) != 1 )
                     error( "Error parsing number of runs." );
@@ -452,7 +456,7 @@ int main ( int argc , char *argv[] ) {
 	            omp_set_num_threads( nr_threads );
 	            break;
 	        case '?':
-                fprintf( stderr , "Usage: %s [-t nr_threads] [-m M] [-n N]\n" , argv[0] );
+                fprintf( stderr , "Usage: %s [-t nr_threads] [-m M] [-n N] [-k K]\n" , argv[0] );
                 fprintf( stderr , "Computes the tiled QR decomposition of an MxN tiled\n"
                                   "matrix using nr_threads threads.\n" );
 	            exit( EXIT_FAILURE );
@@ -462,7 +466,7 @@ int main ( int argc , char *argv[] ) {
     message( "Computing the tiled QR decomposition of a %ix%i matrix using %i threads (%i runs)." ,
         32*M , 32*N , nr_threads , runs );
         
-    test_qr( M , N , nr_threads , runs );
+    test_qr( M , N , K , nr_threads , runs );
     
     }
     
