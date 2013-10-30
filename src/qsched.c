@@ -47,6 +47,22 @@
 
 
 /**
+ * @brief Change the owner of a resource.
+ *
+ * @param Pointer to the #qsched.
+ * @param res Resource handle.
+ * @param owner The ID of the new owner.
+ */
+ 
+void qsched_res_own ( struct qsched *s , qsched_res_t res , int owner ) {
+
+    /* Force the new ownership. */
+    s->res[ res ].owner = owner;
+
+    }
+
+
+/**
  * @brief Make sure that the scheduler has enough memory
  *        allocated for the tasks, resources, dependencies,
  *        locks, uses, and data.
@@ -418,7 +434,7 @@ void *qsched_getdata( struct qsched *s , struct task *t ) {
  
 void qsched_enqueue ( struct qsched *s , struct task *t ) {
 
-    int j, qid, scores[ s->nr_queues ];
+    int j, qid, scores[ s->nr_queues ], oid;
     
     /* If this is a virtual task, just do its unlocks and leave. */
     if ( t->flags & task_flag_virtual ) {
@@ -438,9 +454,11 @@ void qsched_enqueue ( struct qsched *s , struct task *t ) {
 
         /* Loop over the locks and uses, and get their owners. */
         for ( j = 0 ; j < t->nr_locks ; j++ )
-            scores[ s->res[ t->locks[j] ].owner ] += 1;
+            if ( ( oid = s->res[ t->locks[j] ].owner ) != qsched_owner_none )
+                scores[ oid ] += 1;
         for ( j = 0 ; j < t->nr_uses ; j++ )
-            scores[ s->res[ t->uses[j] ].owner ] += 1;
+            if ( ( oid = s->res[ t->uses[j] ].owner ) != qsched_owner_none )
+                scores[ oid ] += 1;
 
         /* Find the queue with the highest score. */
         qid = 0;
@@ -695,10 +713,12 @@ struct task *qsched_gettask ( struct qsched *s , int qid ) {
             t = &s->tasks[tid];
         
             /* Own the resources. */
-            for ( k = 0 ; k < t->nr_locks ; k++ )
-                s->res[ t->locks[k] ].owner = qid;
-            for ( k = 0 ; k < t->nr_uses ; k++ )
-                s->res[ t->uses[k] ].owner = qid;
+            if ( !( s->flags & qsched_flag_noreown ) ) {
+                for ( k = 0 ; k < t->nr_locks ; k++ )
+                    s->res[ t->locks[k] ].owner = qid;
+                for ( k = 0 ; k < t->nr_uses ; k++ )
+                    s->res[ t->uses[k] ].owner = qid;
+                }
             
             /* Set some stats data. */
             t->tic = getticks();
@@ -939,7 +959,7 @@ void qsched_prepare ( struct qsched *s ) {
  * @return The ID of the new shared resource.
  */
  
-int qsched_addres ( struct qsched *s , int parent ) {
+int qsched_addres ( struct qsched *s , int owner , int parent ) {
 
     struct res *res_new;
     int id;
@@ -975,7 +995,7 @@ int qsched_addres ( struct qsched *s , int parent ) {
     /* Init the resource. */
     lock_init( &s->res[ id ].lock );
     s->res[ id ].hold = 0;
-    s->res[ id ].owner = -1;
+    s->res[ id ].owner = owner;
     s->res[ id ].parent = parent;
         
     /* Unlock the sched. */

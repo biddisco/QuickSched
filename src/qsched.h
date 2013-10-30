@@ -23,6 +23,7 @@
 #define qsched_flag_ready                2
 #define qsched_flag_yield                4
 #define qsched_flag_pthread              8
+#define qsched_flag_noreown              16
 
 /* Some sched-specific constants. */
 #define qsched_stretch                   2
@@ -35,6 +36,7 @@
 #define qsched_data_round                16
 #define qsched_res_none                  (-1)
 #define qsched_task_none                 (-1)
+#define qsched_owner_none                (-1)
 
 
 /** Type used for task identifiers. */
@@ -145,7 +147,7 @@ void qsched_enqueue ( struct qsched *s , struct task *t );
 
 /* External functions. */
 void qsched_init ( struct qsched *s , int nr_queues , int flags );
-qsched_res_t qsched_addres ( struct qsched *s , qsched_res_t parent );
+qsched_res_t qsched_addres ( struct qsched *s , int owner , qsched_res_t parent );
 void qsched_addlock ( struct qsched *s , qsched_task_t t , qsched_res_t res );
 void qsched_addunlock ( struct qsched *s , qsched_task_t ta , qsched_task_t tb );
 qsched_task_t qsched_addtask ( struct qsched *s , int type , unsigned int flags , void *data , int data_size , int cost );
@@ -155,3 +157,4 @@ void qsched_run ( struct qsched *s , int nr_threads , qsched_funtype fun );
 void qsched_reset ( struct qsched *s );
 void qsched_addtask_dynamic ( struct qsched *s , int type , unsigned int flags , void *data , int data_size , int cost , qsched_res_t *locks , int nr_locks , qsched_res_t *uses , int nr_uses );
 void qsched_ensure ( struct qsched *s , int nr_tasks , int nr_res , int nr_deps , int nr_locks , int nr_uses , int size_data );
+void qsched_res_own ( struct qsched *s , qsched_res_t res , int owner );
