@@ -1,8 +1,8 @@
 #!/bin/bash
 
 # Executable and parameters
-prog = test_bh
-params = -n 1000000 -r 10
+prog=test_bh
+params="-n 1000000 -r 10"
 
 # Main loop
 for n in {1..16}
