@@ -353,68 +353,69 @@ void iact_pair ( struct cell *ci , struct cell *cj ) {
             for ( k = j+1 ; k < 8 ; k++ )
                 iact_pair( ci->progeny[j] , cj->progeny[k] );
             
-    /* Otherwise, compute interactions. */
+    /* Get the minimum distance between both cells. */
+    for ( r2 = 0.0, k = 0 ; k < 3 ; k++ ) {
+        dx[k] = fabs( ci->loc[k] - cj->loc[k] );
+        if ( dx[k] > 0 )
+            dx[k] -= ci->h[k];
+        r2 += dx[k]*dx[k];
+        }
+
+    /* Sufficiently well-separated? */
+    if ( r2/ci->h[0] > dist_min*dist_min ) {
+
+        /* Compute the center of mass interactions. */
+        iact_pair_pc( ci , cj );
+        iact_pair_pc( cj , ci );
+
+        }
+
+    /* Recurse? */
+    else if ( ci->split && cj->split )
+        for ( j = 0 ; j < 8 ; j++ )
+            for ( k = j+1 ; k < 8 ; k++ )
+                iact_pair( ci->progeny[j] , cj->progeny[k] );
+            
+    /* Otherwise, do direct interactions. */
     else {
-    
-        /* Get the minimum distance between both cells. */
-        for ( r2 = 0.0, k = 0 ; k < 3 ; k++ ) {
-            dx[k] = fabs( ci->loc[k] - cj->loc[k] );
-            if ( dx[k] > 0 )
-                dx[k] -= ci->h[k];
-            r2 += dx[k]*dx[k];
-            }
-            
-        /* Sufficiently well-separated? */
-        if ( r2/ci->h[0] < dist_min*dist_min ) {
-        
-            /* Compute the center of mass interactions. */
-            iact_pair_pc( ci , cj );
-            iact_pair_pc( cj , ci );
-        
-            }
-            
-        /* Otherwise, do direct interactions. */
-        else {
-            
-            /* Loop over all particles... */
-            for ( i = 0 ; i < count_i ; i++ ) {
 
-                /* Init the ith particle's data. */
-                for ( k = 0 ; k < 3 ; k++ ) {
-                    xi[k] = parts_i[i].x[k];
-                    ai[k] = 0.0;
+        /* Loop over all particles... */
+        for ( i = 0 ; i < count_i ; i++ ) {
+
+            /* Init the ith particle's data. */
+            for ( k = 0 ; k < 3 ; k++ ) {
+                xi[k] = parts_i[i].x[k];
+                ai[k] = 0.0;
+                }
+            mi = parts_i[i].mass;
+
+            /* Loop over every following particle. */
+            for ( j = 0 ; j < count_j ; j++ ) {
+
+                /* Compute the pairwise distance. */
+                for ( r2 = 0.0 , k = 0 ; k < 3 ; k++ ) {
+                    dx[k] = xi[k] - parts_j[j].x[k];
+                    r2 += dx[k]*dx[k];
                     }
-                mi = parts_i[i].mass;
 
-                /* Loop over every following particle. */
-                for ( j = 0 ; j < count_j ; j++ ) {
+                /* Apply the gravitational acceleration. */
+                ir = 1.0 / sqrt( r2 );
+                w = const_G * ir * ir * ir;
+                mj = parts_j[j].mass;
+                for ( k = 0 ; k < 3 ; k++ ) {
+                    parts_j[j].a[k] += w * dx[k] * mi;
+                    ai[k] -= w * dx[k] * mj;
+                    }
 
-                    /* Compute the pairwise distance. */
-                    for ( r2 = 0.0 , k = 0 ; k < 3 ; k++ ) {
-                        dx[k] = xi[k] - parts_j[j].x[k];
-                        r2 += dx[k]*dx[k];
-                        }
+                } /* loop over every other particle. */
 
-                    /* Apply the gravitational acceleration. */
-                    ir = 1.0 / sqrt( r2 );
-                    w = const_G * ir * ir * ir;
-                    mj = parts_j[j].mass;
-                    for ( k = 0 ; k < 3 ; k++ ) {
-                        parts_j[j].a[k] += w * dx[k] * mi;
-                        ai[k] -= w * dx[k] * mj;
-                        }
+            /* Store the accumulated acceleration on the ith part. */
+            for ( k = 0 ; k < 3 ; k++ )
+                parts_i[i].a[k] += ai[k];
 
-                    } /* loop over every other particle. */
+            } /* loop over all particles. */
 
-                /* Store the accumulated acceleration on the ith part. */
-                for ( k = 0 ; k < 3 ; k++ )
-                    parts_i[i].a[k] += ai[k];
-
-                } /* loop over all particles. */
-
-            } /* otherwise, compute interactions directly. */
-            
-        } /* otherwise, compute interactions. */
+        } /* otherwise, compute interactions directly. */
 
     }
     
