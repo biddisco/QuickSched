@@ -552,10 +552,26 @@ void create_tasks ( struct qsched *s , struct cell *ci , struct cell *cj ) {
             r2 += dx*dx;
             }
             
+        /* Are the cells sufficiently well separated? */
+        if ( r2/ci->h[0] > dist_min*dist_min ) {
+
+            /* Interact ci's parts with cj as a cell. */
+            data[0] = ci; data[1] = cj;
+            tid = qsched_addtask( s , task_type_pair_pc , task_flag_none , data , sizeof(struct cell *) * 2 , ci->count );
+            qsched_addlock( s , tid , ci->res );
+            qsched_addunlock( s , cj->com_tid , tid );
+
+            /* Interact cj's parts with ci as a cell. */
+            data[0] = cj; data[1] = ci;
+            tid = qsched_addtask( s , task_type_pair_pc , task_flag_none , data , sizeof(struct cell *) * 2 , ci->count );
+            qsched_addlock( s , tid , cj->res );
+            qsched_addunlock( s , ci->com_tid , tid );
+
+            }
+            
         /* Does this task need to be broken-down further? */
-        if ( r2/ci->h[0] < dist_min*dist_min &&
-             ci->split && cj->split &&
-             ci->count > task_limit && cj->count > task_limit ) {
+        else if ( ci->split && cj->split &&
+                  ci->count > task_limit && cj->count > task_limit ) {
              
             /* Loop over all pairs between ci and cj's progeny. */
             for ( j = 0 ; j < 8 ; j++ )
@@ -564,49 +580,27 @@ void create_tasks ( struct qsched *s , struct cell *ci , struct cell *cj ) {
         
             }
             
-        /* Otherwise, generate a task. */
+        /* Otherwise, generate a part-part task. */
         else {
         
-            /* Can we get away with cell-part interactions? */
-            if ( r2/ci->h[0] < dist_min*dist_min ) {
-            
-                /* Interact ci's parts with cj as a cell. */
-                data[0] = ci; data[1] = cj;
-                tid = qsched_addtask( s , task_type_pair_pc , task_flag_none , data , sizeof(struct cell *) * 2 , ci->count );
-                qsched_addlock( s , tid , ci->res );
-                qsched_addunlock( s , cj->com_tid , tid );
-        
-                /* Interact cj's parts with ci as a cell. */
-                data[0] = cj; data[1] = ci;
-                tid = qsched_addtask( s , task_type_pair_pc , task_flag_none , data , sizeof(struct cell *) * 2 , ci->count );
-                qsched_addlock( s , tid , cj->res );
+            /* Set the data. */
+            data[0] = ci; data[1] = cj;
+
+            /* Create the task. */
+            tid = qsched_addtask( s , task_type_pair , task_flag_none , data , sizeof(struct cell *) * 2 , ci->count*cj->count );
+
+            /* Add the resources. */
+            qsched_addlock( s , tid , ci->res );
+            qsched_addlock( s , tid , cj->res );
+
+            /* Depend on the COMs in case this task recurses. */
+            if ( ci->split || cj->split ) {
                 qsched_addunlock( s , ci->com_tid , tid );
-        
+                qsched_addunlock( s , cj->com_tid , tid );
                 }
-                
-            /* Nope, add a part-part interaction. */
-            else {
-            
-                /* Set the data. */
-                data[0] = ci; data[1] = cj;
 
-                /* Create the task. */
-                tid = qsched_addtask( s , task_type_pair , task_flag_none , data , sizeof(struct cell *) * 2 , ci->count*cj->count );
-
-                /* Add the resources. */
-                qsched_addlock( s , tid , ci->res );
-                qsched_addlock( s , tid , cj->res );
-                
-                /* Depend on the COMs in case this task recurses. */
-                if ( ci->split || cj->split ) {
-                    qsched_addunlock( s , ci->com_tid , tid );
-                    qsched_addunlock( s , cj->com_tid , tid );
-                    }
-        
-                }
-        
             }
-    
+        
         } /* otherwise, it's a pair. */
 
     }
