@@ -38,6 +38,15 @@
 #include "quicksched.h"
 
 
+/* Stuff to collect task data. */
+struct timer {
+    int threadID, type;
+    ticks tic, toc;
+    };
+struct timer *timers;
+int nr_timers = 0;
+
+
 /*
  * Sam's routines for the tiled QR decomposition.
  */
@@ -161,6 +170,11 @@ void DTSQRF	(double* blockA,
 	double* xVectA, *xVectB;
     double hhVector[ 2*ma ];
 	
+    int ind = atomic_inc( &nr_timers );
+    timers[ind].threadID = omp_get_thread_num();
+    timers[ind].type = 2;
+    timers[ind].tic = getticks();
+    
 	xVectA = blockA;
 	xVectB = blockB;
 
@@ -181,6 +195,7 @@ void DTSQRF	(double* blockA,
 		xVectA += ldm + 1;
 		xVectB += ldm;
 	}
+    timers[ind].toc = getticks();
 }
 
 #pragma omp task in( blockV[0] ) in( blockB[0] ) inout( blockA[0] ) in( blockTau[0] )
@@ -193,6 +208,11 @@ void DSSRFT	(double* blockV,
 
 	double tau, beta;
 
+    int ind = atomic_inc( &nr_timers );
+    timers[ind].threadID = omp_get_thread_num();
+    timers[ind].type = 3;
+    timers[ind].tic = getticks();
+    
 	/* Compute b_j = b_j - tau*v*v'*b_j for each column j of blocks A & B,
 	   and for each householder vector v of blockV */
 
@@ -224,6 +244,7 @@ void DSSRFT	(double* blockV,
 				blockB[(j*ldm) + i] -= beta * blockV[(k*ldm) + i];
 		}
 	}
+    timers[ind].toc = getticks();
 }
 
 
@@ -234,7 +255,12 @@ void DSSRFT	(double* blockV,
 #pragma omp task inout( a[0] ) inout( tau[0] )
 void DGEQRF ( int matrix_order, lapack_int m, lapack_int n,
                                 double* a, lapack_int lda, double* tau ) {
+    int ind = atomic_inc( &nr_timers );
+    timers[ind].threadID = omp_get_thread_num();
+    timers[ind].type = 0;
+    timers[ind].tic = getticks();
     LAPACKE_dgeqrf( matrix_order, m, n, a, lda, tau );
+    timers[ind].toc = getticks();
     }
 
 
@@ -247,7 +273,12 @@ void DLARFT ( int matrix_order, char direct, char storev,
                                 lapack_int n, lapack_int k, const double* v,
                                 lapack_int ldv, const double* tau, double* t,
                                 lapack_int ldt ) {
+    int ind = atomic_inc( &nr_timers );
+    timers[ind].threadID = omp_get_thread_num();
+    timers[ind].type = 1;
+    timers[ind].tic = getticks();
     LAPACKE_dlarft_work( matrix_order, direct, storev, n, k, v, ldv, tau, t, ldt );
+    timers[ind].toc = getticks();
     }
 			
 			
@@ -290,6 +321,7 @@ void test_qr ( int m , int n , int K , int nr_threads , int runs ) {
     
         /* Start the clock. */
         tic = getticks();
+        nr_timers = 0;
         
         /* Launch the tasks. */
         for ( k = 0 ; k < m && k < n ; k++ ) {
@@ -322,17 +354,21 @@ void test_qr ( int m , int n , int K , int nr_threads , int runs ) {
             } /* build the tasks. */
     
         /* Collect timers. */
+        #pragma omp taskwait
         toc_run = getticks(); 
 	    message( "%ith run took %lli ticks..." , r , toc_run - tic );
         tot_run += toc_run - tic;
         
         }
     
-        
     /* Dump the costs. */
     message( "costs: setup=%lli ticks, run=%lli ticks." ,
         tot_setup , tot_run/runs );
     
+    /* Dump the tasks. */
+    /* for ( k = 0 ; k < nr_timers ; k++ )
+        printf( "%i %i %lli %lli\n" , timers[k].threadID , timers[k].type , timers[k].tic , timers[k].toc ); */
+        
     }
 
 
@@ -386,6 +422,10 @@ int main ( int argc , char *argv[] ) {
     /* Dump arguments. */
     message( "Computing the tiled QR decomposition of a %ix%i matrix using %i threads (%i runs)." ,
         32*M , 32*N , nr_threads , runs );
+        
+    /* Initialize the timers. */
+    if ( ( timers = (struct timer *)malloc( sizeof(struct timer) * M*M*N ) ) == NULL )
+        error( "Failed to allocate timers." );
         
     test_qr( M , N , K , nr_threads , runs );
     
