@@ -46,6 +46,11 @@
 #include "queue.h"
 
 
+/** Timer names. */
+char *qsched_timer_names[ qsched_timer_count ] = 
+    { "queue" , "lock" , "gettask" , "done" , "prepare" };
+    
+    
 /**
  * @brief Change the owner of a resource.
  *
@@ -263,6 +268,11 @@ void qsched_reset ( struct qsched *s ) {
     s->count_uses = 0;
     s->count_res = 0;
 
+    /* Clear the timers. */
+    #ifdef TIMERS
+        bzero( s->timers , sizeof(ticks) * qsched_timer_count );
+    #endif
+    
     }
 
 
@@ -486,6 +496,8 @@ void qsched_done ( struct qsched *s , struct task *t ) {
 
     int k;
     struct task *t2;
+        
+    TIMER_TIC
     
     /* Release this task's locks. */
     for ( k = 0 ; k < t->nr_locks ; k++ )
@@ -518,6 +530,10 @@ void qsched_done ( struct qsched *s , struct task *t ) {
             pthread_mutex_unlock( &s->mutex );
             }
     #endif
+    
+    /* Careful, this may pick up duplicate timers if virtual
+       tasks are used. */
+    TIMER_TOC( s , qsched_timer_done )
                 
     }
     
@@ -610,6 +626,8 @@ int qsched_locktask ( struct qsched *s , int tid ) {
 
     int k;
     struct task *t;
+    
+    TIMER_TIC
 
     /* Get a pointer on the task. */
     t = &s->tasks[tid];
@@ -627,13 +645,16 @@ int qsched_locktask ( struct qsched *s , int tid ) {
             qsched_unlockres( s , t->locks[k] );
 
         /* Fail. */
+        TIMER_TOC( s , qsched_timer_lock )
         return 0;
 
         }
         
     /* Otherwise, all went well. */
-    else
+    else {
+        TIMER_TOC( s , qsched_timer_lock )
         return 1;
+        }
             
     }
     
@@ -649,6 +670,8 @@ void qsched_unlocktask ( struct qsched *s , int tid ) {
 
     int k;
     struct task *t;
+    
+    TIMER_TIC
 
     /* Get a pointer on the task. */
     t = &s->tasks[tid];
@@ -656,6 +679,8 @@ void qsched_unlocktask ( struct qsched *s , int tid ) {
     /* Unlock the used resources. */
     for ( k = 0 ; k < t->nr_locks ; k++ )
         qsched_unlockres( s , t->locks[k] );
+        
+    TIMER_TOC( s , qsched_timer_lock )
 
     }
 
@@ -677,6 +702,8 @@ struct task *qsched_gettask ( struct qsched *s , int qid ) {
 
     int naq, k, tid, qids[ s->nr_queues ];
     struct task *t;
+    
+    TIMER_TIC
 
     /* Check if the sched is ok. */
     if ( s->flags & qsched_flag_dirty || !(s->flags & qsched_flag_ready) )
@@ -690,20 +717,28 @@ struct task *qsched_gettask ( struct qsched *s , int qid ) {
     while ( s->waiting ) {
     
         /* Try to get a task from my own queue. */
-        if ( ( tid = queue_get( &s->queues[qid] , s ) ) < 0 ) {
-            
-            /* Otherwise, hit the other queues. */
-            for ( naq = 0 , k = 0 ; k < s->nr_queues ; k++ )
-                if ( k != qid && s->queues[k].count > 0 )
-                    qids[ naq++ ] = k;
-            while ( naq > 0 ) {
-                k = rand() % naq;
-                if ( ( tid = queue_get( &s->queues[ qids[k] ] , s ) ) < 0 )
-                    qids[k] = qids[ --naq ];
-                else
-                    break;
+        {
+            TIMER_TIC
+            tid = queue_get( &s->queues[qid] , s );
+            TIMER_TOC( s , qsched_timer_queue )
+            if ( tid < 0 ) {
+
+                /* Otherwise, hit the other queues. */
+                for ( naq = 0 , k = 0 ; k < s->nr_queues ; k++ )
+                    if ( k != qid && s->queues[k].count > 0 )
+                        qids[ naq++ ] = k;
+                while ( naq > 0 ) {
+                    k = rand() % naq;
+                    TIMER_TIC2
+                    tid = queue_get( &s->queues[ qids[k] ] , s );
+                    TIMER_TOC( s , qsched_timer_queue )
+                    if ( tid < 0 )
+                        qids[k] = qids[ --naq ];
+                    else
+                        break;
+                    }
+
                 }
-                
             }
             
         /* Bail if a valid task ID was returned. */
@@ -725,6 +760,7 @@ struct task *qsched_gettask ( struct qsched *s , int qid ) {
             t->qid = qid;
             
             /* Return the task. */
+            TIMER_TOC( s , qsched_timer_gettask )
             return t;
             
             }
@@ -732,16 +768,19 @@ struct task *qsched_gettask ( struct qsched *s , int qid ) {
         /* Otherwise, take a nap? */
         #ifdef HAVE_PTHREAD
         else if ( s->flags & qsched_flag_yield ) {
+            TIMER_TOC( s , qsched_timer_gettask )
             pthread_mutex_lock( &s->mutex );
             if ( s->waiting )
                 pthread_cond_wait( &s->cond , &s->mutex );
             pthread_mutex_unlock( &s->mutex );
+            TIMER_TIC2
             }
         #endif
     
         }
         
-    /* Return empty-handed. */
+    /* Return empty-handed. No toc here as we don't want to
+       count the final wait when all tasks have been executed. */
     return NULL;
 
     }
@@ -840,6 +879,8 @@ void qsched_prepare ( struct qsched *s ) {
 
     int j, k, count;
     struct task *t, *tasks;
+    
+    TIMER_TIC
 
     /* Lock the sched. */
     lock_lock( &s->lock );
@@ -946,6 +987,8 @@ void qsched_prepare ( struct qsched *s ) {
 
     /* Unlock the sched. */
     lock_unlock_blind( &s->lock );
+    
+    TIMER_TOC( s , qsched_timer_prepare )
 
     }
 
@@ -1382,6 +1425,11 @@ void qsched_init ( struct qsched *s , int nr_queues , int flags ) {
         if ( pthread_cond_init( &s->cond , NULL ) != 0 ||
              pthread_mutex_init( &s->mutex , NULL ) != 0 )
             error( "Error initializing cond/mutex pair." );
+    #endif
+    
+    /* Clear the timers. */
+    #ifdef TIMERS
+        bzero( s->timers , sizeof(ticks) * qsched_timer_count );
     #endif
     
     /* Init the sched lock. */

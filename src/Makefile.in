@@ -296,7 +296,7 @@ AUTOMAKE_OPTIONS = gnu
 
 # Add the debug flag to the whole thing
 AM_CFLAGS = -g -O3 -Wall -Werror -ffast-math -fstrict-aliasing -ftree-vectorize \
-    -funroll-loops $(SIMD_FLAGS) $(OPENMP_CFLAGS) \
+    -funroll-loops $(SIMD_FLAGS) $(OPENMP_CFLAGS) -DTIMERS \
     -fsanitize=address -fno-omit-frame-pointer
 
 

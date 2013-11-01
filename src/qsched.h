@@ -51,6 +51,30 @@ typedef int qsched_res_t;
 typedef void (*qsched_funtype)( int , void * );
 
 
+/** Timer types. */
+enum qsched_timer {
+    qsched_timer_queue = 0,
+    qsched_timer_lock,
+    qsched_timer_gettask,
+    qsched_timer_done,
+    qsched_timer_prepare,
+    qsched_timer_count
+    };
+extern char *qsched_timer_names[];
+    
+    
+/* Timer macros. */
+#ifdef TIMERS
+    #define TIMER_TIC ticks __tic = getticks();
+    #define TIMER_TIC2 __tic = getticks();
+    #define TIMER_TOC(s,tid) atomic_add( &s->timers[tid] , getticks() - __tic );
+#else
+    #define TIMER_TIC
+    #define TIMER_TIC2
+    #define TIMER_TOC
+#endif
+
+
 /* The sched data structre. */
 struct qsched {
 
@@ -126,6 +150,11 @@ struct qsched {
     #ifdef HAVE_PTHREAD
         pthread_cond_t cond;
         pthread_mutex_t mutex;
+    #endif
+    
+    /* Timers. */
+    #ifdef TIMERS
+        ticks timers[ qsched_timer_count ];
     #endif
     
     };
