@@ -475,6 +475,8 @@ that are themselves subsets of larger resources.
 This can be useful, e.g.~in the context of particle simulations
 described in the next section, where particles are sorted
 into hierarchical cells which are used at different levels.
+The owner field is the ID of the queue to which this
+resource has been preferentially assigned.
 
 The {\tt lock} field is either {\tt 0} or {\tt 1} and indicates
 whether this resource is currently in use, i.e.~{\em locked}.
@@ -798,7 +800,7 @@ struct task *qsched_gettask ( qsched *s , int qid ) {
     else
       break;
     }
-  if ( res != NULL ) {
+  if ( res != NULL && s->reown ) {
     for ( k = 0 ; k < res->nr_locks ; k++ )
       res->locks[k]->owner = qid;
     for ( k = 0 ; k < res->nr_uses ; k++ )
@@ -815,7 +817,8 @@ unresolved conflicts, the scheduler uses {\em work stealing}
 \cite{ref:Blumofe1999}, i.e.~it loops over all other queues
 in a random order (line~6) and tries to get a task from them
 (line~7).
-If a task could be obtained from any queue (line~13),
+If a task could be obtained from any queue and task re-owning
+is switched on (line~13),
 the resources it locks and uses are marked as now being owned
 by the prefered queue (lines~14--17).
 Finally, the task, or {\tt NULL} if no task could be obtained,
@@ -894,9 +897,11 @@ The main functions for setting up the scheduler are:
         e.g. they are used only to group or otherwise dependencies, and
         are not passed to the execution function in {\tt qsched\_run}.
         \vspace{1mm}
-    \item {\tt qsched\_res\_t qsched\_addres( struct qsched *s , qsched\_res\_t parent )} \\
+    \item {\tt qsched\_res\_t qsched\_addres( struct qsched *s , int owner , qsched\_res\_t parent )} \\
         Creates a new resource within the given {\tt qsched} and returns
         its handle.
+        The owner field is the initial queue ID to which this resource
+        should be assigned, or {\tt qsched\_owner\_none}.
         The {\tt parent} field is the handle of the heirarchical parent of
         the new resource or {\tt qsched\_res\_none} if the resource
         has no hierarchical parent.
@@ -959,8 +964,22 @@ This section presents two test cases showing both
 how QuickSched can be used in real-world applications, and
 providing benchmarks to assess its efficiency and scalability.
 
+The first test is the tiled QR decomposition originally
+from \citeN{ref:Buttari2009}, which has been used as a benchmark
+by other authors \cite{ref:Agullo2009b,ref:Badia2009,ref:Bosilca2012}.
+This example only requires dependencies and is presented
+only as a point of comparison to existing task-based
+parallel infrastructures.
+
+The second example is a Barnes-Hut tree-code, a problem
+similar to the Fast Multipole Method described in both
+\citeN{ref:Ltaief2012} and \citeN{ref:Agullo2013}.
+This example shows how conflicts, modeled
+via hierarchical resources, can be useful.
+
 The source code of both examples is distributed with the
-QuickSched library.
+QuickSched library, along with scripts to run the benchmarks
+and generate the plots used in the following.
 
 
 \subsection{Task-Based QR Decomposition}
@@ -1135,11 +1154,383 @@ void exec_fun ( int type , void *data ) {
 \noindent where {\tt A} is the matrix over which the QR
 decmposition is executed.
 
+The QR decomposition was computed for a $2048\times 2048$
+random matrix using tiles of size $64\times 64$ using QuickSched
+as described above.
+For the DGEQRF and DLARFT kernels, the respective routines
+from the LAPACKE\footnote{\url{http://www.netlib.org/lapack/lapacke.html}}
+library were used.
+The DTSQRF and DSSRFT kernels were implemented by Sam Townsend
+as part of his MSc thesis in Computer Science at Durham University.
+For this matrix, a total of 11440 tasks with 32240 dependencies
+were generated.
+
+All tests were run on a 64-core AMD Opteron 6376 machine running
+at 2.6\,GHz.
+For these tests, OpenMP parallelism and resource re-owning
+were used.
+The QR decomposition was computed 10 times for each number of
+cores, and the average thereof taken for the scaling and
+efficiency results in \fig{QRResults}.
+The timings are for {\tt qsched\_run}, including the cost of
+{\tt qsched\_start}, which does not run in parallel.
+Setting up the scheduler, tasks, and resources took, in all
+cases, an average of 7.2\,ms.
+
+\begin{figure}
+    \centerline{\epsfig{file=figures/QR_scaling.pdf,width=0.9\textwidth}}
+    \caption{Strong scaling and parallel efficiency of the tiled QR decomposition
+        computed over a $2048\times 2048$ matrix with tiles of size
+        $64\times 64$.
+        The QR decomposition takes 233\,ms, achieving 73\% parallel
+        efficiency, over all 64 cores.
+        }
+    \label{fig:QRResults}
+\end{figure}
+
 
 \subsection{Task-Based Barnes-Hut N-Body Solver}
 
-The Barnes-Hut tree-code is an algorithm to compute the
-interactions between a set of particles 
+The Barnes-Hut tree-code is an algorithm to approximate the
+solution of an $N$-body problem, i.e.~computing all the
+pairwise interactions between a set of $N$ particles,
+in \oh{N\log N} operations, as opposed to the \oh{N^2}
+naive direct computation.
+
+The algorithm is based on a recursive octree decomposition:
+Starting from a cubic cell containing all the particles,
+the cell is recursivel bisected along all three spatial dimensions,
+resulting in eight sub-cells, until the number of particles
+per cell is smaller than some limit $n_\mathsf{max}$.
+
+The particle interactions can also be formulated recursively:
+Given a particle an a cell of particles, if the particle and cell
+are sufficiently well separated, the particle-cell interactions
+are approximated by interacting the particle with the cell's
+centre of mass.
+If the particle and the cell are too close, and the cell
+has sub-cells, i.e.~it contained more than $n_\mathsf{max}$
+particles and was split in the recursive octree decomposition,
+then the particle is interacted with each of the sub-cells
+recursively.
+Finally, if the cell is not split, i.e.~it is a leaf cell
+in the octree, then the particle is interacted with all
+particles in the cell, except for the particle itself if
+it is in the same cell.
+This operation is performed for each particle, starting
+with the root-level cell containing all the particles.
+
+The cells have the following structure:
+\begin{center}\begin{minipage}{0.9\textwidth}
+    \begin{lstlisting}
+struct cell {
+  double loc[3], h[3], com[3], mass;
+  int split, count;
+  struct part *parts;
+  struct cell *progeny[8];
+  qsched_res_t res;
+  qsched_task_t task_com;
+  };
+    \end{lstlisting}
+\end{minipage}\end{center}
+\noindent where {\tt loc} and {\tt h} are the location
+and size of the cell, respectively.
+The {\tt com} and {\tt mass} fields represent the cell's
+center of mass, which will be used in the interactions.
+The {\tt res} filed is the hieararchical resource representing
+the cell's particles, and it is the parent resource of the cell
+progeny's {\tt res}.
+Similarly, the {\tt task\_com} is a task handle to
+compute the center of mass of the cell's particles, and 
+it depends on the {\tt task\_com} of all the progeny if
+the cell is split.
+{\tt parts} is a pointer to an array of {\tt count} 
+particle strutures, which contain all the particle
+data of the form:
+\begin{center}\begin{minipage}{0.9\textwidth}
+    \begin{lstlisting}
+struct part {
+  double x[3], a[3], mass;
+  int id;
+  };
+    \end{lstlisting}
+\end{minipage}\end{center}
+\noindent i.e.~the particle position, accelleration, mass,
+and ID, respectively.
+
+The particle data is sorted hierarchically, following the
+octree structure.
+Unlike in many codes, where the leaves store an array of
+pointers to the underlying particles, the cells, at all
+levels, store only a pointer to the first of their own particles,
+and the total number of particles.
+The current approach, illustrated in \fig{CellParts} is not
+only more compact, it also allows a direct and more cache-efficient access
+to the list of particles for any inner node of the tree.
+The cost of sorting the particles, with a recursive
+partitioning similar to QuickSort \cite{ref:Hoare1962},
+is in \oh{N\log N}.
+
+\begin{figure}
+    \centerline{\epsfig{file=figures/CellParts.pdf,width=0.9\textwidth}}
+    \caption{Hierarchical ordering of the particle data structures
+    (right) according to their cell (left).
+    Each cell has a pointer to the first of its particles (same colour
+    as cells) in the same global parts array.}
+    \label{fig:CellParts}
+\end{figure}
+
+The task-based implementation will consist of four
+types of tasks:
+\begin{itemize}
+    \item {\em Self}-interactions in which all particles
+        in a single cell interact with all other particles in the
+        same cell,
+    \item {\em Particle-particle pair}-interactions in which
+        all particles in a pair of cells interact with all
+        particles in the opposite cell, and
+    \item {\em Particle-cell pair}-interactions in which
+        all particles in one cell are interacted with the
+        center of mass of another cell.
+    \item {\em Center of mass} tasks, which compute
+        the center of mass of a single cell either from
+        the sum of the centers of mass of its sub-cells
+        if it has been split, or directly from the
+        particles otherwise.
+\end{itemize}
+
+\begin{figure}
+\begin{center}\begin{minipage}{0.9\textwidth}
+    \begin{lstlisting}
+enum { tSELF , tPAIR_PP , tPAIR_PC , tCOM };
+void make_tasks ( struct qsched *s , struct cell *ci , struct cell *cj ) {
+  int j, k;
+  qsched_task_t tid;
+  struct cell *data[2];
+  if ( cj == NULL ) {
+    if ( ci->split && ci->count > n_task )
+      for ( j = 0 ; j < 8 ; j++ ) {
+        make_tasks( s , ci->progeny[j] , NULL );
+        for ( k = j+1 ; k < 8 ; k++ )
+          make_tasks( s , ci->progeny[j] , ci->progeny[k] );
+        }
+    else {
+      tid = qsched_addtask( s , tSELF , qsched_flags_none ,
+        &ci , sizeof(struct cell *) , ci->count*ci->count );
+      qsched_addlock( s , tid , ci->res );
+      if ( ci->split )
+        qsched_addunlock( s , ci->com , tid );
+      }
+    }
+  else if ( ci and cj are well separated ) {
+      data[0] = ci; data[1] = cj;
+      tid = qsched_addtask( s , tPAIR_PC , qsched_flags_none ,
+        data , sizeof(struct cell *)*2 , ci->count );
+      qsched_addlock( s , tid , ci->res );
+      qsched_addunlock( s , cj->com , tid );
+      data[0] = cj; data[1] = ci;
+      tid = qsched_addtask( s , tPAIR_PC , qsched_flags_none ,
+        data , sizeof(struct cell *)*2 , cj->count );
+      qsched_addlock( s , tid , cj->res );
+      qsched_addunlock( s , ci->com , tid );
+      }
+  else if ( ci->split && cj->split && 
+     ci->count*cj->count > n_task*n_task )
+    for ( j = 0 ; j < 8 ; j++ )
+      for ( k = 0 ; k < 8 ; k++ )
+        make_tasks( s , ci->progeny[j] , cj->progeny[k] );
+  else {
+    data[0] = ci; data[1] = cj;
+    tid = qsched_addtask( s , tPAIR_PP , qsched_flags_none ,
+      data , sizeof(struct cell *)*2 , ci->count*cj->count );
+    qsched_addlock( s , tid , ci->res );
+    qsched_addlock( s , tid , cj->res );
+    if ( ci->split && cj->split ) {
+      qsched_addunlock( s , ci->com , tid );
+      qsched_addunlock( s , cj->com , tid );
+      }
+    }
+  }
+    \end{lstlisting}
+\end{minipage}\end{center}
+    \caption{C-like pseudo-code for recursive task creation
+        for the Barnes-Hut tree-code.}
+    \label{fig:MakeTasks}
+\end{figure}
+
+These tasks can be created recursively over the cell hierarchy
+as shown in the function {\tt make\_tasks} in \fig{MakeTasks}.
+The function is called on the root cell with the root cell
+and {\tt NULL} as its two cell parameters.
+The function recurses as follows:
+\begin{itemize}
+    \item If called with a single (line~6), split (line~7) cell,
+        recurse over all the cell's sub cells (line~9), and all
+        pairs of the cell's sub cells (line~11),
+    \item If called with a single unslplit cell (line~13),
+        create a self-interaction task on that cell (line~14),
+    \item If called with two cells that are sufficiently well
+        separated (line~21), create two particle-cell pair
+        interactions (lines~23 and~28) over both cells in
+        opposite orders, which depend on the center of mass
+        task of each cell,
+    \item If called with two cells that are not well
+        separated and both cells are split (line~33),
+        recurse over all pairs of sub-cells spanning
+        both cells (line~37), and
+    \item If called with two cells that are not well separated
+        and either of the cells are not split, create
+        a particle-particle pair task over both cells.
+\end{itemize}
+\noindent where every interaction task additionally locks
+the cells on which it operates (lines~16, 25, 30, and 42--43).
+
+In order to reduce the number of tasks, and to prevent generating
+too many very small tasks, the task generation only recurses
+if the cells contain more than a minimum number $n_\mathsf{task}$
+of threads each (lines~7 and~34).
+The tasks themselves are then left to recurse over the sub-trees,
+which is why in these cases, the tasks are made to depend on the
+center of mass tasks (lines~17--18 and~41--47)
+which may be used in the ensuing interactions.
+
+\begin{figure}
+\begin{center}\begin{minipage}{0.9\textwidth}
+    \begin{lstlisting}
+void comp_com ( struct cell *c ) {
+  int j, k;
+  c->com[0] = 0.0; c->com[1] = 0.0; c->com[2] = 0.0;
+  c->mas = 0.0;
+  if ( c->split )
+    for ( k = 0 ; k < 8 ; k++ ) {
+      struct cell *cp = c->progeny[k]
+      for ( j = 0 ; j < 3 ; j++ ) c->com[j] += cp->com[j]*cp->mass;
+      c->mass += cp->mass;
+      }
+  else
+    for ( k = 0 ; k < 8 ; k++ ) {
+      struct part *p = &c->parts[k];
+      for ( j = 0 ; j < 3 ; j++ ) c->com[j] += p->x[j]*p->mass;
+      c->mass += p->mass;
+      }
+  c->com[0] /= c->mass; c->com[1] /= c->mass; c->com[2] /= c->mass; 
+  }
+
+void comp_self ( struct cell *c ) {
+  int j, k;
+  if ( c->split )
+    for ( j = 0 ; j < 8 ; j++ ) {
+      comp_self( c->progeny[j] );
+      for ( k = j+1 ; k < 8 ; k++ )
+        comp_pair( c->progeny[j] , c->progeny[k] );
+      }
+  else
+    for ( j = 0 ; j < c->count ; j++ )
+      for ( k = j+1 ; k < c->count ; k++ )
+        interact c->parts[j] and c->parts[k].
+  }
+
+void comp_pair ( struct cell *ci , struct cell *cj ) {
+  int j, k;
+  if ( ci and cj well separated ) {
+    comp_pair_pc( ci , cj );
+    comp_pair_pc( cj , ci );
+    }
+  else if ( ci->split && cj->split )
+    for ( j = 0 ; j < 8 ; j++ )
+      for ( k = 0 ; k < 8 ; k++ )
+        comp_pair( ci->progeny[j] , cj->progeny[k] );
+  else
+    for ( j = 0 ; j < ci->count ; j++ )
+      for ( k = 0 ; k < cj->count ; k++ )
+        interact ci->parts[j] and cj->parts[k].
+  }
+
+void comp_pair_cp ( struct cell *ci , struct cell *cj ) {
+  int k;
+  for ( k = 0 ; k < ci->count ; k++ )
+    interact ci->parts[k] and cj center of mass.
+  }
+    \end{lstlisting}
+\end{minipage}\end{center}
+    \caption{Task functions for the Barnes-Hut tree-code.}
+    \label{fig:BHTasks}
+\end{figure}
+
+The functions for the task themselves are relatively
+straight-forward and shown in \fig{BHTasks}, and the
+execution function can be written as:
+\begin{center}\begin{minipage}{0.9\textwidth}
+    \begin{lstlisting}
+void exec_fun ( int type , void *data ) {
+  struct cell **cells = (struct cell **)data;
+  switch ( type ) {
+    case tSELF:
+      comp_self( cells[0] );
+      break;
+    case tPAIR_PP:
+      comp_pair( cells[0] , cells[1] );
+      break;
+    case tPAIR_PC:
+      comp_pair_pc( cells[0] , cells[1] );
+      break;
+    case tCOM:
+      comp_com( cells[0] );
+      break;
+    default:
+      error( "Unknown task type." );
+    }
+  }
+    \end{lstlisting}
+\end{minipage}\end{center}
+
+
+This Barnes-Hut tree-code was used to approximate the gravitational
+N-Body problem for 1\,000\,000 particles with random coordinates the
+parameters $n_\mathsf{max}=100$ and $n_\mathsf{task}=5000$.
+Cell pairs were considered well separated if not adjecent.
+Using the above scheme generated 161\,613 tasks, of which
+512 self-interaction tasks, 18\,532 particle-particle interaction
+task, 105\,120 particle-cell interaction tasks, and 37\,449
+center of mass tasks.
+Additionally 179\,632 dependencies were generated, along with
+142'696 locks on 37\,449 resources.
+
+As with the previous example, all
+tests were run on a 64-core AMD Opteron 6376 machine running
+at 2.6\,GHz.
+For these tests, OpenMP parallelism was used and resource
+re-owning was switched off.
+The interactions  computed 10 times for each number of
+cores, and the average thereof taken for the scaling and
+efficiency results in \fig{BHResults}.
+The timings are for {\tt qsched\_run}, including the cost of
+{\tt qsched\_start}, which does not run in parallel.
+Setting up the scheduler, tasks, and resources took, in all
+cases, an average of 51.3\,ms.
+
+\begin{figure}
+    \centerline{\epsfig{file=figures/BH_scaling.pdf,width=0.9\textwidth}}
+    \caption{Strong scaling and parallel efficiency of the Barnes-Hut tree-code
+        computed over 1\,000\,000 particles.
+        Solving the N-Body problem takes 3.5\,s, achieving 52\% parallel
+        efficiency, over all 64 cores.
+        }
+    \label{fig:BHResults}
+\end{figure}
+
+Unlike the QR decomposition, the results scale well only to
+32 cores, achieving 90\% parallel efficiency, and then
+level off for increasing numbers of cores.
+This, however, is not a problem of the task-based parallel
+algorith, or of QuickSched, but of the cache hierarchies
+of the underlying hardware.
+On the AMD Opteron 6376, the cores are grouped into pairs
+which each share a 2\,MB L2 cache.
+Each group of four pairs, or eight cores, shares a common
+6\,MB L3 cache.
+It is the difference between the sum of the L2 caches and
+the (smaller) L3 cache which causes problems.
 
 
 \section{Conclusions}
