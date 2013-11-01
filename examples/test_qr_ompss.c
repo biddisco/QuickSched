@@ -157,7 +157,7 @@ void updateDoubleQ_WY	(double* blockA,
 	blockTau[k] = tau;
 }
 
-#pragma omp task in( blockA[0] ) inout( blockB[0] ) in( blockTau[0] )
+// #pragma omp task in( blockA[0] ) inout( blockB[0] ) in( blockTau[0] )
 void DTSQRF	(double* blockA,
 		double* blockB,
 		double* blockTau,
@@ -198,7 +198,7 @@ void DTSQRF	(double* blockA,
     timers[ind].toc = getticks();
 }
 
-#pragma omp task in( blockV[0] ) in( blockB[0] ) inout( blockA[0] ) in( blockTau[0] )
+// #pragma omp task in( blockV[0] ) in( blockB[0] ) inout( blockA[0] ) in( blockTau[0] )
 void DSSRFT	(double* blockV,
 		double* blockA, double* blockB,
 		double* blockTau,
@@ -252,7 +252,7 @@ void DSSRFT	(double* blockV,
  * @breif Wrapper to get the dependencies right.
  */
  
-#pragma omp task inout( a[0] ) inout( tau[0] )
+// #pragma omp task inout( a[0] ) inout( tau[0] )
 void DGEQRF ( int matrix_order, lapack_int m, lapack_int n,
                                 double* a, lapack_int lda, double* tau ) {
     int ind = atomic_inc( &nr_timers );
@@ -268,7 +268,7 @@ void DGEQRF ( int matrix_order, lapack_int m, lapack_int n,
  * @breif Wrapper to get the dependencies right.
  */
  
-#pragma omp task inout( v[0] ) in( tau[0] ) inout( t[0] )
+// #pragma omp task inout( v[0] ) in( tau[0] ) inout( t[0] )
 void DLARFT ( int matrix_order, char direct, char storev,
                                 lapack_int n, lapack_int k, const double* v,
                                 lapack_int ldv, const double* tau, double* t,
@@ -295,6 +295,7 @@ void test_qr ( int m , int n , int K , int nr_threads , int runs ) {
     int k, j, i, r;
     double *A, *A_orig, *tau;
     ticks tic, toc_run, tot_setup, tot_run = 0;
+    int tid[ m*n ];
 
 
     /* Allocate and fill the original matrix. */
@@ -327,10 +328,12 @@ void test_qr ( int m , int n , int K , int nr_threads , int runs ) {
         for ( k = 0 ; k < m && k < n ; k++ ) {
 
             /* Add kth corner task. */
+            #pragma omp task inout( tid[ k*m + k ] )
             DGEQRF( LAPACK_COL_MAJOR , K, K ,
                             &A[ k*m*K*K + k*K ] , m*K , &tau[ k*m*K + k*K ] );
 
             /* Add column tasks on kth row. */
+            #pragma omp task inout( tid[ j*m + k ] ) in( tid[ k*m + k ] )
             for ( j = k+1 ; j < n ; j++ ) {
                 DLARFT( LAPACK_COL_MAJOR , 'F' , 'C' ,
                                 K , K , &A[ k*m*K*K + k*K ] ,
@@ -342,9 +345,11 @@ void test_qr ( int m , int n , int K , int nr_threads , int runs ) {
             for ( i = k+1 ; i < m ; i++ ) {
 
                 /* Add the row taks for the kth column. */
+                #pragma omp task inout( tid[ k*m + i ] ) in( tid[ k*m + k ] )
                 DTSQRF( &A[ k*m*K*K + k*K ] , &A[ k*m*K*K + i*K ] , &tau[ k*m*K + i*K ] , K , K , K , K*m );
 
                 /* Add the inner tasks. */
+                #pragma omp task inout( tid[ j*m + i ] ) in( tid[ k*m + i ] , tid[ j*m + k ] )
                 for ( j = k+1 ; j < n ; j++ ) {
                     DSSRFT(	&A[ k*m*K + i*K ] , &A[ j*m*K*K + k*K ] , &A[ j*m*K*K + i*K ] , &tau[ k*m*K + i*K ] , K , K , K*m );
                     }
