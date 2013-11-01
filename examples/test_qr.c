@@ -366,6 +366,13 @@ void test_qr ( int m , int n , int K , int nr_threads , int runs ) {
     
         } /* build the tasks. */
     tot_setup = getticks() - tic;
+    
+    /* Dump the number of tasks. */
+    message( "total nr of tasks: %i." , s.count );
+    message( "total nr of deps: %i." , s.count_deps );
+    message( "total nr of res: %i." , s.count_res );
+    message( "total nr of locks: %i." , s.count_locks );
+    message( "total nr of uses: %i." , s.count_uses );    
         
         
     /* Loop over the number of runs. */
@@ -408,6 +415,10 @@ void test_qr ( int m , int n , int K , int nr_threads , int runs ) {
     /* Dump the costs. */
     message( "costs: setup=%lli ticks, run=%lli ticks." ,
         tot_setup , tot_run/runs );
+    
+    /* Dump the timers. */
+    for ( k = 0 ; k < qsched_timer_count ; k++ )
+        message( "timer %s is %lli ticks." , qsched_timer_names[k] , s.timers[k]/runs );
     
     /* Clean up. */
     qsched_free( &s );

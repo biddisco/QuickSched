@@ -696,6 +696,10 @@ void test_bh ( int N , int nr_threads , int runs ) {
     /* Dump the costs. */
     message( "costs: setup=%lli ticks, run=%lli ticks." ,
         tot_setup , tot_run/runs );
+        
+    /* Dump the timers. */
+    for ( k = 0 ; k < qsched_timer_count ; k++ )
+        message( "timer %s is %lli ticks." , qsched_timer_names[k] , s.timers[k]/runs );
     
     /* Clean up. */
     qsched_free( &s );

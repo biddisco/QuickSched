@@ -58,7 +58,7 @@ maxd = max( [ tasks(:,3) ; tasks(:,4) ] );
 % Init the plot
 clf;
 subplot('position',[ 0.05 , 0.1 , 0.9 , 0.8 ]);
-colours = [ 1 0 0 ; 1 1 0 ; 0 1 0 ; 0 0 1 ];
+colours = [ 255 34 0 ; 130 255 0 ; 0 184 255 ; 255 237 0 ] / 255;
 hold on;
 
 % Plot the tasks
