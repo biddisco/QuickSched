@@ -35,7 +35,14 @@
 
 
 /* Local includes. */
-#include "quicksched.h"
+#include "cycle.h"
+
+
+/* Error macro. */
+#define error(s, ...) { fprintf( stderr , "%s:%s():%i: " s "\n" , __FILE__ , __FUNCTION__ , __LINE__ , ##__VA_ARGS__ ); abort(); }
+
+/* Message macro. */
+#define message(s, ...) { printf( "%s: " s "\n" , __FUNCTION__ , ##__VA_ARGS__ ); fflush(stdout); }
 
 
 /* Stuff to collect task data. */
@@ -170,7 +177,7 @@ void DTSQRF	(double* blockA,
 	double* xVectA, *xVectB;
     double hhVector[ 2*ma ];
 	
-    int ind = atomic_inc( &nr_timers );
+    int ind = __sync_fetch_and_add( &nr_timers , 1 );
     timers[ind].threadID = omp_get_thread_num();
     timers[ind].type = 2;
     timers[ind].tic = getticks();
@@ -208,7 +215,7 @@ void DSSRFT	(double* blockV,
 
 	double tau, beta;
 
-    int ind = atomic_inc( &nr_timers );
+    int ind = __sync_fetch_and_add( &nr_timers , 1 );
     timers[ind].threadID = omp_get_thread_num();
     timers[ind].type = 3;
     timers[ind].tic = getticks();
@@ -255,7 +262,7 @@ void DSSRFT	(double* blockV,
 // #pragma omp task inout( a[0] ) inout( tau[0] )
 void DGEQRF ( int matrix_order, lapack_int m, lapack_int n,
                                 double* a, lapack_int lda, double* tau ) {
-    int ind = atomic_inc( &nr_timers );
+    int ind = __sync_fetch_and_add( &nr_timers , 1 );
     timers[ind].threadID = omp_get_thread_num();
     timers[ind].type = 0;
     timers[ind].tic = getticks();
@@ -273,7 +280,7 @@ void DLARFT ( int matrix_order, char direct, char storev,
                                 lapack_int n, lapack_int k, const double* v,
                                 lapack_int ldv, const double* tau, double* t,
                                 lapack_int ldt ) {
-    int ind = atomic_inc( &nr_timers );
+    int ind = __sync_fetch_and_add( &nr_timers , 1 );
     timers[ind].threadID = omp_get_thread_num();
     timers[ind].type = 1;
     timers[ind].tic = getticks();
