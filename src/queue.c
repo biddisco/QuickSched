@@ -54,8 +54,10 @@ int queue_get ( struct queue *q , struct qsched *s ) {
         return -1;
         
     /* Lock this queue. */
+    TIMER_TIC
     if ( lock_lock( &q->lock ) != 0 )
         error( "Failed to lock queue." );
+    TIMER_TOC( s , qsched_timer_qlock );
         
     /* Get a pointer to the indices. */
     inds = q->inds;

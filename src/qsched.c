@@ -48,7 +48,7 @@
 
 /** Timer names. */
 char *qsched_timer_names[ qsched_timer_count ] = 
-    { "queue" , "lock" , "gettask" , "done" , "prepare" };
+    { "queue" , "qlock" , "lock" , "gettask" , "done" , "prepare" };
     
     
 /**

@@ -54,6 +54,7 @@ typedef void (*qsched_funtype)( int , void * );
 /** Timer types. */
 enum qsched_timer {
     qsched_timer_queue = 0,
+    qsched_timer_qlock,
     qsched_timer_lock,
     qsched_timer_gettask,
     qsched_timer_done,
