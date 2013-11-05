@@ -1,0 +1,9478 @@
+%!PS-Adobe-3.0 EPSF-3.0
+%%Creator: MATLAB, The MathWorks, Inc. Version 8.0.0.783 (R2012b). Operating System: Linux 3.8.0-30-generic #44-Ubuntu SMP Thu Aug 22 20:52:24 UTC 2013 x86_64.
+%%Title: figures/tasks_qr.eps
+%%CreationDate: 11/05/2013  22:44:23
+%%DocumentNeededFonts: Helvetica
+%%DocumentProcessColors: Cyan Magenta Yellow Black
+%%LanguageLevel: 2
+%%Pages: 1
+%%BoundingBox:    36    15  1020   274
+%%EndComments
+
+%%BeginProlog
+% MathWorks dictionary
+/MathWorks 160 dict begin
+% definition operators
+/bdef {bind def} bind def
+/ldef {load def} bind def
+/xdef {exch def} bdef
+/xstore {exch store} bdef
+% operator abbreviations
+/c  /clip ldef
+/cc /concat ldef
+/cp /closepath ldef
+/gr /grestore ldef
+/gs /gsave ldef
+/mt /moveto ldef
+/np /newpath ldef
+/cm /currentmatrix ldef
+/sm /setmatrix ldef
+/rm /rmoveto ldef
+/rl /rlineto ldef
+/s {show newpath} bdef
+/sc {setcmykcolor} bdef
+/sr /setrgbcolor ldef
+/sg /setgray ldef
+/w /setlinewidth ldef
+/j /setlinejoin ldef
+/cap /setlinecap ldef
+/rc {rectclip} bdef
+/rf {rectfill} bdef
+% page state control
+/pgsv () def
+/bpage {/pgsv save def} bdef
+/epage {pgsv restore} bdef
+/bplot /gsave ldef
+/eplot {stroke grestore} bdef
+% orientation switch
+/portraitMode 0 def /landscapeMode 1 def /rotateMode 2 def
+% coordinate system mappings
+/dpi2point 0 def
+% font control
+/FontSize 0 def
+/FMS {/FontSize xstore findfont [FontSize 0 0 FontSize neg 0 0]
+  makefont setfont} bdef
+/reencode {exch dup where {pop load} {pop StandardEncoding} ifelse
+  exch dup 3 1 roll findfont dup length dict begin
+  { 1 index /FID ne {def}{pop pop} ifelse } forall
+  /Encoding exch def currentdict end definefont pop} bdef
+/isroman {findfont /CharStrings get /Agrave known} bdef
+/FMSR {3 1 roll 1 index dup isroman {reencode} {pop pop} ifelse
+  exch FMS} bdef
+/csm {1 dpi2point div -1 dpi2point div scale neg translate
+ dup landscapeMode eq {pop -90 rotate}
+  {rotateMode eq {90 rotate} if} ifelse} bdef
+% line types: solid, dotted, dashed, dotdash
+/SO { [] 0 setdash } bdef
+/DO { [.5 dpi2point mul 4 dpi2point mul] 0 setdash } bdef
+/DA { [6 dpi2point mul] 0 setdash } bdef
+/DD { [.5 dpi2point mul 4 dpi2point mul 6 dpi2point mul 4
+  dpi2point mul] 0 setdash } bdef
+% macros for lines and objects
+/L {lineto stroke} bdef
+/MP {3 1 roll moveto 1 sub {rlineto} repeat} bdef
+/AP {{rlineto} repeat} bdef
+/PDlw -1 def
+/W {/PDlw currentlinewidth def setlinewidth} def
+/PP {closepath eofill} bdef
+/DP {closepath stroke} bdef
+/MR {4 -2 roll moveto dup  0 exch rlineto exch 0 rlineto
+  neg 0 exch rlineto closepath} bdef
+/FR {MR stroke} bdef
+/PR {MR fill} bdef
+/L1i {{currentfile picstr readhexstring pop} image} bdef
+/tMatrix matrix def
+/MakeOval {newpath tMatrix currentmatrix pop translate scale
+0 0 1 0 360 arc tMatrix setmatrix} bdef
+/FO {MakeOval stroke} bdef
+/PO {MakeOval fill} bdef
+/PD {currentlinewidth 2 div 0 360 arc fill
+   PDlw -1 eq not {PDlw w /PDlw -1 def} if} def
+/FA {newpath tMatrix currentmatrix pop translate scale
+  0 0 1 5 -2 roll arc tMatrix setmatrix stroke} bdef
+/PA {newpath tMatrix currentmatrix pop	translate 0 0 moveto scale
+  0 0 1 5 -2 roll arc closepath tMatrix setmatrix fill} bdef
+/FAn {newpath tMatrix currentmatrix pop translate scale
+  0 0 1 5 -2 roll arcn tMatrix setmatrix stroke} bdef
+/PAn {newpath tMatrix currentmatrix pop translate 0 0 moveto scale
+  0 0 1 5 -2 roll arcn closepath tMatrix setmatrix fill} bdef
+/vradius 0 def /hradius 0 def /lry 0 def
+/lrx 0 def /uly 0 def /ulx 0 def /rad 0 def
+/MRR {/vradius xdef /hradius xdef /lry xdef /lrx xdef /uly xdef
+  /ulx xdef newpath tMatrix currentmatrix pop ulx hradius add uly
+  vradius add translate hradius vradius scale 0 0 1 180 270 arc 
+  tMatrix setmatrix lrx hradius sub uly vradius add translate
+  hradius vradius scale 0 0 1 270 360 arc tMatrix setmatrix
+  lrx hradius sub lry vradius sub translate hradius vradius scale
+  0 0 1 0 90 arc tMatrix setmatrix ulx hradius add lry vradius sub
+  translate hradius vradius scale 0 0 1 90 180 arc tMatrix setmatrix
+  closepath} bdef
+/FRR {MRR stroke } bdef
+/PRR {MRR fill } bdef
+/MlrRR {/lry xdef /lrx xdef /uly xdef /ulx xdef /rad lry uly sub 2 div def
+  newpath tMatrix currentmatrix pop ulx rad add uly rad add translate
+  rad rad scale 0 0 1 90 270 arc tMatrix setmatrix lrx rad sub lry rad
+  sub translate rad rad scale 0 0 1 270 90 arc tMatrix setmatrix
+  closepath} bdef
+/FlrRR {MlrRR stroke } bdef
+/PlrRR {MlrRR fill } bdef
+/MtbRR {/lry xdef /lrx xdef /uly xdef /ulx xdef /rad lrx ulx sub 2 div def
+  newpath tMatrix currentmatrix pop ulx rad add uly rad add translate
+  rad rad scale 0 0 1 180 360 arc tMatrix setmatrix lrx rad sub lry rad
+  sub translate rad rad scale 0 0 1 0 180 arc tMatrix setmatrix
+  closepath} bdef
+/FtbRR {MtbRR stroke } bdef
+/PtbRR {MtbRR fill } bdef
+/stri 6 array def /dtri 6 array def
+/smat 6 array def /dmat 6 array def
+/tmat1 6 array def /tmat2 6 array def /dif 3 array def
+/asub {/ind2 exch def /ind1 exch def dup dup
+  ind1 get exch ind2 get sub exch } bdef
+/tri_to_matrix {
+  2 0 asub 3 1 asub 4 0 asub 5 1 asub
+  dup 0 get exch 1 get 7 -1 roll astore } bdef
+/compute_transform {
+  dmat dtri tri_to_matrix tmat1 invertmatrix 
+  smat stri tri_to_matrix tmat2 concatmatrix } bdef
+/ds {stri astore pop} bdef
+/dt {dtri astore pop} bdef
+/db {2 copy /cols xdef /rows xdef mul dup 3 mul string
+  currentfile 
+  3 index 0 eq {/ASCIIHexDecode filter}
+  {/ASCII85Decode filter 3 index 2 eq {/RunLengthDecode filter} if }
+  ifelse exch readstring pop
+  dup 0 3 index getinterval /rbmap xdef
+  dup 2 index dup getinterval /gbmap xdef
+  1 index dup 2 mul exch getinterval /bbmap xdef pop pop}bdef
+/it {gs np dtri aload pop moveto lineto lineto cp c
+  cols rows 8 compute_transform 
+  rbmap gbmap bbmap true 3 colorimage gr}bdef
+/il {newpath moveto lineto stroke}bdef
+currentdict end def
+%%EndProlog
+
+%%BeginSetup
+MathWorks begin
+
+0 cap
+
+end
+%%EndSetup
+
+%%Page: 1 1
+%%BeginPageSetup
+%%PageBoundingBox:    36    15  1020   274
+MathWorks begin
+bpage
+%%EndPageSetup
+
+%%BeginObject: obj1
+bplot
+
+/dpi2point 12 def
+portraitMode 0192 3324 csm
+
+  241    34 11818  3099 rc
+93 dict begin %Colortable dictionary
+/c0 { 0.000000 0.000000 0.000000 sr} bdef
+/c1 { 1.000000 1.000000 1.000000 sr} bdef
+/c2 { 0.900000 0.000000 0.000000 sr} bdef
+/c3 { 0.000000 0.820000 0.000000 sr} bdef
+/c4 { 0.000000 0.000000 0.800000 sr} bdef
+/c5 { 0.910000 0.820000 0.320000 sr} bdef
+/c6 { 1.000000 0.260000 0.820000 sr} bdef
+/c7 { 0.000000 0.820000 0.820000 sr} bdef
+c0
+1 j
+1 sg
+   0    0 12538 3134 rf
+6 w
+0 2507 11282 0 0 -2507 627 2820 4 MP
+PP
+-11282 0 0 2507 11282 0 0 -2507 627 2820 5 MP stroke
+4 w
+DO
+SO
+6 w
+0 sg
+ 627 2820 mt 11909 2820 L
+ 627 2820 mt  627  313 L
+ 627 2820 mt  627 2707 L
+%%IncludeResource: font Helvetica
+/Helvetica /ISOLatin1Encoding 120 FMSR
+
+ 594 2965 mt 
+(0) s
+1652 2820 mt 1652 2707 L
+1586 2965 mt 
+(10) s
+2678 2820 mt 2678 2707 L
+2612 2965 mt 
+(20) s
+3704 2820 mt 3704 2707 L
+3638 2965 mt 
+(30) s
+4729 2820 mt 4729 2707 L
+4663 2965 mt 
+(40) s
+5755 2820 mt 5755 2707 L
+5689 2965 mt 
+(50) s
+6781 2820 mt 6781 2707 L
+6715 2965 mt 
+(60) s
+7807 2820 mt 7807 2707 L
+7741 2965 mt 
+(70) s
+8832 2820 mt 8832 2707 L
+8766 2965 mt 
+(80) s
+9858 2820 mt 9858 2707 L
+9792 2965 mt 
+(90) s
+10884 2820 mt 10884 2707 L
+10784 2965 mt 
+(100) s
+11910 2820 mt 11910 2707 L
+11810 2965 mt 
+(110) s
+ 627 2741 mt  739 2741 L
+ 526 2785 mt 
+(0) s
+ 627 2584 mt  739 2584 L
+ 526 2628 mt 
+(1) s
+ 627 2428 mt  739 2428 L
+ 526 2472 mt 
+(2) s
+ 627 2271 mt  739 2271 L
+ 526 2315 mt 
+(3) s
+ 627 2114 mt  739 2114 L
+ 526 2158 mt 
+(4) s
+ 627 1958 mt  739 1958 L
+ 526 2002 mt 
+(5) s
+ 627 1801 mt  739 1801 L
+ 526 1845 mt 
+(6) s
+ 627 1644 mt  739 1644 L
+ 526 1688 mt 
+(7) s
+ 627 1488 mt  739 1488 L
+ 526 1532 mt 
+(8) s
+ 627 1331 mt  739 1331 L
+ 526 1375 mt 
+(9) s
+ 627 1174 mt  739 1174 L
+ 459 1218 mt 
+(10) s
+ 627 1018 mt  739 1018 L
+ 459 1062 mt 
+(11) s
+ 627  861 mt  739  861 L
+ 459  905 mt 
+(12) s
+ 627  704 mt  739  704 L
+ 459  748 mt 
+(13) s
+ 627  548 mt  739  548 L
+ 459  592 mt 
+(14) s
+ 627  391 mt  739  391 L
+ 459  435 mt 
+(15) s
+gs 627 313 11284 2508 rc
+12 w
+0 j
+/c8 { 1.000000 0.133333 0.000000 sr} bdef
+c8
+ 627 1096  135  157 rf
+gr
+/c9 { 0.800000 0.106667 0.000000 sr} bdef
+c9
+ 627 1096  135  157 rectstroke
+gs 627 313 11284 2508 rc
+1 j
+0 j
+/c10 { 0.509804 1.000000 0.000000 sr} bdef
+c10
+ 761 1566   78  157 rf
+/c11 { 0.407843 0.800000 0.000000 sr} bdef
+c11
+ 761 1566   78  157 rectstroke
+1 j
+0 j
+c10
+ 765  783   80  156 rf
+c11
+ 765  783   80  156 rectstroke
+1 j
+0 j
+c10
+ 763 1409   80  157 rf
+c11
+ 763 1409   80  157 rectstroke
+1 j
+0 j
+c10
+ 765  939   81  157 rf
+c11
+ 765  939   81  157 rectstroke
+1 j
+0 j
+c10
+ 768 1723   84  156 rf
+c11
+ 768 1723   84  156 rectstroke
+1 j
+0 j
+c10
+ 766 2663   80  157 rf
+c11
+ 766 2663   80  157 rectstroke
+1 j
+0 j
+c10
+ 767 2036   81  157 rf
+c11
+ 767 2036   81  157 rectstroke
+1 j
+0 j
+c10
+ 762 2193   80  156 rf
+c11
+ 762 2193   80  156 rectstroke
+1 j
+0 j
+c10
+ 766 1879   82  157 rf
+c11
+ 766 1879   82  157 rectstroke
+1 j
+0 j
+c10
+ 768  469   86  157 rf
+c11
+ 768  469   86  157 rectstroke
+1 j
+0 j
+c10
+ 768  626   86  157 rf
+c11
+ 768  626   86  157 rectstroke
+1 j
+0 j
+c10
+ 766  313   83  156 rf
+gr
+c11
+ 766  313   83  156 rectstroke
+gs 627 313 11284 2508 rc
+1 j
+0 j
+c10
+ 768 1253   84  156 rf
+c11
+ 768 1253   84  156 rectstroke
+1 j
+0 j
+c10
+ 762 1096   82  157 rf
+c11
+ 762 1096   82  157 rectstroke
+1 j
+0 j
+c10
+ 767 2506   87  157 rf
+c11
+ 767 2506   87  157 rectstroke
+1 j
+0 j
+/c12 { 0.000000 0.721569 1.000000 sr} bdef
+c12
+ 767 2349  104  157 rf
+/c13 { 0.000000 0.577255 0.800000 sr} bdef
+c13
+ 767 2349  104  157 rectstroke
+1 j
+0 j
+/c14 { 1.000000 0.929412 0.000000 sr} bdef
+c14
+ 876  469  130  157 rf
+/c15 { 0.800000 0.743529 0.000000 sr} bdef
+c15
+ 876  469  130  157 rectstroke
+1 j
+0 j
+c14
+ 876  783  124  156 rf
+c15
+ 876  783  124  156 rectstroke
+1 j
+0 j
+c14
+ 877 2506  127  157 rf
+c15
+ 877 2506  127  157 rectstroke
+1 j
+0 j
+c14
+ 874  939  125  157 rf
+c15
+ 874  939  125  157 rectstroke
+1 j
+0 j
+c14
+ 874 1723  126  156 rf
+c15
+ 874 1723  126  156 rectstroke
+1 j
+0 j
+c14
+ 875  313  128  156 rf
+gr
+c15
+ 875  313  128  156 rectstroke
+gs 627 313 11284 2508 rc
+1 j
+0 j
+c14
+ 875 1096  128  157 rf
+c15
+ 875 1096  128  157 rectstroke
+1 j
+0 j
+c14
+ 875 1409  128  157 rf
+c15
+ 875 1409  128  157 rectstroke
+1 j
+0 j
+c14
+ 876 2036  125  157 rf
+c15
+ 876 2036  125  157 rectstroke
+1 j
+0 j
+c14
+ 876 1253  128  156 rf
+c15
+ 876 1253  128  156 rectstroke
+1 j
+0 j
+c14
+ 872  626  126  157 rf
+c15
+ 872  626  126  157 rectstroke
+1 j
+0 j
+c14
+ 871 2349  130  157 rf
+c15
+ 871 2349  130  157 rectstroke
+1 j
+0 j
+c14
+ 870 1566  125  157 rf
+c15
+ 870 1566  125  157 rectstroke
+1 j
+0 j
+c14
+ 870 1879  126  157 rf
+c15
+ 870 1879  126  157 rectstroke
+1 j
+0 j
+c14
+ 873 2663  128  157 rf
+c15
+ 873 2663  128  157 rectstroke
+1 j
+0 j
+c12
+ 874 2193  145  156 rf
+c13
+ 874 2193  145  156 rectstroke
+1 j
+0 j
+c14
+1018 2349  139  157 rf
+c15
+1018 2349  139  157 rectstroke
+1 j
+0 j
+c14
+1020  783  124  156 rf
+c15
+1020  783  124  156 rectstroke
+1 j
+0 j
+c14
+1021 2506  127  157 rf
+c15
+1021 2506  127  157 rectstroke
+1 j
+0 j
+c14
+1022  939  125  157 rf
+c15
+1022  939  125  157 rectstroke
+1 j
+0 j
+c14
+1021 1723  127  156 rf
+c15
+1021 1723  127  156 rectstroke
+1 j
+0 j
+c14
+1019 2193  129  156 rf
+c15
+1019 2193  129  156 rectstroke
+1 j
+0 j
+c14
+1021 1566  128  157 rf
+c15
+1021 1566  128  157 rectstroke
+1 j
+0 j
+c14
+1022 1409  126  157 rf
+c15
+1022 1409  126  157 rectstroke
+1 j
+0 j
+c14
+1023 2036  123  157 rf
+c15
+1023 2036  123  157 rectstroke
+1 j
+0 j
+c14
+1023  626  130  157 rf
+c15
+1023  626  130  157 rectstroke
+1 j
+0 j
+c14
+1021 1096  126  157 rf
+c15
+1021 1096  126  157 rectstroke
+1 j
+0 j
+c14
+1149 1566  108  157 rf
+c15
+1149 1566  108  157 rectstroke
+1 j
+0 j
+c14
+1023  313  129  156 rf
+gr
+c15
+1023  313  129  156 rectstroke
+gs 627 313 11284 2508 rc
+1 j
+0 j
+c14
+1021 1879  125  157 rf
+c15
+1021 1879  125  157 rectstroke
+1 j
+0 j
+c14
+1022 2663  125  157 rf
+c15
+1022 2663  125  157 rectstroke
+1 j
+0 j
+c12
+1019 1253  146  156 rf
+c13
+1019 1253  146  156 rectstroke
+1 j
+0 j
+c14
+1225  626  131  157 rf
+c15
+1225  626  131  157 rectstroke
+1 j
+0 j
+c14
+1165 1253  115  156 rf
+c15
+1165 1253  115  156 rectstroke
+1 j
+0 j
+c14
+1228 2349  128  157 rf
+c15
+1228 2349  128  157 rectstroke
+1 j
+0 j
+c14
+1280 1253  118  156 rf
+c15
+1280 1253  118  156 rectstroke
+1 j
+0 j
+c14
+1222 1723  123  156 rf
+c15
+1222 1723  123  156 rectstroke
+1 j
+0 j
+c14
+1214  783  124  156 rf
+c15
+1214  783  124  156 rectstroke
+1 j
+0 j
+c14
+1257 1566  118  157 rf
+c15
+1257 1566  118  157 rectstroke
+1 j
+0 j
+c14
+1217  469  131  157 rf
+c15
+1217  469  131  157 rectstroke
+1 j
+0 j
+c14
+1216 2036  119  157 rf
+c15
+1216 2036  119  157 rectstroke
+1 j
+0 j
+c14
+1219  939  128  157 rf
+c15
+1219  939  128  157 rectstroke
+1 j
+0 j
+c14
+1225 2193  131  156 rf
+c15
+1225 2193  131  156 rectstroke
+1 j
+0 j
+c14
+1222 2506  132  157 rf
+c15
+1222 2506  132  157 rectstroke
+1 j
+0 j
+c14
+1225  313  125  156 rf
+gr
+c15
+1225  313  125  156 rectstroke
+gs 627 313 11284 2508 rc
+1 j
+0 j
+c14
+1219 1879  122  157 rf
+c15
+1219 1879  122  157 rectstroke
+1 j
+0 j
+c14
+1219 2663  122  157 rf
+c15
+1219 2663  122  157 rectstroke
+1 j
+0 j
+c12
+1221 1096  146  157 rf
+c13
+1221 1096  146  157 rectstroke
+1 j
+0 j
+c14
+1413  626  117  157 rf
+c15
+1413  626  117  157 rectstroke
+1 j
+0 j
+c14
+1398 1253  112  156 rf
+c15
+1398 1253  112  156 rectstroke
+1 j
+0 j
+c14
+1463 2349  122  157 rf
+c15
+1463 2349  122  157 rectstroke
+1 j
+0 j
+c14
+1367 1096  110  157 rf
+c15
+1367 1096  110  157 rectstroke
+1 j
+0 j
+c14
+1442 1723  123  156 rf
+c15
+1442 1723  123  156 rectstroke
+1 j
+0 j
+c14
+1438 2663  124  157 rf
+c15
+1438 2663  124  157 rectstroke
+1 j
+0 j
+c14
+1375 1566  106  157 rf
+c15
+1375 1566  106  157 rectstroke
+1 j
+0 j
+c14
+1453  469  124  157 rf
+c15
+1453  469  124  157 rectstroke
+1 j
+0 j
+c14
+1433 2036  121  157 rf
+c15
+1433 2036  121  157 rectstroke
+1 j
+0 j
+c14
+1452  939  122  157 rf
+c15
+1452  939  122  157 rectstroke
+1 j
+0 j
+c14
+1459 2193  123  156 rf
+c15
+1459 2193  123  156 rectstroke
+1 j
+0 j
+c14
+1457 2506  123  157 rf
+c15
+1457 2506  123  157 rectstroke
+1 j
+0 j
+c14
+1449  313  124  156 rf
+gr
+c15
+1449  313  124  156 rectstroke
+gs 627 313 11284 2508 rc
+1 j
+0 j
+c14
+1766 2349  101  157 rf
+c15
+1766 2349  101  157 rectstroke
+1 j
+0 j
+c14
+1477 1096  119  157 rf
+c15
+1477 1096  119  157 rectstroke
+1 j
+0 j
+c12
+1439 1879  143  157 rf
+c13
+1439 1879  143  157 rectstroke
+1 j
+0 j
+c14
+1610 1253  116  156 rf
+c15
+1610 1253  116  156 rectstroke
+1 j
+0 j
+c14
+1826 1253  102  156 rf
+c15
+1826 1253  102  156 rectstroke
+1 j
+0 j
+c14
+1585 2349  107  157 rf
+c15
+1585 2349  107  157 rectstroke
+1 j
+0 j
+c14
+1596 1096  110  157 rf
+c15
+1596 1096  110  157 rectstroke
+1 j
+0 j
+c14
+1662 1723  122  156 rf
+c15
+1662 1723  122  156 rectstroke
+1 j
+0 j
+c14
+1665 2663  130  157 rf
+c15
+1665 2663  130  157 rectstroke
+1 j
+0 j
+c14
+1676 1566  119  157 rf
+c15
+1676 1566  119  157 rectstroke
+1 j
+0 j
+c14
+1718  469  113  157 rf
+c15
+1718  469  113  157 rectstroke
+1 j
+0 j
+c14
+1582 1879  109  157 rf
+c15
+1582 1879  109  157 rectstroke
+1 j
+0 j
+c14
+1748  939  103  157 rf
+c15
+1748  939  103  157 rectstroke
+1 j
+0 j
+c14
+4061 2036  101  157 rf
+c15
+4061 2036  101  157 rectstroke
+1 j
+0 j
+c14
+2491 2506  101  157 rf
+c15
+2491 2506  101  157 rectstroke
+1 j
+0 j
+c14
+1670  313  120  156 rf
+gr
+c15
+1670  313  120  156 rectstroke
+gs 627 313 11284 2508 rc
+1 j
+0 j
+c14
+1900 1879  100  157 rf
+c15
+1900 1879  100  157 rectstroke
+1 j
+0 j
+c14
+1706 1096  112  157 rf
+c15
+1706 1096  112  157 rectstroke
+1 j
+0 j
+c12
+1651 2036  131  157 rf
+c13
+1651 2036  131  157 rectstroke
+1 j
+0 j
+c14
+1782 2036  115  157 rf
+c15
+1782 2036  115  157 rectstroke
+1 j
+0 j
+c14
+1897 2036  111  157 rf
+c15
+1897 2036  111  157 rectstroke
+1 j
+0 j
+c14
+2109 2036  100  157 rf
+c15
+2109 2036  100  157 rectstroke
+1 j
+0 j
+c14
+2008 2036  101  157 rf
+c15
+2008 2036  101  157 rectstroke
+1 j
+0 j
+c14
+2209 2036  100  157 rf
+c15
+2209 2036  100  157 rectstroke
+1 j
+0 j
+c14
+1795 2663  126  157 rf
+c15
+1795 2663  126  157 rectstroke
+1 j
+0 j
+c14
+1892 1566  112  157 rf
+c15
+1892 1566  112  157 rectstroke
+1 j
+0 j
+c14
+2283  469  101  157 rf
+c15
+2283  469  101  157 rectstroke
+1 j
+0 j
+c14
+1788 1879  112  157 rf
+c15
+1788 1879  112  157 rectstroke
+1 j
+0 j
+c14
+1818 1096  119  157 rf
+c15
+1818 1096  119  157 rectstroke
+1 j
+0 j
+c14
+2383  939   99  157 rf
+c15
+2383  939   99  157 rectstroke
+1 j
+0 j
+c14
+2696 2506   99  157 rf
+c15
+2696 2506   99  157 rectstroke
+1 j
+0 j
+c14
+1937 1096  105  157 rf
+c15
+1937 1096  105  157 rectstroke
+1 j
+0 j
+c14
+1964 2349  103  157 rf
+c15
+1964 2349  103  157 rectstroke
+1 j
+0 j
+c14
+4959 2349  100  157 rf
+c15
+4959 2349  100  157 rectstroke
+1 j
+0 j
+c12
+1831  469  134  157 rf
+c13
+1831  469  134  157 rectstroke
+1 j
+0 j
+c14
+2078  469  101  157 rf
+c15
+2078  469  101  157 rectstroke
+1 j
+0 j
+c14
+1981 1409  118  157 rf
+c15
+1981 1409  118  157 rectstroke
+1 j
+0 j
+c14
+2067 2349  100  157 rf
+c15
+2067 2349  100  157 rectstroke
+1 j
+0 j
+c14
+2042 1096  105  157 rf
+c15
+2042 1096  105  157 rectstroke
+1 j
+0 j
+c14
+2625 1723  101  156 rf
+c15
+2625 1723  101  156 rectstroke
+1 j
+0 j
+c14
+2038 2663  117  157 rf
+c15
+2038 2663  117  157 rectstroke
+1 j
+0 j
+c14
+2101 1566   98  157 rf
+c15
+2101 1566   98  157 rectstroke
+1 j
+0 j
+c14
+2384  469   99  157 rf
+c15
+2384  469   99  157 rectstroke
+1 j
+0 j
+c14
+2000 1879  112  157 rf
+c15
+2000 1879  112  157 rectstroke
+1 j
+0 j
+c14
+3514  469  100  157 rf
+c15
+3514  469  100  157 rectstroke
+1 j
+0 j
+c14
+2050 2193  103  156 rf
+c15
+2050 2193  103  156 rectstroke
+1 j
+0 j
+c14
+2895 2506   99  157 rf
+c15
+2895 2506   99  157 rectstroke
+1 j
+0 j
+c14
+2267 2663  115  157 rf
+c15
+2267 2663  115  157 rectstroke
+1 j
+0 j
+c14
+4763 2349   98  157 rf
+c15
+4763 2349   98  157 rectstroke
+1 j
+0 j
+c14
+3207 2663   98  157 rf
+c15
+3207 2663   98  157 rectstroke
+1 j
+0 j
+c12
+1965  469  113  157 rf
+c13
+1965  469  113  157 rectstroke
+1 j
+0 j
+c14
+2167 2349  100  157 rf
+c15
+2167 2349  100  157 rectstroke
+1 j
+0 j
+c14
+2497 1723  128  156 rf
+c15
+2497 1723  128  156 rectstroke
+1 j
+0 j
+c14
+2742 1253  151  156 rf
+c15
+2742 1253  151  156 rectstroke
+1 j
+0 j
+c14
+2893 1253  102  156 rf
+c15
+2893 1253  102  156 rectstroke
+1 j
+0 j
+c14
+3188 1723   99  156 rf
+c15
+3188 1723   99  156 rectstroke
+1 j
+0 j
+c14
+2155 2663  112  157 rf
+c15
+2155 2663  112  157 rectstroke
+1 j
+0 j
+c14
+2900 1566  100  157 rf
+c15
+2900 1566  100  157 rectstroke
+1 j
+0 j
+c14
+2483  469  100  157 rf
+c15
+2483  469  100  157 rectstroke
+1 j
+0 j
+c14
+2221  783  117  156 rf
+c15
+2221  783  117  156 rectstroke
+1 j
+0 j
+c14
+2257  939  126  157 rf
+c15
+2257  939  126  157 rectstroke
+1 j
+0 j
+c14
+2597 2193  100  156 rf
+c15
+2597 2193  100  156 rectstroke
+1 j
+0 j
+c14
+2211 1879  112  157 rf
+c15
+2211 1879  112  157 rectstroke
+1 j
+0 j
+c14
+2148 1096   99  157 rf
+c15
+2148 1096   99  157 rectstroke
+1 j
+0 j
+c14
+5158 2349  100  157 rf
+c15
+5158 2349  100  157 rectstroke
+1 j
+0 j
+c14
+2348 1096  106  157 rf
+c15
+2348 1096  106  157 rectstroke
+1 j
+0 j
+c12
+2267 2349  120  157 rf
+c13
+2267 2349  120  157 rectstroke
+1 j
+0 j
+c14
+2387 2349  104  157 rf
+c15
+2387 2349  104  157 rectstroke
+1 j
+0 j
+c14
+2455 1096  112  157 rf
+c15
+2455 1096  112  157 rectstroke
+1 j
+0 j
+c14
+2409 2036  103  157 rf
+c15
+2409 2036  103  157 rectstroke
+1 j
+0 j
+c14
+2455  313  117  156 rf
+gr
+c15
+2455  313  117  156 rectstroke
+gs 627 313 11284 2508 rc
+1 j
+0 j
+c14
+2512 2036  115  157 rf
+c15
+2512 2036  115  157 rectstroke
+1 j
+0 j
+c14
+2508 2663  117  157 rf
+c15
+2508 2663  117  157 rectstroke
+1 j
+0 j
+c14
+3720 1723  101  156 rf
+c15
+3720 1723  101  156 rectstroke
+1 j
+0 j
+c14
+2846  469  101  157 rf
+c15
+2846  469  101  157 rectstroke
+1 j
+0 j
+c14
+2789  939  101  157 rf
+c15
+2789  939  101  157 rectstroke
+1 j
+0 j
+c14
+2993  939   98  157 rf
+c15
+2993  939   98  157 rectstroke
+1 j
+0 j
+c14
+3480  939  100  157 rf
+c15
+3480  939  100  157 rectstroke
+1 j
+0 j
+c14
+4256 2349  102  157 rf
+c15
+4256 2349  102  157 rectstroke
+1 j
+0 j
+c14
+2688 2663  100  157 rf
+c15
+2688 2663  100  157 rectstroke
+1 j
+0 j
+c14
+5258 2349   98  157 rf
+c15
+5258 2349   98  157 rectstroke
+1 j
+0 j
+c14
+3978 1096   98  157 rf
+c15
+3978 1096   98  157 rectstroke
+1 j
+0 j
+c12
+2491 2349  131  157 rf
+c13
+2491 2349  131  157 rectstroke
+1 j
+0 j
+c14
+2622 2349  102  157 rf
+c15
+2622 2349  102  157 rectstroke
+1 j
+0 j
+c14
+2627 2036  102  157 rf
+c15
+2627 2036  102  157 rectstroke
+1 j
+0 j
+c14
+2795 2036  106  157 rf
+c15
+2795 2036  106  157 rectstroke
+1 j
+0 j
+c14
+2674  313  113  156 rf
+gr
+c15
+2674  313  113  156 rectstroke
+gs 627 313 11284 2508 rc
+1 j
+0 j
+c14
+3297 2036  100  157 rf
+c15
+3297 2036  100  157 rectstroke
+1 j
+0 j
+c14
+3073 2349   99  157 rf
+c15
+3073 2349   99  157 rectstroke
+1 j
+0 j
+c14
+4082 1566  100  157 rf
+c15
+4082 1566  100  157 rectstroke
+1 j
+0 j
+c14
+3821  469   99  157 rf
+c15
+3821  469   99  157 rectstroke
+1 j
+0 j
+c14
+4124  783  100  156 rf
+c15
+4124  783  100  156 rectstroke
+1 j
+0 j
+c14
+4350 1253  100  156 rf
+c15
+4350 1253  100  156 rectstroke
+1 j
+0 j
+c14
+3261 2193  101  156 rf
+c15
+3261 2193  101  156 rectstroke
+1 j
+0 j
+c14
+3632 2506  102  157 rf
+c15
+3632 2506  102  157 rectstroke
+1 j
+0 j
+c14
+2788 2663  108  157 rf
+c15
+2788 2663  108  157 rectstroke
+1 j
+0 j
+c14
+5356 2349   98  157 rf
+c15
+5356 2349   98  157 rectstroke
+1 j
+0 j
+c14
+6345 1253  100  156 rf
+c15
+6345 1253  100  156 rectstroke
+1 j
+0 j
+c12
+2724 2349  124  157 rf
+c13
+2724 2349  124  157 rectstroke
+1 j
+0 j
+c14
+2848 2349  101  157 rf
+c15
+2848 2349  101  157 rectstroke
+1 j
+0 j
+c14
+2872 1096  107  157 rf
+c15
+2872 1096  107  157 rectstroke
+1 j
+0 j
+c14
+3452 2036   99  157 rf
+c15
+3452 2036   99  157 rectstroke
+1 j
+0 j
+c14
+2884  313  109  156 rf
+gr
+c15
+2884  313  109  156 rectstroke
+gs 627 313 11284 2508 rc
+1 j
+0 j
+c14
+4293 1723  102  156 rf
+c15
+4293 1723  102  156 rectstroke
+1 j
+0 j
+c14
+2897 2663  107  157 rf
+c15
+2897 2663  107  157 rectstroke
+1 j
+0 j
+c14
+2993  313  114  156 rf
+gr
+c15
+2993  313  114  156 rectstroke
+gs 627 313 11284 2508 rc
+1 j
+0 j
+c14
+4021  469  100  157 rf
+c15
+4021  469  100  157 rectstroke
+1 j
+0 j
+c14
+2893 2193  111  156 rf
+c15
+2893 2193  111  156 rectstroke
+1 j
+0 j
+c14
+4429  939  103  157 rf
+c15
+4429  939  103  157 rectstroke
+1 j
+0 j
+c14
+3555 2193  101  156 rf
+c15
+3555 2193  101  156 rectstroke
+1 j
+0 j
+c14
+3734 2506   99  157 rf
+c15
+3734 2506   99  157 rectstroke
+1 j
+0 j
+c14
+3305 2663   98  157 rf
+c15
+3305 2663   98  157 rectstroke
+1 j
+0 j
+c14
+5454 2349   98  157 rf
+c15
+5454 2349   98  157 rectstroke
+1 j
+0 j
+c14
+5746 2349   98  157 rf
+c15
+5746 2349   98  157 rectstroke
+1 j
+0 j
+c12
+2949 2349  124  157 rf
+c13
+2949 2349  124  157 rectstroke
+1 j
+0 j
+c14
+3173 2349   99  157 rf
+c15
+3173 2349   99  157 rectstroke
+1 j
+0 j
+c14
+4217 2036  100  157 rf
+c15
+4217 2036  100  157 rectstroke
+1 j
+0 j
+c14
+3105 2663  102  157 rf
+c15
+3105 2663  102  157 rectstroke
+1 j
+0 j
+c14
+3093 2506  102  157 rf
+c15
+3093 2506  102  157 rectstroke
+1 j
+0 j
+c14
+4942 1723  101  156 rf
+c15
+4942 1723  101  156 rectstroke
+1 j
+0 j
+c14
+3657 2349  100  157 rf
+c15
+3657 2349  100  157 rectstroke
+1 j
+0 j
+c14
+3856 2349  100  157 rf
+c15
+3856 2349  100  157 rectstroke
+1 j
+0 j
+c14
+4056 2349  102  157 rf
+c15
+4056 2349  102  157 rectstroke
+1 j
+0 j
+c14
+4459 2349  100  157 rf
+c15
+4459 2349  100  157 rectstroke
+1 j
+0 j
+c14
+5222  939   99  157 rf
+c15
+5222  939   99  157 rectstroke
+1 j
+0 j
+c14
+4147 2193  100  156 rf
+c15
+4147 2193  100  156 rectstroke
+1 j
+0 j
+c14
+4029 2506   99  157 rf
+c15
+4029 2506   99  157 rectstroke
+1 j
+0 j
+c14
+3733 2663  111  157 rf
+c15
+3733 2663  111  157 rectstroke
+1 j
+0 j
+c14
+5552 2349   97  157 rf
+c15
+5552 2349   97  157 rectstroke
+1 j
+0 j
+c14
+7338 1096   99  157 rf
+c15
+7338 1096   99  157 rectstroke
+1 j
+0 j
+c12
+3272 2349   57  157 rf
+c13
+3272 2349   57  157 rectstroke
+1 j
+0 j
+c14
+3329 2349  100  157 rf
+c15
+3329 2349  100  157 rectstroke
+1 j
+0 j
+c14
+3512 1096  105  157 rf
+c15
+3512 1096  105  157 rectstroke
+1 j
+0 j
+c14
+3557 2349  100  157 rf
+c15
+3557 2349  100  157 rectstroke
+1 j
+0 j
+c14
+3411 2506  121  157 rf
+c15
+3411 2506  121  157 rectstroke
+1 j
+0 j
+c14
+3409  313  120  156 rf
+gr
+c15
+3409  313  120  156 rectstroke
+gs 627 313 11284 2508 rc
+1 j
+0 j
+c14
+4358 2349  100  157 rf
+c15
+4358 2349  100  157 rectstroke
+1 j
+0 j
+c14
+3403 2663  116  157 rf
+c15
+3403 2663  116  157 rectstroke
+1 j
+0 j
+c14
+5750  783  103  156 rf
+c15
+5750  783  103  156 rectstroke
+1 j
+0 j
+c14
+4849 2193  106  156 rf
+c15
+4849 2193  106  156 rectstroke
+1 j
+0 j
+c14
+5737  939   98  157 rf
+c15
+5737  939   98  157 rectstroke
+1 j
+0 j
+c14
+6480 2036  101  157 rf
+c15
+6480 2036  101  157 rectstroke
+1 j
+0 j
+c14
+5127 2506  101  157 rf
+c15
+5127 2506  101  157 rectstroke
+1 j
+0 j
+c14
+4071 2663  111  157 rf
+c15
+4071 2663  111  157 rectstroke
+1 j
+0 j
+c14
+5844 2349   98  157 rf
+c15
+5844 2349   98  157 rectstroke
+1 j
+0 j
+c14
+6865  313   98  156 rf
+gr
+c15
+6865  313   98  156 rectstroke
+gs 627 313 11284 2508 rc
+1 j
+0 j
+c12
+3429 2349  128  157 rf
+c13
+3429 2349  128  157 rectstroke
+1 j
+0 j
+c14
+3757 2349   99  157 rf
+c15
+3757 2349   99  157 rectstroke
+1 j
+0 j
+c14
+3957 2349   99  157 rf
+c15
+3957 2349   99  157 rectstroke
+1 j
+0 j
+c14
+4158 2349   98  157 rf
+c15
+4158 2349   98  157 rectstroke
+1 j
+0 j
+c14
+4559 2349  103  157 rf
+c15
+4559 2349  103  157 rectstroke
+1 j
+0 j
+c14
+4662 2349  101  157 rf
+c15
+4662 2349  101  157 rectstroke
+1 j
+0 j
+c14
+4861 2349   98  157 rf
+c15
+4861 2349   98  157 rectstroke
+1 j
+0 j
+c14
+3733  313  101  156 rf
+gr
+c15
+3733  313  101  156 rectstroke
+gs 627 313 11284 2508 rc
+1 j
+0 j
+c14
+6126  469  103  157 rf
+c15
+6126  469  103  157 rectstroke
+1 j
+0 j
+c14
+5654 2193  100  156 rf
+c15
+5654 2193  100  156 rectstroke
+1 j
+0 j
+c14
+6680 1409  121  157 rf
+c15
+6680 1409  121  157 rectstroke
+1 j
+0 j
+c14
+6597 2193  114  156 rf
+c15
+6597 2193  114  156 rectstroke
+1 j
+0 j
+c14
+6431 2506   99  157 rf
+c15
+6431 2506   99  157 rectstroke
+1 j
+0 j
+c14
+4726 2663   99  157 rf
+c15
+4726 2663   99  157 rectstroke
+1 j
+0 j
+c14
+6039 2349   97  157 rf
+c15
+6039 2349   97  157 rectstroke
+1 j
+0 j
+c14
+7540 2663  100  157 rf
+c15
+7540 2663  100  157 rectstroke
+1 j
+0 j
+c12
+3617 1096   58  157 rf
+c13
+3617 1096   58  157 rectstroke
+1 j
+0 j
+c14
+5316 1409  102  157 rf
+c15
+5316 1409  102  157 rectstroke
+1 j
+0 j
+c14
+3675 1096  101  157 rf
+c15
+3675 1096  101  157 rectstroke
+1 j
+0 j
+c14
+5918 1723  100  156 rf
+c15
+5918 1723  100  156 rectstroke
+1 j
+0 j
+c14
+4128 2506  102  157 rf
+c15
+4128 2506  102  157 rectstroke
+1 j
+0 j
+c14
+3934  313  100  156 rf
+gr
+c15
+3934  313  100  156 rectstroke
+gs 627 313 11284 2508 rc
+1 j
+0 j
+c14
+3878 1096  100  157 rf
+c15
+3878 1096  100  157 rectstroke
+1 j
+0 j
+c14
+3956 2663  114  157 rf
+c15
+3956 2663  114  157 rectstroke
+1 j
+0 j
+c14
+6333  939  103  157 rf
+c15
+6333  939  103  157 rectstroke
+1 j
+0 j
+c14
+4850 1096  103  157 rf
+c15
+4850 1096  103  157 rectstroke
+1 j
+0 j
+c14
+7500  469  101  157 rf
+c15
+7500  469  101  157 rectstroke
+1 j
+0 j
+c14
+7132 1096  100  157 rf
+c15
+7132 1096  100  157 rectstroke
+1 j
+0 j
+c14
+7033 2506   98  157 rf
+c15
+7033 2506   98  157 rectstroke
+1 j
+0 j
+c14
+7267  313   99  156 rf
+gr
+c15
+7267  313   99  156 rectstroke
+gs 627 313 11284 2508 rc
+1 j
+0 j
+c14
+7924 1566  101  157 rf
+c15
+7924 1566  101  157 rectstroke
+1 j
+0 j
+c14
+8154 2663  113  157 rf
+c15
+8154 2663  113  157 rectstroke
+1 j
+0 j
+c8
+1006  469  138  157 rf
+c9
+1006  469  138  157 rectstroke
+1 j
+0 j
+c10
+1149 2193   76  156 rf
+c11
+1149 2193   76  156 rectstroke
+1 j
+0 j
+c10
+1148 2506   74  157 rf
+c11
+1148 2506   74  157 rectstroke
+1 j
+0 j
+c10
+1147  939   72  157 rf
+c11
+1147  939   72  157 rectstroke
+1 j
+0 j
+c10
+1148 1723   74  156 rf
+c11
+1148 1723   74  156 rectstroke
+1 j
+0 j
+c10
+1144  469   72  157 rf
+c11
+1144  469   72  157 rectstroke
+1 j
+0 j
+c10
+1148 1096   73  157 rf
+c11
+1148 1096   73  157 rectstroke
+1 j
+0 j
+c10
+1148 1409   73  157 rf
+c11
+1148 1409   73  157 rectstroke
+1 j
+0 j
+c10
+1146 2036   70  157 rf
+c11
+1146 2036   70  157 rectstroke
+1 j
+0 j
+c10
+1152  313   73  156 rf
+gr
+c11
+1152  313   73  156 rectstroke
+gs 627 313 11284 2508 rc
+1 j
+0 j
+c10
+1153  626   72  157 rf
+c11
+1153  626   72  157 rectstroke
+1 j
+0 j
+c10
+1157 2349   70  157 rf
+c11
+1157 2349   70  157 rectstroke
+1 j
+0 j
+c10
+1146 1879   73  157 rf
+c11
+1146 1879   73  157 rectstroke
+1 j
+0 j
+c10
+1144  783   69  156 rf
+c11
+1144  783   69  156 rectstroke
+1 j
+0 j
+c10
+1147 2663   72  157 rf
+c11
+1147 2663   72  157 rectstroke
+1 j
+0 j
+c12
+1221 1409   67  157 rf
+c13
+1221 1409   67  157 rectstroke
+1 j
+0 j
+c14
+1338  783  103  156 rf
+c15
+1338  783  103  156 rectstroke
+1 j
+0 j
+c14
+1354 2506  103  157 rf
+c15
+1354 2506  103  157 rectstroke
+1 j
+0 j
+c14
+1347  939  105  157 rf
+c15
+1347  939  105  157 rectstroke
+1 j
+0 j
+c14
+1345 1723   97  156 rf
+c15
+1345 1723   97  156 rectstroke
+1 j
+0 j
+c14
+1356 2193  103  156 rf
+c15
+1356 2193  103  156 rectstroke
+1 j
+0 j
+c14
+1481 1566   98  157 rf
+c15
+1481 1566   98  157 rectstroke
+1 j
+0 j
+c14
+1288 1409  107  157 rf
+c15
+1288 1409  107  157 rectstroke
+1 j
+0 j
+c14
+1336 2036   97  157 rf
+c15
+1336 2036   97  157 rectstroke
+1 j
+0 j
+c14
+1395 1409  104  157 rf
+c15
+1395 1409  104  157 rectstroke
+1 j
+0 j
+c14
+1348  469  105  157 rf
+c15
+1348  469  105  157 rectstroke
+1 j
+0 j
+c14
+1356 2349  107  157 rf
+c15
+1356 2349  107  157 rectstroke
+1 j
+0 j
+c14
+1350  313   99  156 rf
+gr
+c15
+1350  313   99  156 rectstroke
+gs 627 313 11284 2508 rc
+1 j
+0 j
+c14
+1342 1879   97  157 rf
+c15
+1342 1879   97  157 rectstroke
+1 j
+0 j
+c14
+1341 2663   97  157 rf
+c15
+1341 2663   97  157 rectstroke
+1 j
+0 j
+c12
+1356  626   57  157 rf
+c13
+1356  626   57  157 rectstroke
+1 j
+0 j
+c14
+1510 1253  100  156 rf
+c15
+1510 1253  100  156 rectstroke
+1 j
+0 j
+c14
+1586  626  106  157 rf
+c15
+1586  626  106  157 rectstroke
+1 j
+0 j
+c14
+1928 1253  102  156 rf
+c15
+1928 1253  102  156 rectstroke
+1 j
+0 j
+c14
+1565 1723   97  156 rf
+c15
+1565 1723   97  156 rectstroke
+1 j
+0 j
+c14
+1570  783  106  156 rf
+c15
+1570  783  106  156 rectstroke
+1 j
+0 j
+c14
+1579 1566   97  157 rf
+c15
+1579 1566   97  157 rectstroke
+1 j
+0 j
+c14
+1499 1409  107  157 rf
+c15
+1499 1409  107  157 rectstroke
+1 j
+0 j
+c14
+1554 2036   97  157 rf
+c15
+1554 2036   97  157 rectstroke
+1 j
+0 j
+c14
+1883 1409   98  157 rf
+c15
+1883 1409   98  157 rectstroke
+1 j
+0 j
+c14
+1651 2193  100  156 rf
+c15
+1651 2193  100  156 rectstroke
+1 j
+0 j
+c14
+1751 2506  102  157 rf
+c15
+1751 2506  102  157 rectstroke
+1 j
+0 j
+c14
+1573  313   96  156 rf
+gr
+c15
+1573  313   96  156 rectstroke
+gs 627 313 11284 2508 rc
+1 j
+0 j
+c14
+1691 1879   97  157 rf
+c15
+1691 1879   97  157 rectstroke
+1 j
+0 j
+c14
+1562 2663  103  157 rf
+c15
+1562 2663  103  157 rectstroke
+1 j
+0 j
+c12
+1530  626   55  157 rf
+c13
+1530  626   55  157 rectstroke
+1 j
+0 j
+c14
+1726 1253  100  156 rf
+c15
+1726 1253  100  156 rectstroke
+1 j
+0 j
+c14
+1649 2506  102  157 rf
+c15
+1649 2506  102  157 rectstroke
+1 j
+0 j
+c14
+1642  939  106  157 rf
+c15
+1642  939  106  157 rectstroke
+1 j
+0 j
+c14
+1784 1723   97  156 rf
+c15
+1784 1723   97  156 rectstroke
+1 j
+0 j
+c14
+1676  783  111  156 rf
+c15
+1676  783  111  156 rectstroke
+1 j
+0 j
+c14
+1795 1566   97  157 rf
+c15
+1795 1566   97  157 rectstroke
+1 j
+0 j
+c14
+1692  626  105  157 rf
+c15
+1692  626  105  157 rectstroke
+1 j
+0 j
+c14
+2309 2036  100  157 rf
+c15
+2309 2036  100  157 rectstroke
+1 j
+0 j
+c14
+1851  939  102  157 rf
+c15
+1851  939  102  157 rectstroke
+1 j
+0 j
+c14
+1751 2193   98  156 rf
+c15
+1751 2193   98  156 rectstroke
+1 j
+0 j
+c14
+4122  626  101  157 rf
+c15
+4122  626  101  157 rectstroke
+1 j
+0 j
+c14
+1790  313   97  156 rf
+gr
+c15
+1790  313   97  156 rectstroke
+gs 627 313 11284 2508 rc
+1 j
+0 j
+c14
+1867 2349   97  157 rf
+c15
+1867 2349   97  157 rectstroke
+1 j
+0 j
+c14
+1921 2663  117  157 rf
+c15
+1921 2663  117  157 rectstroke
+1 j
+0 j
+c12
+1797  626   66  157 rf
+c13
+1797  626   66  157 rectstroke
+1 j
+0 j
+c14
+2030 1253  104  156 rf
+c15
+2030 1253  104  156 rectstroke
+1 j
+0 j
+c14
+2182 2506  104  157 rf
+c15
+2182 2506  104  157 rectstroke
+1 j
+0 j
+c14
+1954  939  100  157 rf
+c15
+1954  939  100  157 rectstroke
+1 j
+0 j
+c14
+2043 1723   97  156 rf
+c15
+2043 1723   97  156 rectstroke
+1 j
+0 j
+c14
+1918  783  102  156 rf
+c15
+1918  783  102  156 rectstroke
+1 j
+0 j
+c14
+2004 1566   97  157 rf
+c15
+2004 1566   97  157 rectstroke
+1 j
+0 j
+c14
+1863  626  106  157 rf
+c15
+1863  626  106  157 rectstroke
+1 j
+0 j
+c14
+2031  626  104  157 rf
+c15
+2031  626  104  157 rectstroke
+1 j
+0 j
+c14
+2159  939   98  157 rf
+c15
+2159  939   98  157 rectstroke
+1 j
+0 j
+c14
+4247 2193  103  156 rf
+c15
+4247 2193  103  156 rectstroke
+1 j
+0 j
+c14
+2795 2506  100  157 rf
+c15
+2795 2506  100  157 rectstroke
+1 j
+0 j
+c14
+1989  313  104  156 rf
+gr
+c15
+1989  313  104  156 rectstroke
+gs 627 313 11284 2508 rc
+1 j
+0 j
+c14
+2253  313  105  156 rf
+gr
+c15
+2253  313  105  156 rectstroke
+gs 627 313 11284 2508 rc
+1 j
+0 j
+c14
+2247 1096  101  157 rf
+c15
+2247 1096  101  157 rectstroke
+1 j
+0 j
+c12
+1969  626   62  157 rf
+c13
+1969  626   62  157 rectstroke
+1 j
+0 j
+c14
+2292 1253   98  156 rf
+c15
+2292 1253   98  156 rectstroke
+1 j
+0 j
+c14
+2241  626  100  157 rf
+c15
+2241  626  100  157 rectstroke
+1 j
+0 j
+c14
+2135  626  106  157 rf
+c15
+2135  626  106  157 rectstroke
+1 j
+0 j
+c14
+2398 1566  104  157 rf
+c15
+2398 1566  104  157 rectstroke
+1 j
+0 j
+c14
+2120  783  101  156 rf
+c15
+2120  783  101  156 rectstroke
+1 j
+0 j
+c14
+2301 1566   96  157 rf
+c15
+2301 1566   96  157 rectstroke
+1 j
+0 j
+c14
+3010  626  116  157 rf
+c15
+3010  626  116  157 rectstroke
+1 j
+0 j
+c14
+2112 1879   99  157 rf
+c15
+2112 1879   99  157 rectstroke
+1 j
+0 j
+c14
+3465 1409  101  157 rf
+c15
+3465 1409  101  157 rectstroke
+1 j
+0 j
+c14
+2491 2193  106  156 rf
+c15
+2491 2193  106  156 rectstroke
+1 j
+0 j
+c14
+2994 2506   98  157 rf
+c15
+2994 2506   98  157 rectstroke
+1 j
+0 j
+c14
+4857  626  101  157 rf
+c15
+4857  626  101  157 rectstroke
+1 j
+0 j
+c14
+5059 2349   99  157 rf
+c15
+5059 2349   99  157 rectstroke
+1 j
+0 j
+c14
+5128 2663  103  157 rf
+c15
+5128 2663  103  157 rectstroke
+1 j
+0 j
+c12
+2341  626   63  157 rf
+c13
+2341  626   63  157 rectstroke
+1 j
+0 j
+c14
+2494 1253  130  156 rf
+c15
+2494 1253  130  156 rectstroke
+1 j
+0 j
+c14
+2464  626  105  157 rf
+c15
+2464  626  105  157 rectstroke
+1 j
+0 j
+c14
+2569  626  105  157 rf
+c15
+2569  626  105  157 rectstroke
+1 j
+0 j
+c14
+2796 1566  104  157 rf
+c15
+2796 1566  104  157 rectstroke
+1 j
+0 j
+c14
+2732  783  115  156 rf
+c15
+2732  783  115  156 rectstroke
+1 j
+0 j
+c14
+2599 1566   98  157 rf
+c15
+2599 1566   98  157 rectstroke
+1 j
+0 j
+c14
+3431  626  115  157 rf
+c15
+3431  626  115  157 rectstroke
+1 j
+0 j
+c14
+2488 1879   98  157 rf
+c15
+2488 1879   98  157 rectstroke
+1 j
+0 j
+c14
+4018  626  104  157 rf
+c15
+4018  626  104  157 rectstroke
+1 j
+0 j
+c14
+2794 2193   98  156 rf
+c15
+2794 2193   98  156 rectstroke
+1 j
+0 j
+c14
+3195 2506  116  157 rf
+c15
+3195 2506  116  157 rectstroke
+1 j
+0 j
+c14
+2572  313  102  156 rf
+gr
+c15
+2572  313  102  156 rectstroke
+gs 627 313 11284 2508 rc
+1 j
+0 j
+c14
+5127  313  101  156 rf
+gr
+c15
+5127  313  101  156 rectstroke
+gs 627 313 11284 2508 rc
+1 j
+0 j
+c14
+3844 2663  112  157 rf
+c15
+3844 2663  112  157 rectstroke
+1 j
+0 j
+c12
+2404  626   60  157 rf
+c13
+2404  626   60  157 rectstroke
+1 j
+0 j
+c14
+2681  469  105  157 rf
+c15
+2681  469  105  157 rectstroke
+1 j
+0 j
+c14
+2995 1253  100  156 rf
+c15
+2995 1253  100  156 rectstroke
+1 j
+0 j
+c14
+3194 1253  115  156 rf
+c15
+3194 1253  115  156 rectstroke
+1 j
+0 j
+c14
+3362 1566  102  157 rf
+c15
+3362 1566  102  157 rectstroke
+1 j
+0 j
+c14
+3070  783  115  156 rf
+c15
+3070  783  115  156 rectstroke
+1 j
+0 j
+c14
+3260 1566  102  157 rf
+c15
+3260 1566  102  157 rectstroke
+1 j
+0 j
+c14
+2583  469   98  157 rf
+c15
+2583  469   98  157 rectstroke
+1 j
+0 j
+c14
+3726  783  100  156 rf
+c15
+3726  783  100  156 rectstroke
+1 j
+0 j
+c14
+3188  939   97  157 rf
+c15
+3188  939   97  157 rectstroke
+1 j
+0 j
+c14
+3164 2193   97  156 rf
+c15
+3164 2193   97  156 rectstroke
+1 j
+0 j
+c14
+3311 2506  100  157 rf
+c15
+3311 2506  100  157 rectstroke
+1 j
+0 j
+c14
+2567 1096  103  157 rf
+c15
+2567 1096  103  157 rectstroke
+1 j
+0 j
+c14
+5330  313  107  156 rf
+gr
+c15
+5330  313  107  156 rectstroke
+gs 627 313 11284 2508 rc
+1 j
+0 j
+c14
+4076 1096   99  157 rf
+c15
+4076 1096   99  157 rectstroke
+1 j
+0 j
+c12
+2674  626   66  157 rf
+c13
+2674  626   66  157 rectstroke
+1 j
+0 j
+c14
+2769 1096  103  157 rf
+c15
+2769 1096  103  157 rectstroke
+1 j
+0 j
+c14
+2893  626  117  157 rf
+c15
+2893  626  117  157 rectstroke
+1 j
+0 j
+c14
+3189  626  128  157 rf
+c15
+3189  626  128  157 rectstroke
+1 j
+0 j
+c14
+2999 2036   98  157 rf
+c15
+2999 2036   98  157 rectstroke
+1 j
+0 j
+c14
+3408  783  114  156 rf
+c15
+3408  783  114  156 rectstroke
+1 j
+0 j
+c14
+3979 1566  103  157 rf
+c15
+3979 1566  103  157 rectstroke
+1 j
+0 j
+c14
+3311  469   99  157 rf
+c15
+3311  469   99  157 rectstroke
+1 j
+0 j
+c14
+3525 1879  104  157 rf
+c15
+3525 1879  104  157 rectstroke
+1 j
+0 j
+c14
+3285  939   98  157 rf
+c15
+3285  939   98  157 rectstroke
+1 j
+0 j
+c14
+4297 1879  101  157 rf
+c15
+4297 1879  101  157 rectstroke
+1 j
+0 j
+c14
+5056  626  101  157 rf
+c15
+5056  626  101  157 rectstroke
+1 j
+0 j
+c14
+3776 1096  102  157 rf
+c15
+3776 1096  102  157 rectstroke
+1 j
+0 j
+c14
+6570  626  100  157 rf
+c15
+6570  626  100  157 rectstroke
+1 j
+0 j
+c14
+4526 2663  100  157 rf
+c15
+4526 2663  100  157 rectstroke
+1 j
+0 j
+c12
+3126  626   63  157 rf
+c13
+3126  626   63  157 rectstroke
+1 j
+0 j
+c14
+3198 2036   99  157 rf
+c15
+3198 2036   99  157 rectstroke
+1 j
+0 j
+c14
+3673 1253  105  156 rf
+c15
+3673 1253  105  156 rectstroke
+1 j
+0 j
+c14
+3682  626  106  157 rf
+c15
+3682  626  106  157 rectstroke
+1 j
+0 j
+c14
+3551 2036  103  157 rf
+c15
+3551 2036  103  157 rectstroke
+1 j
+0 j
+c14
+3826  783  103  156 rf
+c15
+3826  783  103  156 rectstroke
+1 j
+0 j
+c14
+4445 1566   99  157 rf
+c15
+4445 1566   99  157 rectstroke
+1 j
+0 j
+c14
+4437  783  105  156 rf
+c15
+4437  783  105  156 rectstroke
+1 j
+0 j
+c14
+4236  313  113  156 rf
+gr
+c15
+4236  313  113  156 rectstroke
+gs 627 313 11284 2508 rc
+1 j
+0 j
+c14
+4606 1253  122  156 rf
+c15
+4606 1253  122  156 rectstroke
+1 j
+0 j
+c14
+3753 2193  103  156 rf
+c15
+3753 2193  103  156 rectstroke
+1 j
+0 j
+c14
+3931 2506   98  157 rf
+c15
+3931 2506   98  157 rectstroke
+1 j
+0 j
+c14
+4131  313  105  156 rf
+gr
+c15
+4131  313  105  156 rectstroke
+gs 627 313 11284 2508 rc
+1 j
+0 j
+c14
+6140 1253  100  156 rf
+c15
+6140 1253  100  156 rectstroke
+1 j
+0 j
+c14
+7050 1253  105  156 rf
+c15
+7050 1253  105  156 rectstroke
+1 j
+0 j
+c12
+3546  626   69  157 rf
+c13
+3546  626   69  157 rectstroke
+1 j
+0 j
+c14
+3654 2036  102  157 rf
+c15
+3654 2036  102  157 rectstroke
+1 j
+0 j
+c14
+3756 2036   99  157 rf
+c15
+3756 2036   99  157 rectstroke
+1 j
+0 j
+c14
+4045 1253  103  156 rf
+c15
+4045 1253  103  156 rectstroke
+1 j
+0 j
+c14
+4567 1723  101  156 rf
+c15
+4567 1723  101  156 rectstroke
+1 j
+0 j
+c14
+3620 2663  113  157 rf
+c15
+3620 2663  113  157 rectstroke
+1 j
+0 j
+c14
+4845 1566   98  157 rf
+c15
+4845 1566   98  157 rectstroke
+1 j
+0 j
+c14
+4610  469  103  157 rf
+c15
+4610  469  103  157 rectstroke
+1 j
+0 j
+c14
+3929 1879  102  157 rf
+c15
+3929 1879  102  157 rectstroke
+1 j
+0 j
+c14
+4601 2506  129  157 rf
+c15
+4601 2506  129  157 rectstroke
+1 j
+0 j
+c14
+3953 2193   97  156 rf
+c15
+3953 2193   97  156 rectstroke
+1 j
+0 j
+c14
+4498 2506  103  157 rf
+c15
+4498 2506  103  157 rectstroke
+1 j
+0 j
+c14
+6302  626  101  157 rf
+c15
+6302  626  101  157 rectstroke
+1 j
+0 j
+c14
+5649 2349   97  157 rf
+c15
+5649 2349   97  157 rectstroke
+1 j
+0 j
+c14
+6137 2349   96  157 rf
+c15
+6137 2349   96  157 rectstroke
+1 j
+0 j
+c12
+3947  626   71  157 rf
+c13
+3947  626   71  157 rectstroke
+1 j
+0 j
+c14
+4520 2036  115  157 rf
+c15
+4520 2036  115  157 rectstroke
+1 j
+0 j
+c14
+4223  626  105  157 rf
+c15
+4223  626  105  157 rectstroke
+1 j
+0 j
+c14
+4394  626  105  157 rf
+c15
+4394  626  105  157 rectstroke
+1 j
+0 j
+c14
+5250 1723  101  156 rf
+c15
+5250 1723  101  156 rectstroke
+1 j
+0 j
+c14
+5044  783  103  156 rf
+c15
+5044  783  103  156 rectstroke
+1 j
+0 j
+c14
+5137 1566   99  157 rf
+c15
+5137 1566   99  157 rectstroke
+1 j
+0 j
+c14
+4755  626  102  157 rf
+c15
+4755  626  102  157 rectstroke
+1 j
+0 j
+c14
+5853 2036   99  157 rf
+c15
+5853 2036   99  157 rectstroke
+1 j
+0 j
+c14
+5777 1253  104  156 rf
+c15
+5777 1253  104  156 rectstroke
+1 j
+0 j
+c14
+5058 2193   99  156 rf
+c15
+5058 2193   99  156 rectstroke
+1 j
+0 j
+c14
+5363  626  105  157 rf
+c15
+5363  626  105  157 rectstroke
+1 j
+0 j
+c14
+4276 1096  102  157 rf
+c15
+4276 1096  102  157 rectstroke
+1 j
+0 j
+c14
+5942 2349   97  157 rf
+c15
+5942 2349   97  157 rectstroke
+1 j
+0 j
+c14
+7748 2349  104  157 rf
+c15
+7748 2349  104  157 rectstroke
+1 j
+0 j
+c12
+4328  626   66  157 rf
+c13
+4328  626   66  157 rectstroke
+1 j
+0 j
+c14
+5214 2036  114  157 rf
+c15
+5214 2036  114  157 rectstroke
+1 j
+0 j
+c14
+4499  626   99  157 rf
+c15
+4499  626   99  157 rectstroke
+1 j
+0 j
+c14
+5302 1253  103  156 rf
+c15
+5302 1253  103  156 rectstroke
+1 j
+0 j
+c14
+4453  313  103  156 rf
+gr
+c15
+4453  313  103  156 rectstroke
+gs 627 313 11284 2508 rc
+1 j
+0 j
+c14
+5853  783   98  156 rf
+c15
+5853  783   98  156 rectstroke
+1 j
+0 j
+c14
+4414 2663  112  157 rf
+c15
+4414 2663  112  157 rectstroke
+1 j
+0 j
+c14
+5894  626  106  157 rf
+c15
+5894  626  106  157 rectstroke
+1 j
+0 j
+c14
+5024 2663  103  157 rf
+c15
+5024 2663  103  157 rectstroke
+1 j
+0 j
+c14
+5882 1253   97  156 rf
+c15
+5882 1253   97  156 rectstroke
+1 j
+0 j
+c14
+6631 2349  104  157 rf
+c15
+6631 2349  104  157 rectstroke
+1 j
+0 j
+c14
+6875  626  106  157 rf
+c15
+6875  626  106  157 rectstroke
+1 j
+0 j
+c14
+4626 2663  100  157 rf
+c15
+4626 2663  100  157 rectstroke
+1 j
+0 j
+c14
+6233 2349   99  157 rf
+c15
+6233 2349   99  157 rectstroke
+1 j
+0 j
+c14
+7138 2349  100  157 rf
+c15
+7138 2349  100  157 rectstroke
+1 j
+0 j
+c12
+4598  626   56  157 rf
+c13
+4598  626   56  157 rectstroke
+1 j
+0 j
+c14
+4654  626  101  157 rf
+c15
+4654  626  101  157 rectstroke
+1 j
+0 j
+c14
+4958  626   98  157 rf
+c15
+4958  626   98  157 rectstroke
+1 j
+0 j
+c14
+5258  626  105  157 rf
+c15
+5258  626  105  157 rectstroke
+1 j
+0 j
+c14
+6121 1723  102  156 rf
+c15
+6121 1723  102  156 rectstroke
+1 j
+0 j
+c14
+6147  783   98  156 rf
+c15
+6147  783   98  156 rectstroke
+1 j
+0 j
+c14
+5930 1566   99  157 rf
+c15
+5930 1566   99  157 rectstroke
+1 j
+0 j
+c14
+6449  783  103  156 rf
+c15
+6449  783  103  156 rectstroke
+1 j
+0 j
+c14
+5827 2663  103  157 rf
+c15
+5827 2663  103  157 rectstroke
+1 j
+0 j
+c14
+6845 1253  104  156 rf
+c15
+6845 1253  104  156 rectstroke
+1 j
+0 j
+c14
+7057 2193  114  156 rf
+c15
+7057 2193  114  156 rectstroke
+1 j
+0 j
+c14
+7357  783  106  156 rf
+c15
+7357  783  106  156 rectstroke
+1 j
+0 j
+c14
+6334 2663   99  157 rf
+c15
+6334 2663   99  157 rectstroke
+1 j
+0 j
+c14
+6435 2349   97  157 rf
+c15
+6435 2349   97  157 rectstroke
+1 j
+0 j
+c14
+7868  783   99  156 rf
+c15
+7868  783   99  156 rectstroke
+1 j
+0 j
+c12
+5468  626   64  157 rf
+c13
+5468  626   64  157 rectstroke
+1 j
+0 j
+c14
+6218 2036  101  157 rf
+c15
+6218 2036  101  157 rectstroke
+1 j
+0 j
+c14
+6322 1723  100  156 rf
+c15
+6322 1723  100  156 rectstroke
+1 j
+0 j
+c14
+5730 2506  100  157 rf
+c15
+5730 2506  100  157 rectstroke
+1 j
+0 j
+c14
+6098  626  102  157 rf
+c15
+6098  626  102  157 rectstroke
+1 j
+0 j
+c14
+6755  783   98  156 rf
+c15
+6755  783   98  156 rectstroke
+1 j
+0 j
+c14
+6429 1566  112  157 rf
+c15
+6429 1566  112  157 rectstroke
+1 j
+0 j
+c14
+6837  939  102  157 rf
+c15
+6837  939  102  157 rectstroke
+1 j
+0 j
+c14
+6131 2663   99  157 rf
+c15
+6131 2663   99  157 rectstroke
+1 j
+0 j
+c14
+7647  939  104  157 rf
+c15
+7647  939  104  157 rectstroke
+1 j
+0 j
+c14
+7338  939  103  157 rf
+c15
+7338  939  103  157 rectstroke
+1 j
+0 j
+c14
+7751  939  102  157 rf
+c15
+7751  939  102  157 rectstroke
+1 j
+0 j
+c14
+8058  939  104  157 rf
+c15
+8058  939  104  157 rectstroke
+1 j
+0 j
+c14
+8162  939  103  157 rf
+c15
+8162  939  103  157 rectstroke
+1 j
+0 j
+c14
+8463  939  105  157 rf
+c15
+8463  939  105  157 rectstroke
+1 j
+0 j
+c8
+1441  783  129  156 rf
+c9
+1441  783  129  156 rectstroke
+1 j
+0 j
+c10
+1580 2506   69  157 rf
+c11
+1580 2506   69  157 rectstroke
+1 j
+0 j
+c10
+1574  939   67  157 rf
+c11
+1574  939   67  157 rectstroke
+1 j
+0 j
+c10
+1881 1723   65  156 rf
+c11
+1881 1723   65  156 rectstroke
+1 j
+0 j
+c10
+1583 2193   68  156 rf
+c11
+1583 2193   68  156 rectstroke
+1 j
+0 j
+c10
+1645  469   73  157 rf
+c11
+1645  469   73  157 rectstroke
+1 j
+0 j
+c10
+1606 1409   64  157 rf
+c11
+1606 1409   64  157 rectstroke
+1 j
+0 j
+c10
+2729 2036   66  157 rf
+c11
+2729 2036   66  157 rectstroke
+1 j
+0 j
+c10
+3098 1409   65  157 rf
+c11
+3098 1409   65  157 rectstroke
+1 j
+0 j
+c10
+1577  469   67  157 rf
+c11
+1577  469   67  157 rectstroke
+1 j
+0 j
+c10
+1692 2349   74  157 rf
+c11
+1692 2349   74  157 rectstroke
+1 j
+0 j
+c10
+1787  783   68  156 rf
+c11
+1787  783   68  156 rectstroke
+1 j
+0 j
+c10
+2323 1879   67  157 rf
+c11
+2323 1879   67  157 rectstroke
+1 j
+0 j
+c10
+2382 2663   66  157 rf
+c11
+2382 2663   66  157 rectstroke
+1 j
+0 j
+c12
+1670 1409  108  157 rf
+c13
+1670 1409  108  157 rectstroke
+1 j
+0 j
+c14
+1853 2506  103  157 rf
+c15
+1853 2506  103  157 rectstroke
+1 j
+0 j
+c14
+2134 1253  102  156 rf
+c15
+2134 1253  102  156 rectstroke
+1 j
+0 j
+c14
+1946 1723   97  156 rf
+c15
+1946 1723   97  156 rectstroke
+1 j
+0 j
+c14
+1849 2193  104  156 rf
+c15
+1849 2193  104  156 rectstroke
+1 j
+0 j
+c14
+2179  469  104  157 rf
+c15
+2179  469  104  157 rectstroke
+1 j
+0 j
+c14
+1778 1409  105  157 rf
+c15
+1778 1409  105  157 rectstroke
+1 j
+0 j
+c14
+2901 2036   98  157 rf
+c15
+2901 2036   98  157 rectstroke
+1 j
+0 j
+c14
+3263 1409  102  157 rf
+c15
+3263 1409  102  157 rectstroke
+1 j
+0 j
+c14
+1953 2193   97  156 rf
+c15
+1953 2193   97  156 rectstroke
+1 j
+0 j
+c14
+2385 2193  106  156 rf
+c15
+2385 2193  106  156 rectstroke
+1 j
+0 j
+c14
+1887  313  102  156 rf
+gr
+c15
+1887  313  102  156 rectstroke
+gs 627 313 11284 2508 rc
+1 j
+0 j
+c14
+2390 1879   98  157 rf
+c15
+2390 1879   98  157 rectstroke
+1 j
+0 j
+c14
+3004 2663  101  157 rf
+c15
+3004 2663  101  157 rectstroke
+1 j
+0 j
+c12
+1855  783   63  156 rf
+c13
+1855  783   63  156 rectstroke
+1 j
+0 j
+c14
+2085 2506   97  157 rf
+c15
+2085 2506   97  157 rectstroke
+1 j
+0 j
+c14
+2054  939  105  157 rf
+c15
+2054  939  105  157 rectstroke
+1 j
+0 j
+c14
+2140 1723   97  156 rf
+c15
+2140 1723   97  156 rectstroke
+1 j
+0 j
+c14
+2021  783   99  156 rf
+c15
+2021  783   99  156 rectstroke
+1 j
+0 j
+c14
+2200 1566  100  157 rf
+c15
+2200 1566  100  157 rectstroke
+1 j
+0 j
+c14
+2099 1409  105  157 rf
+c15
+2099 1409  105  157 rectstroke
+1 j
+0 j
+c14
+3098 2036  100  157 rf
+c15
+3098 2036  100  157 rectstroke
+1 j
+0 j
+c14
+3855 2036  100  157 rf
+c15
+3855 2036  100  157 rectstroke
+1 j
+0 j
+c14
+2219 2193   97  156 rf
+c15
+2219 2193   97  156 rectstroke
+1 j
+0 j
+c14
+4230 2506  103  157 rf
+c15
+4230 2506  103  157 rectstroke
+1 j
+0 j
+c14
+2093  313   97  156 rf
+gr
+c15
+2093  313   97  156 rectstroke
+gs 627 313 11284 2508 rc
+1 j
+0 j
+c14
+2587 1879   97  157 rf
+c15
+2587 1879   97  157 rectstroke
+1 j
+0 j
+c14
+3519 2663  100  157 rf
+c15
+3519 2663  100  157 rectstroke
+1 j
+0 j
+c12
+2236 1253   56  156 rf
+c13
+2236 1253   56  156 rectstroke
+1 j
+0 j
+c14
+2390 2506  101  157 rf
+c15
+2390 2506  101  157 rectstroke
+1 j
+0 j
+c14
+2390 1253  104  156 rf
+c15
+2390 1253  104  156 rectstroke
+1 j
+0 j
+c14
+2302 1723   97  156 rf
+c15
+2302 1723   97  156 rectstroke
+1 j
+0 j
+c14
+2338  783   97  156 rf
+c15
+2338  783   97  156 rectstroke
+1 j
+0 j
+c14
+2502 1566   97  157 rf
+c15
+2502 1566   97  157 rectstroke
+1 j
+0 j
+c14
+2405 1409  100  157 rf
+c15
+2405 1409  100  157 rectstroke
+1 j
+0 j
+c14
+2979 1096  111  157 rf
+c15
+2979 1096  111  157 rectstroke
+1 j
+0 j
+c14
+3633 1409  107  157 rf
+c15
+3633 1409  107  157 rectstroke
+1 j
+0 j
+c14
+4350 2193  100  156 rf
+c15
+4350 2193  100  156 rectstroke
+1 j
+0 j
+c14
+3090 1096  106  157 rf
+c15
+3090 1096  106  157 rectstroke
+1 j
+0 j
+c14
+2358  313   97  156 rf
+gr
+c15
+2358  313   97  156 rectstroke
+gs 627 313 11284 2508 rc
+1 j
+0 j
+c14
+5403 1879  100  157 rf
+c15
+5403 1879  100  157 rectstroke
+1 j
+0 j
+c14
+2670 1096   99  157 rf
+c15
+2670 1096   99  157 rectstroke
+1 j
+0 j
+c12
+2448 2663   60  157 rf
+c13
+2448 2663   60  157 rectstroke
+1 j
+0 j
+c14
+2592 2506  104  157 rf
+c15
+2592 2506  104  157 rectstroke
+1 j
+0 j
+c14
+2624 1253  118  156 rf
+c15
+2624 1253  118  156 rectstroke
+1 j
+0 j
+c14
+2825 1723  103  156 rf
+c15
+2825 1723  103  156 rectstroke
+1 j
+0 j
+c14
+2533  783   97  156 rf
+c15
+2533  783   97  156 rectstroke
+1 j
+0 j
+c14
+3000 1566   98  157 rf
+c15
+3000 1566   98  157 rectstroke
+1 j
+0 j
+c14
+3205  469  106  157 rf
+c15
+3205  469  106  157 rectstroke
+1 j
+0 j
+c14
+2979 1879  113  157 rf
+c15
+2979 1879  113  157 rectstroke
+1 j
+0 j
+c14
+4325  939  104  157 rf
+c15
+4325  939  104  157 rectstroke
+1 j
+0 j
+c14
+3067 2193   97  156 rf
+c15
+3067 2193   97  156 rectstroke
+1 j
+0 j
+c14
+3196 1096  112  157 rf
+c15
+3196 1096  112  157 rectstroke
+1 j
+0 j
+c14
+5425  939  104  157 rf
+c15
+5425  939  104  157 rectstroke
+1 j
+0 j
+c14
+5702 1879  103  157 rf
+c15
+5702 1879  103  157 rectstroke
+1 j
+0 j
+c14
+5332 2663   97  157 rf
+c15
+5332 2663   97  157 rectstroke
+1 j
+0 j
+c12
+2625 2663   63  157 rf
+c13
+2625 2663   63  157 rectstroke
+1 j
+0 j
+c14
+2740  626  152  157 rf
+c15
+2740  626  152  157 rectstroke
+1 j
+0 j
+c14
+3095 1253   99  156 rf
+c15
+3095 1253   99  156 rectstroke
+1 j
+0 j
+c14
+3287 1723   99  156 rf
+c15
+3287 1723   99  156 rectstroke
+1 j
+0 j
+c14
+2958  783  112  156 rf
+c15
+2958  783  112  156 rectstroke
+1 j
+0 j
+c14
+3163 1566   97  157 rf
+c15
+3163 1566   97  157 rectstroke
+1 j
+0 j
+c14
+3614  469  106  157 rf
+c15
+3614  469  106  157 rectstroke
+1 j
+0 j
+c14
+3157 1879   98  157 rf
+c15
+3157 1879   98  157 rectstroke
+1 j
+0 j
+c14
+4809 2036  114  157 rf
+c15
+4809 2036  114  157 rectstroke
+1 j
+0 j
+c14
+3362 2193   96  156 rf
+c15
+3362 2193   96  156 rectstroke
+1 j
+0 j
+c14
+3532 2506  100  157 rf
+c15
+3532 2506  100  157 rectstroke
+1 j
+0 j
+c14
+3632  313  100  156 rf
+gr
+c15
+3632  313  100  156 rectstroke
+gs 627 313 11284 2508 rc
+1 j
+0 j
+c14
+5228  313  102  156 rf
+gr
+c15
+5228  313  102  156 rectstroke
+gs 627 313 11284 2508 rc
+1 j
+0 j
+c14
+4182 2663  115  157 rf
+c15
+4182 2663  115  157 rectstroke
+1 j
+0 j
+c12
+2786  469   60  157 rf
+c13
+2786  469   60  157 rectstroke
+1 j
+0 j
+c14
+3309 1253   97  156 rf
+c15
+3309 1253   97  156 rectstroke
+1 j
+0 j
+c14
+3406 1253  102  156 rf
+c15
+3406 1253  102  156 rectstroke
+1 j
+0 j
+c14
+3464 1566   97  157 rf
+c15
+3464 1566   97  157 rectstroke
+1 j
+0 j
+c14
+3297  783  111  156 rf
+c15
+3297  783  111  156 rectstroke
+1 j
+0 j
+c14
+3820 1566   97  157 rf
+c15
+3820 1566   97  157 rectstroke
+1 j
+0 j
+c14
+3005  469   98  157 rf
+c15
+3005  469   98  157 rectstroke
+1 j
+0 j
+c14
+4225  783  114  156 rf
+c15
+4225  783  114  156 rectstroke
+1 j
+0 j
+c14
+3383  939   96  157 rf
+c15
+3383  939   96  157 rectstroke
+1 j
+0 j
+c14
+3656 2193   97  156 rf
+c15
+3656 2193   97  156 rectstroke
+1 j
+0 j
+c14
+5569 1253  104  156 rf
+c15
+5569 1253  104  156 rectstroke
+1 j
+0 j
+c14
+3834  313  100  156 rf
+gr
+c15
+3834  313  100  156 rectstroke
+gs 627 313 11284 2508 rc
+1 j
+0 j
+c14
+5437  313  113  156 rf
+gr
+c15
+5437  313  113  156 rectstroke
+gs 627 313 11284 2508 rc
+1 j
+0 j
+c14
+6011  313  115  156 rf
+gr
+c15
+6011  313  115  156 rectstroke
+gs 627 313 11284 2508 rc
+1 j
+0 j
+c12
+2947  469   58  157 rf
+c13
+2947  469   58  157 rectstroke
+1 j
+0 j
+c14
+3317  626  113  157 rf
+c15
+3317  626  113  157 rectstroke
+1 j
+0 j
+c14
+3411  469  102  157 rf
+c15
+3411  469  102  157 rectstroke
+1 j
+0 j
+c14
+3103  469  102  157 rf
+c15
+3103  469  102  157 rectstroke
+1 j
+0 j
+c14
+3522  783  107  156 rf
+c15
+3522  783  107  156 rectstroke
+1 j
+0 j
+c14
+4348 1566   97  157 rf
+c15
+4348 1566   97  157 rectstroke
+1 j
+0 j
+c14
+3920  469  101  157 rf
+c15
+3920  469  101  157 rectstroke
+1 j
+0 j
+c14
+3629 1879   97  157 rf
+c15
+3629 1879   97  157 rectstroke
+1 j
+0 j
+c14
+4649 1409  105  157 rf
+c15
+4649 1409  105  157 rectstroke
+1 j
+0 j
+c14
+5333 1566  101  157 rf
+c15
+5333 1566  101  157 rectstroke
+1 j
+0 j
+c14
+5229 2506  101  157 rf
+c15
+5229 2506  101  157 rectstroke
+1 j
+0 j
+c14
+5902 1879  101  157 rf
+c15
+5902 1879  101  157 rectstroke
+1 j
+0 j
+c14
+6735 2349  100  157 rf
+c15
+6735 2349  100  157 rectstroke
+1 j
+0 j
+c14
+5730 2663   97  157 rf
+c15
+5730 2663   97  157 rectstroke
+1 j
+0 j
+c12
+3397 2036   55  157 rf
+c13
+3397 2036   55  157 rectstroke
+1 j
+0 j
+c14
+3788  626  102  157 rf
+c15
+3788  626  102  157 rectstroke
+1 j
+0 j
+c14
+3955 2036  106  157 rf
+c15
+3955 2036  106  157 rectstroke
+1 j
+0 j
+c14
+4317 2036   99  157 rf
+c15
+4317 2036   99  157 rectstroke
+1 j
+0 j
+c14
+4339  783   98  156 rf
+c15
+4339  783   98  156 rectstroke
+1 j
+0 j
+c14
+4643 1566  101  157 rf
+c15
+4643 1566  101  157 rectstroke
+1 j
+0 j
+c14
+4740  783  104  156 rf
+c15
+4740  783  104  156 rectstroke
+1 j
+0 j
+c14
+4844  783  100  156 rf
+c15
+4844  783  100  156 rectstroke
+1 j
+0 j
+c14
+5051 1409  100  157 rf
+c15
+5051 1409  100  157 rectstroke
+1 j
+0 j
+c14
+4548 2193   99  156 rf
+c15
+4548 2193   99  156 rectstroke
+1 j
+0 j
+c14
+4830 2506  100  157 rf
+c15
+4830 2506  100  157 rectstroke
+1 j
+0 j
+c14
+4755  313  102  156 rf
+gr
+c15
+4755  313  102  156 rectstroke
+gs 627 313 11284 2508 rc
+1 j
+0 j
+c14
+6745 1253  100  156 rf
+c15
+6745 1253  100  156 rectstroke
+1 j
+0 j
+c14
+7562 1253  103  156 rf
+c15
+7562 1253  103  156 rectstroke
+1 j
+0 j
+c12
+4162 2036   55  157 rf
+c13
+4162 2036   55  157 rectstroke
+1 j
+0 j
+c14
+4417 2036  103  157 rf
+c15
+4417 2036  103  157 rectstroke
+1 j
+0 j
+c14
+4635 2036  118  157 rf
+c15
+4635 2036  118  157 rectstroke
+1 j
+0 j
+c14
+4744 2193  105  156 rf
+c15
+4744 2193  105  156 rectstroke
+1 j
+0 j
+c14
+4297 2663  117  157 rf
+c15
+4297 2663  117  157 rectstroke
+1 j
+0 j
+c14
+5040 1566   97  157 rf
+c15
+5040 1566   97  157 rectstroke
+1 j
+0 j
+c14
+4920  469  105  157 rf
+c15
+4920  469  105  157 rectstroke
+1 j
+0 j
+c14
+4697 1879  106  157 rf
+c15
+4697 1879  106  157 rectstroke
+1 j
+0 j
+c14
+4906 1879  100  157 rf
+c15
+4906 1879  100  157 rectstroke
+1 j
+0 j
+c14
+4647 2193   97  156 rf
+c15
+4647 2193   97  156 rectstroke
+1 j
+0 j
+c14
+4930 2506   98  157 rf
+c15
+4930 2506   98  157 rectstroke
+1 j
+0 j
+c14
+6652 1566  119  157 rf
+c15
+6652 1566  119  157 rectstroke
+1 j
+0 j
+c14
+7320 1566  101  157 rf
+c15
+7320 1566  101  157 rectstroke
+1 j
+0 j
+c14
+6532 2349   99  157 rf
+c15
+6532 2349   99  157 rectstroke
+1 j
+0 j
+c12
+4924 2036   61  157 rf
+c13
+4924 2036   61  157 rectstroke
+1 j
+0 j
+c14
+5097 2036  117  157 rf
+c15
+5097 2036  117  157 rectstroke
+1 j
+0 j
+c14
+5328 2036  114  157 rf
+c15
+5328 2036  114  157 rectstroke
+1 j
+0 j
+c14
+5448  783  105  156 rf
+c15
+5448  783  105  156 rectstroke
+1 j
+0 j
+c14
+5350  783   98  156 rf
+c15
+5350  783   98  156 rectstroke
+1 j
+0 j
+c14
+5434 1566   99  157 rf
+c15
+5434 1566   99  157 rectstroke
+1 j
+0 j
+c14
+5157  626  101  157 rf
+c15
+5157  626  101  157 rectstroke
+1 j
+0 j
+c14
+6032 2663   99  157 rf
+c15
+6032 2663   99  157 rectstroke
+1 j
+0 j
+c14
+6057 2193  105  156 rf
+c15
+6057 2193  105  156 rectstroke
+1 j
+0 j
+c14
+5456 2193   98  156 rf
+c15
+5456 2193   98  156 rectstroke
+1 j
+0 j
+c14
+5754 2193  102  156 rf
+c15
+5754 2193  102  156 rectstroke
+1 j
+0 j
+c14
+6725 1096  101  157 rf
+c15
+6725 1096  101  157 rectstroke
+1 j
+0 j
+c14
+6332 2349  103  157 rf
+c15
+6332 2349  103  157 rectstroke
+1 j
+0 j
+c14
+7952 2349  103  157 rf
+c15
+7952 2349  103  157 rectstroke
+1 j
+0 j
+c12
+5497 2036   55  157 rf
+c13
+5497 2036   55  157 rectstroke
+1 j
+0 j
+c14
+5651 2036   97  157 rf
+c15
+5651 2036   97  157 rectstroke
+1 j
+0 j
+c14
+5748 2036  104  157 rf
+c15
+5748 2036  104  157 rectstroke
+1 j
+0 j
+c14
+5663  313  116  156 rf
+gr
+c15
+5663  313  116  156 rectstroke
+gs 627 313 11284 2508 rc
+1 j
+0 j
+c14
+6050  783   97  156 rf
+c15
+6050  783   97  156 rectstroke
+1 j
+0 j
+c14
+5735 1566   98  157 rf
+c15
+5735 1566   98  157 rectstroke
+1 j
+0 j
+c14
+6000  626   98  157 rf
+c15
+6000  626   98  157 rectstroke
+1 j
+0 j
+c14
+5633 2663   97  157 rf
+c15
+5633 2663   97  157 rectstroke
+1 j
+0 j
+c14
+6680 2036  120  157 rf
+c15
+6680 2036  120  157 rectstroke
+1 j
+0 j
+c14
+6825 2193  119  156 rf
+c15
+6825 2193  119  156 rectstroke
+1 j
+0 j
+c14
+7033 2349  105  157 rf
+c15
+7033 2349  105  157 rectstroke
+1 j
+0 j
+c14
+7237  939  101  157 rf
+c15
+7237  939  101  157 rectstroke
+1 j
+0 j
+c14
+6836 2349   99  157 rf
+c15
+6836 2349   99  157 rectstroke
+1 j
+0 j
+c14
+8055 2349   98  157 rf
+c15
+8055 2349   98  157 rectstroke
+1 j
+0 j
+c12
+5630  626   61  157 rf
+c13
+5630  626   61  157 rectstroke
+1 j
+0 j
+c14
+5691  626  101  157 rf
+c15
+5691  626  101  157 rectstroke
+1 j
+0 j
+c14
+5792  626  102  157 rf
+c15
+5792  626  102  157 rectstroke
+1 j
+0 j
+c14
+6487 1723  103  156 rf
+c15
+6487 1723  103  156 rectstroke
+1 j
+0 j
+c14
+6657  783   98  156 rf
+c15
+6657  783   98  156 rectstroke
+1 j
+0 j
+c14
+6126 1566   97  157 rf
+c15
+6126 1566   97  157 rectstroke
+1 j
+0 j
+c14
+7123 1723  106  156 rf
+c15
+7123 1723  106  156 rectstroke
+1 j
+0 j
+c14
+5930 2663  102  157 rf
+c15
+5930 2663  102  157 rectstroke
+1 j
+0 j
+c14
+6962 2036  102  157 rf
+c15
+6962 2036  102  157 rectstroke
+1 j
+0 j
+c14
+7573 2193  103  156 rf
+c15
+7573 2193  103  156 rectstroke
+1 j
+0 j
+c14
+7540 2349  106  157 rf
+c15
+7540 2349  106  157 rectstroke
+1 j
+0 j
+c14
+6729 2663   99  157 rf
+c15
+6729 2663   99  157 rectstroke
+1 j
+0 j
+c14
+7238 2349   97  157 rf
+c15
+7238 2349   97  157 rectstroke
+1 j
+0 j
+c14
+8254 2349   98  157 rf
+c15
+8254 2349   98  157 rectstroke
+1 j
+0 j
+c12
+6403  626   62  157 rf
+c13
+6403  626   62  157 rectstroke
+1 j
+0 j
+c14
+6465  626  105  157 rf
+c15
+6465  626  105  157 rectstroke
+1 j
+0 j
+c14
+6772  626  103  157 rf
+c15
+6772  626  103  157 rectstroke
+1 j
+0 j
+c14
+6981  626  101  157 rf
+c15
+6981  626  101  157 rectstroke
+1 j
+0 j
+c14
+7156  783   99  156 rf
+c15
+7156  783   99  156 rectstroke
+1 j
+0 j
+c14
+6994 1566  111  157 rf
+c15
+6994 1566  111  157 rectstroke
+1 j
+0 j
+c14
+7450  626  103  157 rf
+c15
+7450  626  103  157 rectstroke
+1 j
+0 j
+c14
+6632 2663   97  157 rf
+c15
+6632 2663   97  157 rectstroke
+1 j
+0 j
+c14
+7758  626  105  157 rf
+c15
+7758  626  105  157 rectstroke
+1 j
+0 j
+c14
+8072 2193   99  156 rf
+c15
+8072 2193   99  156 rectstroke
+1 j
+0 j
+c14
+7960  626  106  157 rf
+c15
+7960  626  106  157 rectstroke
+1 j
+0 j
+c14
+8366  939   97  157 rf
+c15
+8366  939   97  157 rectstroke
+1 j
+0 j
+c14
+8425 1566  104  157 rf
+c15
+8425 1566  104  157 rectstroke
+1 j
+0 j
+c14
+8654 2349  106  157 rf
+c15
+8654 2349  106  157 rectstroke
+1 j
+0 j
+c8
+1956 2506  129  157 rf
+c9
+1956 2506  129  157 rectstroke
+1 j
+0 j
+c10
+2268 1409   71  157 rf
+c11
+2268 1409   71  157 rectstroke
+1 j
+0 j
+c10
+2237 1723   65  156 rf
+c11
+2237 1723   65  156 rectstroke
+1 j
+0 j
+c10
+2153 2193   66  156 rf
+c11
+2153 2193   66  156 rectstroke
+1 j
+0 j
+c10
+2339 1409   66  157 rf
+c11
+2339 1409   66  157 rectstroke
+1 j
+0 j
+c10
+2204 1409   64  157 rf
+c11
+2204 1409   64  157 rectstroke
+1 j
+0 j
+c10
+3092 1879   65  157 rf
+c11
+3092 1879   65  157 rectstroke
+1 j
+0 j
+c10
+3461 1879   64  157 rf
+c11
+3461 1879   64  157 rectstroke
+1 j
+0 j
+c10
+2316 2193   69  156 rf
+c11
+2316 2193   69  156 rectstroke
+1 j
+0 j
+c10
+3004 2193   63  156 rf
+c11
+3004 2193   63  156 rectstroke
+1 j
+0 j
+c10
+2190  313   63  156 rf
+gr
+c11
+2190  313   63  156 rectstroke
+gs 627 313 11284 2508 rc
+1 j
+0 j
+c10
+2684 1879   65  157 rf
+c11
+2684 1879   65  157 rectstroke
+1 j
+0 j
+c10
+6003 1879   66  157 rf
+c11
+6003 1879   66  157 rectstroke
+1 j
+0 j
+c12
+2286 2506  103  157 rf
+c13
+2286 2506  103  157 rectstroke
+1 j
+0 j
+c14
+2482  939  105  157 rf
+c15
+2482  939  105  157 rectstroke
+1 j
+0 j
+c14
+2400 1723   96  156 rf
+c15
+2400 1723   96  156 rectstroke
+1 j
+0 j
+c14
+2435  783   98  156 rf
+c15
+2435  783   98  156 rectstroke
+1 j
+0 j
+c14
+2697 1566   99  157 rf
+c15
+2697 1566   99  157 rectstroke
+1 j
+0 j
+c14
+2839 1409   99  157 rf
+c15
+2839 1409   99  157 rectstroke
+1 j
+0 j
+c14
+3365 1409  100  157 rf
+c15
+3365 1409  100  157 rectstroke
+1 j
+0 j
+c14
+4031 1879  104  157 rf
+c15
+4031 1879  104  157 rectstroke
+1 j
+0 j
+c14
+2697 2193   97  156 rf
+c15
+2697 2193   97  156 rectstroke
+1 j
+0 j
+c14
+4333 2506  100  157 rf
+c15
+4333 2506  100  157 rectstroke
+1 j
+0 j
+c14
+2787  313   97  156 rf
+gr
+c15
+2787  313   97  156 rectstroke
+gs 627 313 11284 2508 rc
+1 j
+0 j
+c14
+5503 1879  102  157 rf
+c15
+5503 1879  102  157 rectstroke
+1 j
+0 j
+c14
+6294 1879  103  157 rf
+c15
+6294 1879  103  157 rectstroke
+1 j
+0 j
+c12
+2505 1409   62  157 rf
+c13
+2505 1409   62  157 rectstroke
+1 j
+0 j
+c14
+2567 1409  104  157 rf
+c15
+2567 1409  104  157 rectstroke
+1 j
+0 j
+c14
+2727 1723   98  156 rf
+c15
+2727 1723   98  156 rectstroke
+1 j
+0 j
+c14
+2630  783  102  156 rf
+c15
+2630  783  102  156 rectstroke
+1 j
+0 j
+c14
+2671 1409  103  157 rf
+c15
+2671 1409  103  157 rectstroke
+1 j
+0 j
+c14
+3000 1409   98  157 rf
+c15
+3000 1409   98  157 rectstroke
+1 j
+0 j
+c14
+3204  313  105  156 rf
+gr
+c15
+3204  313  105  156 rectstroke
+gs 627 313 11284 2508 rc
+1 j
+0 j
+c14
+3831 1879   98  157 rf
+c15
+3831 1879   98  157 rectstroke
+1 j
+0 j
+c14
+4450 2193   98  156 rf
+c15
+4450 2193   98  156 rectstroke
+1 j
+0 j
+c14
+3529  313  103  156 rf
+gr
+c15
+3529  313  103  156 rectstroke
+gs 627 313 11284 2508 rc
+1 j
+0 j
+c14
+3107  313   97  156 rf
+gr
+c15
+3107  313   97  156 rectstroke
+gs 627 313 11284 2508 rc
+1 j
+0 j
+c14
+5805 1879   97  157 rf
+c15
+5805 1879   97  157 rectstroke
+1 j
+0 j
+c14
+6657 1879   99  157 rf
+c15
+6657 1879   99  157 rectstroke
+1 j
+0 j
+c12
+2749 1879   63  157 rf
+c13
+2749 1879   63  157 rectstroke
+1 j
+0 j
+c14
+2812 1879  106  157 rf
+c15
+2812 1879  106  157 rectstroke
+1 j
+0 j
+c14
+3091 1723   97  156 rf
+c15
+3091 1723   97  156 rectstroke
+1 j
+0 j
+c14
+2847  783  111  156 rf
+c15
+2847  783  111  156 rectstroke
+1 j
+0 j
+c14
+3624 1566   99  157 rf
+c15
+3624 1566   99  157 rectstroke
+1 j
+0 j
+c14
+3407 1096  105  157 rf
+c15
+3407 1096  105  157 rectstroke
+1 j
+0 j
+c14
+3359 1879  102  157 rf
+c15
+3359 1879  102  157 rectstroke
+1 j
+0 j
+c14
+4496 1879  104  157 rf
+c15
+4496 1879  104  157 rectstroke
+1 j
+0 j
+c14
+3458 2193   97  156 rf
+c15
+3458 2193   97  156 rectstroke
+1 j
+0 j
+c14
+3308 1096   99  157 rf
+c15
+3308 1096   99  157 rectstroke
+1 j
+0 j
+c14
+5835  939   97  157 rf
+c15
+5835  939   97  157 rectstroke
+1 j
+0 j
+c14
+6195 1879   99  157 rf
+c15
+6195 1879   99  157 rectstroke
+1 j
+0 j
+c14
+6737  939  100  157 rf
+c15
+6737  939  100  157 rectstroke
+1 j
+0 j
+c12
+2918 1879   61  157 rf
+c13
+2918 1879   61  157 rectstroke
+1 j
+0 j
+c14
+3255 1879  104  157 rf
+c15
+3255 1879  104  157 rectstroke
+1 j
+0 j
+c14
+3613 1723  107  156 rf
+c15
+3613 1723  107  156 rectstroke
+1 j
+0 j
+c14
+3185  783  112  156 rf
+c15
+3185  783  112  156 rectstroke
+1 j
+0 j
+c14
+3723 1566   96  157 rf
+c15
+3723 1566   96  157 rectstroke
+1 j
+0 j
+c14
+4189 1723  104  156 rf
+c15
+4189 1723  104  156 rectstroke
+1 j
+0 j
+c14
+3309  313  100  156 rf
+gr
+c15
+3309  313  100  156 rectstroke
+gs 627 313 11284 2508 rc
+1 j
+0 j
+c14
+5147 1723  103  156 rf
+c15
+5147 1723  103  156 rectstroke
+1 j
+0 j
+c14
+3856 2193   97  156 rf
+c15
+3856 2193   97  156 rectstroke
+1 j
+0 j
+c14
+3833 2506   98  157 rf
+c15
+3833 2506   98  157 rectstroke
+1 j
+0 j
+c14
+4034  313   97  156 rf
+gr
+c15
+4034  313   97  156 rectstroke
+gs 627 313 11284 2508 rc
+1 j
+0 j
+c14
+5550  313  113  156 rf
+gr
+c15
+5550  313  113  156 rectstroke
+gs 627 313 11284 2508 rc
+1 j
+0 j
+c14
+6351  313  100  156 rf
+gr
+c15
+6351  313  100  156 rectstroke
+gs 627 313 11284 2508 rc
+1 j
+0 j
+c12
+3508 1253   59  156 rf
+c13
+3508 1253   59  156 rectstroke
+1 j
+0 j
+c14
+3567 1253  105  156 rf
+c15
+3567 1253  105  156 rectstroke
+1 j
+0 j
+c14
+3925 1723   99  156 rf
+c15
+3925 1723   99  156 rectstroke
+1 j
+0 j
+c14
+3629  783   97  156 rf
+c15
+3629  783   97  156 rectstroke
+1 j
+0 j
+c14
+4182 1566   99  157 rf
+c15
+4182 1566   99  157 rectstroke
+1 j
+0 j
+c14
+3878 1253  105  156 rf
+c15
+3878 1253  105  156 rectstroke
+1 j
+0 j
+c14
+4347  469  103  157 rf
+c15
+4347  469  103  157 rectstroke
+1 j
+0 j
+c14
+3726 1879  104  157 rf
+c15
+3726 1879  104  157 rectstroke
+1 j
+0 j
+c14
+4050 2193   97  156 rf
+c15
+4050 2193   97  156 rectstroke
+1 j
+0 j
+c14
+5779  313  119  156 rf
+gr
+c15
+5779  313  119  156 rectstroke
+gs 627 313 11284 2508 rc
+1 j
+0 j
+c14
+4658  313   97  156 rf
+gr
+c15
+4658  313   97  156 rectstroke
+gs 627 313 11284 2508 rc
+1 j
+0 j
+c14
+5898  313  113  156 rf
+gr
+c15
+5898  313  113  156 rectstroke
+gs 627 313 11284 2508 rc
+1 j
+0 j
+c14
+6552  313  103  156 rf
+gr
+c15
+6552  313  103  156 rectstroke
+gs 627 313 11284 2508 rc
+1 j
+0 j
+c12
+3615  626   67  157 rf
+c13
+3615  626   67  157 rectstroke
+1 j
+0 j
+c14
+3779 1253   99  156 rf
+c15
+3779 1253   99  156 rectstroke
+1 j
+0 j
+c14
+3720  469  100  157 rf
+c15
+3720  469  100  157 rectstroke
+1 j
+0 j
+c14
+3929  783   97  156 rf
+c15
+3929  783   97  156 rectstroke
+1 j
+0 j
+c14
+4544 1566   99  157 rf
+c15
+4544 1566   99  157 rectstroke
+1 j
+0 j
+c14
+4249 1253  101  156 rf
+c15
+4249 1253  101  156 rectstroke
+1 j
+0 j
+c14
+4221  469  126  157 rf
+c15
+4221  469  126  157 rectstroke
+1 j
+0 j
+c14
+4803 1879  103  157 rf
+c15
+4803 1879  103  157 rectstroke
+1 j
+0 j
+c14
+5526 2506  104  157 rf
+c15
+5526 2506  104  157 rectstroke
+1 j
+0 j
+c14
+5330 2506   98  157 rf
+c15
+5330 2506   98  157 rectstroke
+1 j
+0 j
+c14
+6495 1879   99  157 rf
+c15
+6495 1879   99  157 rectstroke
+1 j
+0 j
+c14
+7223 1879  100  157 rf
+c15
+7223 1879  100  157 rectstroke
+1 j
+0 j
+c14
+6433 2663  100  157 rf
+c15
+6433 2663  100  157 rectstroke
+1 j
+0 j
+c12
+3890  626   57  157 rf
+c13
+3890  626   57  157 rectstroke
+1 j
+0 j
+c14
+4148 1253  101  156 rf
+c15
+4148 1253  101  156 rectstroke
+1 j
+0 j
+c14
+4769 1723  105  156 rf
+c15
+4769 1723  105  156 rectstroke
+1 j
+0 j
+c14
+4640  783  100  156 rf
+c15
+4640  783  100  156 rectstroke
+1 j
+0 j
+c14
+4943 1566   97  157 rf
+c15
+4943 1566   97  157 rectstroke
+1 j
+0 j
+c14
+5037 1253  105  156 rf
+c15
+5037 1253  105  156 rectstroke
+1 j
+0 j
+c14
+5147  783  101  156 rf
+c15
+5147  783  101  156 rectstroke
+1 j
+0 j
+c14
+5753 1723  100  156 rf
+c15
+5753 1723  100  156 rectstroke
+1 j
+0 j
+c14
+5157 2193   97  156 rf
+c15
+5157 2193   97  156 rectstroke
+1 j
+0 j
+c14
+5028 2506   98  157 rf
+c15
+5028 2506   98  157 rectstroke
+1 j
+0 j
+c14
+4857  313   97  156 rf
+gr
+c15
+4857  313   97  156 rectstroke
+gs 627 313 11284 2508 rc
+1 j
+0 j
+c14
+7461 1253  101  156 rf
+c15
+7461 1253  101  156 rectstroke
+1 j
+0 j
+c14
+8076 1253   99  156 rf
+c15
+8076 1253   99  156 rectstroke
+1 j
+0 j
+c12
+4753 2036   56  157 rf
+c13
+4753 2036   56  157 rectstroke
+1 j
+0 j
+c14
+4985 2036  112  157 rf
+c15
+4985 2036  112  157 rectstroke
+1 j
+0 j
+c14
+4924 2663   99  157 rf
+c15
+4924 2663   99  157 rectstroke
+1 j
+0 j
+c14
+4825 2663   98  157 rf
+c15
+4825 2663   98  157 rectstroke
+1 j
+0 j
+c14
+5236 1566   97  157 rf
+c15
+5236 1566   97  157 rectstroke
+1 j
+0 j
+c14
+5126  469  101  157 rf
+c15
+5126  469  101  157 rectstroke
+1 j
+0 j
+c14
+6014 2036  101  157 rf
+c15
+6014 2036  101  157 rectstroke
+1 j
+0 j
+c14
+5202 1879   99  157 rf
+c15
+5202 1879   99  157 rectstroke
+1 j
+0 j
+c14
+5254 2193   98  156 rf
+c15
+5254 2193   98  156 rectstroke
+1 j
+0 j
+c14
+5831 2506  100  157 rf
+c15
+5831 2506  100  157 rectstroke
+1 j
+0 j
+c14
+7120 1879  103  157 rf
+c15
+7120 1879  103  157 rectstroke
+1 j
+0 j
+c14
+7440 2349  100  157 rf
+c15
+7440 2349  100  157 rectstroke
+1 j
+0 j
+c14
+8062 2036  103  157 rf
+c15
+8062 2036  103  157 rectstroke
+1 j
+0 j
+c12
+5442 2036   55  157 rf
+c13
+5442 2036   55  157 rectstroke
+1 j
+0 j
+c14
+5553 2036   98  157 rf
+c15
+5553 2036   98  157 rectstroke
+1 j
+0 j
+c14
+5652  783   98  156 rf
+c15
+5652  783   98  156 rectstroke
+1 j
+0 j
+c14
+5531 2663  102  157 rf
+c15
+5531 2663  102  157 rectstroke
+1 j
+0 j
+c14
+5638 1566   97  157 rf
+c15
+5638 1566   97  157 rectstroke
+1 j
+0 j
+c14
+5532  626   98  157 rf
+c15
+5532  626   98  157 rectstroke
+1 j
+0 j
+c14
+6245  783  103  156 rf
+c15
+6245  783  103  156 rectstroke
+1 j
+0 j
+c14
+6162 2193   97  156 rf
+c15
+6162 2193   97  156 rectstroke
+1 j
+0 j
+c14
+6367 2193  114  156 rf
+c15
+6367 2193  114  156 rectstroke
+1 j
+0 j
+c14
+6134 2506   99  157 rf
+c15
+6134 2506   99  157 rectstroke
+1 j
+0 j
+c14
+7424 1879  105  157 rf
+c15
+7424 1879  105  157 rectstroke
+1 j
+0 j
+c14
+6935 2349   98  157 rf
+c15
+6935 2349   98  157 rectstroke
+1 j
+0 j
+c14
+8153 2349  101  157 rf
+c15
+8153 2349  101  157 rectstroke
+1 j
+0 j
+c12
+5952 2036   62  157 rf
+c13
+5952 2036   62  157 rectstroke
+1 j
+0 j
+c14
+6115 2036  103  157 rf
+c15
+6115 2036  103  157 rectstroke
+1 j
+0 j
+c14
+6126  313  114  156 rf
+gr
+c15
+6126  313  114  156 rectstroke
+gs 627 313 11284 2508 rc
+1 j
+0 j
+c14
+6230 2663  104  157 rf
+c15
+6230 2663  104  157 rectstroke
+1 j
+0 j
+c14
+6029 1566   97  157 rf
+c15
+6029 1566   97  157 rectstroke
+1 j
+0 j
+c14
+6670  626  102  157 rf
+c15
+6670  626  102  157 rectstroke
+1 j
+0 j
+c14
+6952  783   99  156 rf
+c15
+6952  783   99  156 rectstroke
+1 j
+0 j
+c14
+7183  626  105  157 rf
+c15
+7183  626  105  157 rectstroke
+1 j
+0 j
+c14
+7379 2193   97  156 rf
+c15
+7379 2193   97  156 rectstroke
+1 j
+0 j
+c14
+7231 2506  105  157 rf
+c15
+7231 2506  105  157 rectstroke
+1 j
+0 j
+c14
+7647 2349  101  157 rf
+c15
+7647 2349  101  157 rectstroke
+1 j
+0 j
+c14
+7335 2349  105  157 rf
+c15
+7335 2349  105  157 rectstroke
+1 j
+0 j
+c14
+8352 2349   97  157 rf
+c15
+8352 2349   97  157 rectstroke
+1 j
+0 j
+c12
+6069 1879   60  157 rf
+c13
+6069 1879   60  157 rectstroke
+1 j
+0 j
+c14
+6200  626  102  157 rf
+c15
+6200  626  102  157 rectstroke
+1 j
+0 j
+c14
+6655  313  108  156 rf
+gr
+c15
+6655  313  108  156 rectstroke
+gs 627 313 11284 2508 rc
+1 j
+0 j
+c14
+6853  783   99  156 rf
+c15
+6853  783   99  156 rectstroke
+1 j
+0 j
+c14
+6771 1566  111  157 rf
+c15
+6771 1566  111  157 rectstroke
+1 j
+0 j
+c14
+7288  626  106  157 rf
+c15
+7288  626  106  157 rectstroke
+1 j
+0 j
+c14
+7121 2036   99  157 rf
+c15
+7121 2036   99  157 rectstroke
+1 j
+0 j
+c14
+7293 2036  100  157 rf
+c15
+7293 2036  100  157 rectstroke
+1 j
+0 j
+c14
+7775 2193   97  156 rf
+c15
+7775 2193   97  156 rectstroke
+1 j
+0 j
+c14
+7854 2036  105  157 rf
+c15
+7854 2036  105  157 rectstroke
+1 j
+0 j
+c14
+8051 2663  103  157 rf
+c15
+8051 2663  103  157 rectstroke
+1 j
+0 j
+c14
+7897 1879  101  157 rf
+c15
+7897 1879  101  157 rectstroke
+1 j
+0 j
+c14
+8449 2349   97  157 rf
+c15
+8449 2349   97  157 rectstroke
+1 j
+0 j
+c12
+6595 1879   62  157 rf
+c13
+6595 1879   62  157 rectstroke
+1 j
+0 j
+c14
+7082  626  100  157 rf
+c15
+7082  626  100  157 rectstroke
+1 j
+0 j
+c14
+7163  313  104  156 rf
+gr
+c15
+7163  313  104  156 rectstroke
+gs 627 313 11284 2508 rc
+1 j
+0 j
+c14
+7463  783  101  156 rf
+c15
+7463  783  101  156 rectstroke
+1 j
+0 j
+c14
+7524 1566   97  157 rf
+c15
+7524 1566   97  157 rectstroke
+1 j
+0 j
+c14
+7553  626  101  157 rf
+c15
+7553  626  101  157 rectstroke
+1 j
+0 j
+c14
+6926 2663   97  157 rf
+c15
+6926 2663   97  157 rectstroke
+1 j
+0 j
+c14
+8066  626   99  157 rf
+c15
+8066  626   99  157 rectstroke
+1 j
+0 j
+c14
+8365 2193   97  156 rf
+c15
+8365 2193   97  156 rectstroke
+1 j
+0 j
+c14
+8267  626  101  157 rf
+c15
+8267  626  101  157 rectstroke
+1 j
+0 j
+c14
+8755 2193  105  156 rf
+c15
+8755 2193  105  156 rectstroke
+1 j
+0 j
+c14
+8634 1879  105  157 rf
+c15
+8634 1879  105  157 rectstroke
+1 j
+0 j
+c14
+8760 2349   97  157 rf
+c15
+8760 2349   97  157 rectstroke
+1 j
+0 j
+c8
+2587  939  135  157 rf
+c9
+2587  939  135  157 rectstroke
+1 j
+0 j
+c10
+2928 1723   66  156 rf
+c11
+2928 1723   66  156 rectstroke
+1 j
+0 j
+c10
+2722  939   67  157 rf
+c11
+2722  939   67  157 rectstroke
+1 j
+0 j
+c10
+3098 1566   65  157 rf
+c11
+3098 1566   65  157 rectstroke
+1 j
+0 j
+c10
+4024 1723   65  156 rf
+c11
+4024 1723   65  156 rectstroke
+1 j
+0 j
+c10
+4281 1566   67  157 rf
+c11
+4281 1566   67  157 rectstroke
+1 j
+0 j
+c10
+4135 1879   64  157 rf
+c11
+4135 1879   64  157 rectstroke
+1 j
+0 j
+c10
+4859 1409   66  157 rf
+c11
+4859 1409   66  157 rectstroke
+1 j
+0 j
+c10
+4433 2506   65  157 rf
+c11
+4433 2506   65  157 rectstroke
+1 j
+0 j
+c10
+6078 1409   65  157 rf
+c11
+6078 1409   65  157 rectstroke
+1 j
+0 j
+c10
+6129 1879   66  157 rf
+c11
+6129 1879   66  157 rectstroke
+1 j
+0 j
+c10
+6854 1879   66  157 rf
+c11
+6854 1879   66  157 rectstroke
+1 j
+0 j
+c12
+2775 1409   64  157 rf
+c13
+2775 1409   64  157 rectstroke
+1 j
+0 j
+c14
+2994 1723   97  156 rf
+c15
+2994 1723   97  156 rectstroke
+1 j
+0 j
+c14
+2890  939  103  157 rf
+c15
+2890  939  103  157 rectstroke
+1 j
+0 j
+c14
+3163 1409  100  157 rf
+c15
+3163 1409  100  157 rectstroke
+1 j
+0 j
+c14
+4115 1409  101  157 rf
+c15
+4115 1409  101  157 rectstroke
+1 j
+0 j
+c14
+4349  313  104  156 rf
+gr
+c15
+4349  313  104  156 rectstroke
+gs 627 313 11284 2508 rc
+1 j
+0 j
+c14
+4199 1879   98  157 rf
+c15
+4199 1879   98  157 rectstroke
+1 j
+0 j
+c14
+4954  313  107  156 rf
+gr
+c15
+4954  313  107  156 rectstroke
+gs 627 313 11284 2508 rc
+1 j
+0 j
+c14
+4556  313  102  156 rf
+gr
+c15
+4556  313  102  156 rectstroke
+gs 627 313 11284 2508 rc
+1 j
+0 j
+c14
+6240  313  111  156 rf
+gr
+c15
+6240  313  111  156 rectstroke
+gs 627 313 11284 2508 rc
+1 j
+0 j
+c14
+6397 1879   98  157 rf
+c15
+6397 1879   98  157 rectstroke
+1 j
+0 j
+c14
+7018 1879  101  157 rf
+c15
+7018 1879  101  157 rectstroke
+1 j
+0 j
+c12
+2938 1409   62  157 rf
+c13
+2938 1409   62  157 rectstroke
+1 j
+0 j
+c14
+3516 1723   97  156 rf
+c15
+3516 1723   97  156 rectstroke
+1 j
+0 j
+c14
+3091  939   97  157 rf
+c15
+3091  939   97  157 rectstroke
+1 j
+0 j
+c14
+3740 1409  117  157 rf
+c15
+3740 1409  117  157 rectstroke
+1 j
+0 j
+c14
+4175 1096  101  157 rf
+c15
+4175 1096  101  157 rectstroke
+1 j
+0 j
+c14
+4582 1096  101  157 rf
+c15
+4582 1096  101  157 rectstroke
+1 j
+0 j
+c14
+4600 1879   97  157 rf
+c15
+4600 1879   97  157 rectstroke
+1 j
+0 j
+c14
+5319 1096  105  157 rf
+c15
+5319 1096  105  157 rectstroke
+1 j
+0 j
+c14
+4747 1096  102  157 rf
+c15
+4747 1096  102  157 rectstroke
+1 j
+0 j
+c14
+6213 1096  100  157 rf
+c15
+6213 1096  100  157 rectstroke
+1 j
+0 j
+c14
+6756 1879   98  157 rf
+c15
+6756 1879   98  157 rectstroke
+1 j
+0 j
+c14
+7323 1879  100  157 rf
+c15
+7323 1879  100  157 rectstroke
+1 j
+0 j
+c12
+3561 1566   63  157 rf
+c13
+3561 1566   63  157 rectstroke
+1 j
+0 j
+c14
+3821 1723  104  156 rf
+c15
+3821 1723  104  156 rectstroke
+1 j
+0 j
+c14
+3805  939  103  157 rf
+c15
+3805  939  103  157 rectstroke
+1 j
+0 j
+c14
+3857 1409   97  157 rf
+c15
+3857 1409   97  157 rectstroke
+1 j
+0 j
+c14
+4378 1096  105  157 rf
+c15
+4378 1096  105  157 rectstroke
+1 j
+0 j
+c14
+4744 1566  101  157 rf
+c15
+4744 1566  101  157 rectstroke
+1 j
+0 j
+c14
+5301 1879  102  157 rf
+c15
+5301 1879  102  157 rectstroke
+1 j
+0 j
+c14
+5533 1566  105  157 rf
+c15
+5533 1566  105  157 rectstroke
+1 j
+0 j
+c14
+4730 2506  100  157 rf
+c15
+4730 2506  100  157 rectstroke
+1 j
+0 j
+c14
+6325 1566  104  157 rf
+c15
+6325 1566  104  157 rectstroke
+1 j
+0 j
+c14
+6920 1879   98  157 rf
+c15
+6920 1879   98  157 rectstroke
+1 j
+0 j
+c14
+6963  313  101  156 rf
+gr
+c15
+6963  313  101  156 rectstroke
+gs 627 313 11284 2508 rc
+1 j
+0 j
+c12
+3917 1566   62  157 rf
+c13
+3917 1566   62  157 rectstroke
+1 j
+0 j
+c14
+4090 1723   99  156 rf
+c15
+4090 1723   99  156 rectstroke
+1 j
+0 j
+c14
+4026  783   98  156 rf
+c15
+4026  783   98  156 rectstroke
+1 j
+0 j
+c14
+4455 1723  112  156 rf
+c15
+4455 1723  112  156 rectstroke
+1 j
+0 j
+c14
+4668 1723  101  156 rf
+c15
+4668 1723  101  156 rectstroke
+1 j
+0 j
+c14
+4450  469   99  157 rf
+c15
+4450  469   99  157 rectstroke
+1 j
+0 j
+c14
+4398 1879   98  157 rf
+c15
+4398 1879   98  157 rectstroke
+1 j
+0 j
+c14
+4955 2193  103  156 rf
+c15
+4955 2193  103  156 rectstroke
+1 j
+0 j
+c14
+5931 2506  104  157 rf
+c15
+5931 2506  104  157 rectstroke
+1 j
+0 j
+c14
+6233 2506  100  157 rf
+c15
+6233 2506  100  157 rectstroke
+1 j
+0 j
+c14
+6932 2506  101  157 rf
+c15
+6932 2506  101  157 rectstroke
+1 j
+0 j
+c14
+7064  313   99  156 rf
+gr
+c15
+7064  313   99  156 rectstroke
+gs 627 313 11284 2508 rc
+1 j
+0 j
+c12
+3983 1253   62  156 rf
+c13
+3983 1253   62  156 rectstroke
+1 j
+0 j
+c14
+4121  469  100  157 rf
+c15
+4121  469  100  157 rectstroke
+1 j
+0 j
+c14
+4542  783   98  156 rf
+c15
+4542  783   98  156 rectstroke
+1 j
+0 j
+c14
+5043 1723  104  156 rf
+c15
+5043 1723  104  156 rectstroke
+1 j
+0 j
+c14
+4506 1253  100  156 rf
+c15
+4506 1253  100  156 rectstroke
+1 j
+0 j
+c14
+4821  469   99  157 rf
+c15
+4821  469   99  157 rectstroke
+1 j
+0 j
+c14
+5006 1879   97  157 rf
+c15
+5006 1879   97  157 rectstroke
+1 j
+0 j
+c14
+5631 2506   99  157 rf
+c15
+5631 2506   99  157 rectstroke
+1 j
+0 j
+c14
+5428 2506   98  157 rf
+c15
+5428 2506   98  157 rectstroke
+1 j
+0 j
+c14
+6630 2506  104  157 rf
+c15
+6630 2506  104  157 rectstroke
+1 j
+0 j
+c14
+7336 2506  105  157 rf
+c15
+7336 2506  105  157 rectstroke
+1 j
+0 j
+c14
+7744 2506  100  157 rf
+c15
+7744 2506  100  157 rectstroke
+1 j
+0 j
+c12
+4450 1253   56  156 rf
+c13
+4450 1253   56  156 rectstroke
+1 j
+0 j
+c14
+4934 1253  103  156 rf
+c15
+4934 1253  103  156 rectstroke
+1 j
+0 j
+c14
+4944  783  100  156 rf
+c15
+4944  783  100  156 rectstroke
+1 j
+0 j
+c14
+5451 1723  102  156 rf
+c15
+5451 1723  102  156 rectstroke
+1 j
+0 j
+c14
+5248  783  102  156 rf
+c15
+5248  783  102  156 rectstroke
+1 j
+0 j
+c14
+5553  783   99  156 rf
+c15
+5553  783   99  156 rectstroke
+1 j
+0 j
+c14
+5856 2193  104  156 rf
+c15
+5856 2193  104  156 rectstroke
+1 j
+0 j
+c14
+5555 2193   99  156 rf
+c15
+5555 2193   99  156 rectstroke
+1 j
+0 j
+c14
+6035 2506   99  157 rf
+c15
+6035 2506   99  157 rectstroke
+1 j
+0 j
+c14
+6451  313  101  156 rf
+gr
+c15
+6451  313  101  156 rectstroke
+gs 627 313 11284 2508 rc
+1 j
+0 j
+c14
+7574  313  103  156 rf
+gr
+c15
+7574  313  103  156 rectstroke
+gs 627 313 11284 2508 rc
+1 j
+0 j
+c14
+8177  313  104  156 rf
+gr
+c15
+8177  313  104  156 rectstroke
+gs 627 313 11284 2508 rc
+1 j
+0 j
+c12
+5151 1409   60  157 rf
+c13
+5151 1409   60  157 rectstroke
+1 j
+0 j
+c14
+5231 2663  101  157 rf
+c15
+5231 2663  101  157 rectstroke
+1 j
+0 j
+c14
+5418 1409  100  157 rf
+c15
+5418 1409  100  157 rectstroke
+1 j
+0 j
+c14
+5429 2663  102  157 rf
+c15
+5429 2663  102  157 rectstroke
+1 j
+0 j
+c14
+5972 1409  106  157 rf
+c15
+5972 1409  106  157 rectstroke
+1 j
+0 j
+c14
+6319 2036  101  157 rf
+c15
+6319 2036  101  157 rectstroke
+1 j
+0 j
+c14
+5605 1879   97  157 rf
+c15
+5605 1879   97  157 rectstroke
+1 j
+0 j
+c14
+5913 1096  100  157 rf
+c15
+5913 1096  100  157 rectstroke
+1 j
+0 j
+c14
+6333 2506   98  157 rf
+c15
+6333 2506   98  157 rectstroke
+1 j
+0 j
+c14
+7441 2506  105  157 rf
+c15
+7441 2506  105  157 rectstroke
+1 j
+0 j
+c14
+7844 2506  101  157 rf
+c15
+7844 2506  101  157 rectstroke
+1 j
+0 j
+c14
+8509 2506  118  157 rf
+c15
+8509 2506  118  157 rectstroke
+1 j
+0 j
+c12
+5708 1409   62  157 rf
+c13
+5708 1409   62  157 rectstroke
+1 j
+0 j
+c14
+5951  783   99  156 rf
+c15
+5951  783   99  156 rectstroke
+1 j
+0 j
+c14
+6143 1409  103  157 rf
+c15
+6143 1409  103  157 rectstroke
+1 j
+0 j
+c14
+5833 1566   97  157 rf
+c15
+5833 1566   97  157 rectstroke
+1 j
+0 j
+c14
+6348  783  101  156 rf
+c15
+6348  783  101  156 rectstroke
+1 j
+0 j
+c14
+6864 1409  100  157 rf
+c15
+6864 1409  100  157 rectstroke
+1 j
+0 j
+c14
+6711 2193  114  156 rf
+c15
+6711 2193  114  156 rectstroke
+1 j
+0 j
+c14
+6944 2193  113  156 rf
+c15
+6944 2193  113  156 rectstroke
+1 j
+0 j
+c14
+6833 2506   99  157 rf
+c15
+6833 2506   99  157 rectstroke
+1 j
+0 j
+c14
+7631 1879   99  157 rf
+c15
+7631 1879   99  157 rectstroke
+1 j
+0 j
+c14
+7945 2506  103  157 rf
+c15
+7945 2506  103  157 rectstroke
+1 j
+0 j
+c14
+8545  313  107  156 rf
+gr
+c15
+8545  313  107  156 rectstroke
+gs 627 313 11284 2508 rc
+1 j
+0 j
+c12
+6420 2036   59  157 rf
+c13
+6420 2036   59  157 rectstroke
+1 j
+0 j
+c14
+6552  783  104  156 rf
+c15
+6552  783  104  156 rectstroke
+1 j
+0 j
+c14
+6533 2663   99  157 rf
+c15
+6533 2663   99  157 rectstroke
+1 j
+0 j
+c14
+6541 1566  111  157 rf
+c15
+6541 1566  111  157 rectstroke
+1 j
+0 j
+c14
+7052  783  104  156 rf
+c15
+7052  783  104  156 rectstroke
+1 j
+0 j
+c14
+7255  783  102  156 rf
+c15
+7255  783  102  156 rectstroke
+1 j
+0 j
+c14
+7564  783  103  156 rf
+c15
+7564  783  103  156 rectstroke
+1 j
+0 j
+c14
+7676 2193   99  156 rf
+c15
+7676 2193   99  156 rectstroke
+1 j
+0 j
+c14
+7644 2506  100  157 rf
+c15
+7644 2506  100  157 rectstroke
+1 j
+0 j
+c14
+7853 2349   99  157 rf
+c15
+7853 2349   99  157 rectstroke
+1 j
+0 j
+c14
+7967  783  101  156 rf
+c15
+7967  783  101  156 rectstroke
+1 j
+0 j
+c14
+8546 2349  108  157 rf
+c15
+8546 2349  108  157 rectstroke
+1 j
+0 j
+c12
+6800 2036   58  157 rf
+c13
+6800 2036   58  157 rectstroke
+1 j
+0 j
+c14
+6858 2036  104  157 rf
+c15
+6858 2036  104  157 rectstroke
+1 j
+0 j
+c14
+7023 2663  102  157 rf
+c15
+7023 2663  102  157 rectstroke
+1 j
+0 j
+c14
+7105 1566  112  157 rf
+c15
+7105 1566  112  157 rectstroke
+1 j
+0 j
+c14
+7492 2036  104  157 rf
+c15
+7492 2036  104  157 rectstroke
+1 j
+0 j
+c14
+7393 2036   99  157 rf
+c15
+7393 2036   99  157 rectstroke
+1 j
+0 j
+c14
+7872 2193  101  156 rf
+c15
+7872 2193  101  156 rectstroke
+1 j
+0 j
+c14
+8171 2193   97  156 rf
+c15
+8171 2193   97  156 rectstroke
+1 j
+0 j
+c14
+8048 2506  105  157 rf
+c15
+8048 2506  105  157 rectstroke
+1 j
+0 j
+c14
+8391 2506  118  157 rf
+c15
+8391 2506  118  157 rectstroke
+1 j
+0 j
+c14
+8278  783   97  156 rf
+c15
+8278  783   97  156 rectstroke
+1 j
+0 j
+c14
+8854 2506  126  157 rf
+c15
+8854 2506  126  157 rectstroke
+1 j
+0 j
+c12
+7394  626   56  157 rf
+c13
+7394  626   56  157 rectstroke
+1 j
+0 j
+c14
+7596 2036  104  157 rf
+c15
+7596 2036  104  157 rectstroke
+1 j
+0 j
+c14
+7654  626  104  157 rf
+c15
+7654  626  104  157 rectstroke
+1 j
+0 j
+c14
+7825 1566   99  157 rf
+c15
+7825 1566   99  157 rectstroke
+1 j
+0 j
+c14
+7959 2036  103  157 rf
+c15
+7959 2036  103  157 rectstroke
+1 j
+0 j
+c14
+8165  626  102  157 rf
+c15
+8165  626  102  157 rectstroke
+1 j
+0 j
+c14
+8263 2036  102  157 rf
+c15
+8263 2036  102  157 rectstroke
+1 j
+0 j
+c14
+8559 2193   97  156 rf
+c15
+8559 2193   97  156 rectstroke
+1 j
+0 j
+c14
+8368  626   98  157 rf
+c15
+8368  626   98  157 rectstroke
+1 j
+0 j
+c14
+8980 2506  119  157 rf
+c15
+8980 2506  119  157 rectstroke
+1 j
+0 j
+c14
+8784 2036  103  157 rf
+c15
+8784 2036  103  157 rectstroke
+1 j
+0 j
+c14
+9200 2506   99  157 rf
+c15
+9200 2506   99  157 rectstroke
+1 j
+0 j
+c8
+3386 1723  130  156 rf
+c9
+3386 1723  130  156 rectstroke
+1 j
+0 j
+c10
+3580  939   67  157 rf
+c11
+3580  939   67  157 rectstroke
+1 j
+0 j
+c10
+3566 1409   66  157 rf
+c11
+3566 1409   66  157 rectstroke
+1 j
+0 j
+c10
+4257  939   68  157 rf
+c11
+4257  939   68  157 rectstroke
+1 j
+0 j
+c10
+4874 1723   68  156 rf
+c11
+4874 1723   68  156 rectstroke
+1 j
+0 j
+c10
+4890  939   67  157 rf
+c11
+4890  939   67  157 rectstroke
+1 j
+0 j
+c10
+5061  313   66  156 rf
+gr
+c11
+5061  313   66  156 rectstroke
+gs 627 313 11284 2508 rc
+1 j
+0 j
+c10
+5494  469   70  157 rf
+c11
+5494  469   70  157 rectstroke
+1 j
+0 j
+c10
+6445 1253   69  156 rf
+c11
+6445 1253   69  156 rectstroke
+1 j
+0 j
+c10
+6615 1253   67  156 rf
+c11
+6615 1253   67  156 rectstroke
+1 j
+0 j
+c10
+7220 2036   72  157 rf
+c11
+7220 2036   72  157 rectstroke
+1 j
+0 j
+c12
+3647  939   61  157 rf
+c13
+3647  939   61  157 rectstroke
+1 j
+0 j
+c14
+3708  939   97  157 rf
+c15
+3708  939   97  157 rectstroke
+1 j
+0 j
+c14
+3955 1409   97  157 rf
+c15
+3955 1409   97  157 rectstroke
+1 j
+0 j
+c14
+4483 1096   99  157 rf
+c15
+4483 1096   99  157 rectstroke
+1 j
+0 j
+c14
+4954 1096   99  157 rf
+c15
+4954 1096   99  157 rectstroke
+1 j
+0 j
+c14
+5118 1096  100  157 rf
+c15
+5118 1096  100  157 rectstroke
+1 j
+0 j
+c14
+5488 1096  101  157 rf
+c15
+5488 1096  101  157 rectstroke
+1 j
+0 j
+c14
+5750 1096  101  157 rf
+c15
+5750 1096  101  157 rectstroke
+1 j
+0 j
+c14
+6621 1096  104  157 rf
+c15
+6621 1096  104  157 rectstroke
+1 j
+0 j
+c14
+7028 1096  104  157 rf
+c15
+7028 1096  104  157 rectstroke
+1 j
+0 j
+c14
+7529 1879  102  157 rf
+c15
+7529 1879  102  157 rectstroke
+1 j
+0 j
+c12
+4036  939   62  157 rf
+c13
+4036  939   62  157 rectstroke
+1 j
+0 j
+c14
+4098  939  104  157 rf
+c15
+4098  939  104  157 rectstroke
+1 j
+0 j
+c14
+4216 1409   97  157 rf
+c15
+4216 1409   97  157 rectstroke
+1 j
+0 j
+c14
+4544 1409  105  157 rf
+c15
+4544 1409  105  157 rectstroke
+1 j
+0 j
+c14
+5351 1723  100  156 rf
+c15
+5351 1723  100  156 rectstroke
+1 j
+0 j
+c14
+5653 1723  100  156 rf
+c15
+5653 1723  100  156 rectstroke
+1 j
+0 j
+c14
+6223 1723   99  156 rf
+c15
+6223 1723   99  156 rectstroke
+1 j
+0 j
+c14
+6694 1723  102  156 rf
+c15
+6694 1723  102  156 rectstroke
+1 j
+0 j
+c14
+7229 1723  100  156 rf
+c15
+7229 1723  100  156 rectstroke
+1 j
+0 j
+c14
+7255 1253  101  156 rf
+c15
+7255 1253  101  156 rectstroke
+1 j
+0 j
+c14
+7367  313  106  156 rf
+gr
+c15
+7367  313  106  156 rectstroke
+gs 627 313 11284 2508 rc
+1 j
+0 j
+c12
+4395 1723   60  156 rf
+c13
+4395 1723   60  156 rectstroke
+1 j
+0 j
+c14
+4532  939   97  157 rf
+c15
+4532  939   97  157 rectstroke
+1 j
+0 j
+c14
+4629  939  103  157 rf
+c15
+4629  939  103  157 rectstroke
+1 j
+0 j
+c14
+4834 1253  100  156 rf
+c15
+4834 1253  100  156 rectstroke
+1 j
+0 j
+c14
+5025  469  100  157 rf
+c15
+5025  469  100  157 rectstroke
+1 j
+0 j
+c14
+5103 1879   99  157 rf
+c15
+5103 1879   99  157 rectstroke
+1 j
+0 j
+c14
+5352 2193  104  156 rf
+c15
+5352 2193  104  156 rectstroke
+1 j
+0 j
+c14
+6259 2193  108  156 rf
+c15
+6259 2193  108  156 rectstroke
+1 j
+0 j
+c14
+6734 2506   99  157 rf
+c15
+6734 2506   99  157 rectstroke
+1 j
+0 j
+c14
+7546 2506   98  157 rf
+c15
+7546 2506   98  157 rectstroke
+1 j
+0 j
+c14
+7677  313   99  156 rf
+gr
+c15
+7677  313   99  156 rectstroke
+gs 627 313 11284 2508 rc
+1 j
+0 j
+c12
+4549  469   61  157 rf
+c13
+4549  469   61  157 rectstroke
+1 j
+0 j
+c14
+4713  469  107  157 rf
+c15
+4713  469  107  157 rectstroke
+1 j
+0 j
+c14
+5199 1253  103  156 rf
+c15
+5199 1253  103  156 rectstroke
+1 j
+0 j
+c14
+4728 1253  106  156 rf
+c15
+4728 1253  106  156 rectstroke
+1 j
+0 j
+c14
+5405 1253  101  156 rf
+c15
+5405 1253  101  156 rectstroke
+1 j
+0 j
+c14
+5633  939  104  157 rf
+c15
+5633  939  104  157 rectstroke
+1 j
+0 j
+c14
+6130  939  104  157 rf
+c15
+6130  939  104  157 rectstroke
+1 j
+0 j
+c14
+6240 1253  105  156 rf
+c15
+6240 1253  105  156 rectstroke
+1 j
+0 j
+c14
+7155 1253  100  156 rf
+c15
+7155 1253  100  156 rectstroke
+1 j
+0 j
+c14
+7972 1253  104  156 rf
+c15
+7972 1253  104  156 rectstroke
+1 j
+0 j
+c14
+8274 2506  117  157 rf
+c15
+8274 2506  117  157 rectstroke
+1 j
+0 j
+c12
+5142 1253   57  156 rf
+c13
+5142 1253   57  156 rectstroke
+1 j
+0 j
+c14
+5228  469  104  157 rf
+c15
+5228  469  104  157 rectstroke
+1 j
+0 j
+c14
+5564  469  105  157 rf
+c15
+5564  469  105  157 rectstroke
+1 j
+0 j
+c14
+5388  469  106  157 rf
+c15
+5388  469  106  157 rectstroke
+1 j
+0 j
+c14
+5674 1253  103  156 rf
+c15
+5674 1253  103  156 rectstroke
+1 j
+0 j
+c14
+5960 2193   97  156 rf
+c15
+5960 2193   97  156 rectstroke
+1 j
+0 j
+c14
+6481 2193  115  156 rf
+c15
+6481 2193  115  156 rectstroke
+1 j
+0 j
+c14
+6530 2506  100  157 rf
+c15
+6530 2506  100  157 rectstroke
+1 j
+0 j
+c14
+6764  313  101  156 rf
+gr
+c15
+6764  313  101  156 rectstroke
+gs 627 313 11284 2508 rc
+1 j
+0 j
+c14
+7776  313   97  156 rf
+gr
+c15
+7776  313   97  156 rectstroke
+gs 627 313 11284 2508 rc
+1 j
+0 j
+c14
+8347  313  100  156 rf
+gr
+c15
+8347  313  100  156 rectstroke
+gs 627 313 11284 2508 rc
+1 j
+0 j
+c12
+5506 1253   63  156 rf
+c13
+5506 1253   63  156 rectstroke
+1 j
+0 j
+c14
+5875 1409   97  157 rf
+c15
+5875 1409   97  157 rectstroke
+1 j
+0 j
+c14
+5864  469  101  157 rf
+c15
+5864  469  101  157 rectstroke
+1 j
+0 j
+c14
+6229  469  104  157 rf
+c15
+6229  469  104  157 rectstroke
+1 j
+0 j
+c14
+6581 2036   99  157 rf
+c15
+6581 2036   99  157 rectstroke
+1 j
+0 j
+c14
+5979 1253  101  156 rf
+c15
+5979 1253  101  156 rectstroke
+1 j
+0 j
+c14
+6313 1096   99  157 rf
+c15
+6313 1096   99  157 rectstroke
+1 j
+0 j
+c14
+7277 2193  102  156 rf
+c15
+7277 2193  102  156 rectstroke
+1 j
+0 j
+c14
+7988 1723  104  156 rf
+c15
+7988 1723  104  156 rectstroke
+1 j
+0 j
+c14
+8153 2506  121  157 rf
+c15
+8153 2506  121  157 rectstroke
+1 j
+0 j
+c14
+8627 2506  116  157 rf
+c15
+8627 2506  116  157 rectstroke
+1 j
+0 j
+c12
+6080 1253   60  156 rf
+c13
+6080 1253   60  156 rectstroke
+1 j
+0 j
+c14
+6520 1409   97  157 rf
+c15
+6520 1409   97  157 rectstroke
+1 j
+0 j
+c14
+6223 1566  102  157 rf
+c15
+6223 1566  102  157 rectstroke
+1 j
+0 j
+c14
+6843  469  102  157 rf
+c15
+6843  469  102  157 rectstroke
+1 j
+0 j
+c14
+7043  469  102  157 rf
+c15
+7043  469  102  157 rectstroke
+1 j
+0 j
+c14
+7171 2193  106  156 rf
+c15
+7171 2193  106  156 rectstroke
+1 j
+0 j
+c14
+7476 2193   97  156 rf
+c15
+7476 2193   97  156 rectstroke
+1 j
+0 j
+c14
+7131 2506  100  157 rf
+c15
+7131 2506  100  157 rectstroke
+1 j
+0 j
+c14
+7795 1879  102  157 rf
+c15
+7795 1879  102  157 rectstroke
+1 j
+0 j
+c14
+8160 1879  115  157 rf
+c15
+8160 1879  115  157 rectstroke
+1 j
+0 j
+c14
+8739 1879  100  157 rf
+c15
+8739 1879  100  157 rectstroke
+1 j
+0 j
+c12
+6682 1253   63  156 rf
+c13
+6682 1253   63  156 rectstroke
+1 j
+0 j
+c14
+6828 2663   97  157 rf
+c15
+6828 2663   97  157 rectstroke
+1 j
+0 j
+c14
+6882 1566  112  157 rf
+c15
+6882 1566  112  157 rectstroke
+1 j
+0 j
+c14
+7217 1566  103  157 rf
+c15
+7217 1566  103  157 rectstroke
+1 j
+0 j
+c14
+7421 1566  103  157 rf
+c15
+7421 1566  103  157 rectstroke
+1 j
+0 j
+c14
+7667  783   97  156 rf
+c15
+7667  783   97  156 rectstroke
+1 j
+0 j
+c14
+7973 2193   99  156 rf
+c15
+7973 2193   99  156 rectstroke
+1 j
+0 j
+c14
+7764  783  104  156 rf
+c15
+7764  783  104  156 rectstroke
+1 j
+0 j
+c14
+8060 1879  100  157 rf
+c15
+8060 1879  100  157 rectstroke
+1 j
+0 j
+c14
+8535 1879   99  157 rf
+c15
+8535 1879   99  157 rectstroke
+1 j
+0 j
+c14
+8857 2349  111  157 rf
+c15
+8857 2349  111  157 rectstroke
+1 j
+0 j
+c12
+7065 2036   56  157 rf
+c13
+7065 2036   56  157 rectstroke
+1 j
+0 j
+c14
+7125 2663   97  157 rf
+c15
+7125 2663   97  157 rectstroke
+1 j
+0 j
+c14
+7621 1566   99  157 rf
+c15
+7621 1566   99  157 rectstroke
+1 j
+0 j
+c14
+7700 2036   99  157 rf
+c15
+7700 2036   99  157 rectstroke
+1 j
+0 j
+c14
+7640 2663  101  157 rf
+c15
+7640 2663  101  157 rectstroke
+1 j
+0 j
+c14
+8068  783  104  156 rf
+c15
+8068  783  104  156 rectstroke
+1 j
+0 j
+c14
+8462 2193   97  156 rf
+c15
+8462 2193   97  156 rectstroke
+1 j
+0 j
+c14
+8172  783  106  156 rf
+c15
+8172  783  106  156 rectstroke
+1 j
+0 j
+c14
+8743 2506  111  157 rf
+c15
+8743 2506  111  157 rectstroke
+1 j
+0 j
+c14
+8476  783   98  156 rf
+c15
+8476  783   98  156 rectstroke
+1 j
+0 j
+c14
+9299 2506   99  157 rf
+c15
+9299 2506   99  157 rectstroke
+1 j
+0 j
+c12
+7799 2036   55  157 rf
+c13
+7799 2036   55  157 rectstroke
+1 j
+0 j
+c14
+7863  626   97  157 rf
+c15
+7863  626   97  157 rectstroke
+1 j
+0 j
+c14
+8126 1566   97  157 rf
+c15
+8126 1566   97  157 rectstroke
+1 j
+0 j
+c14
+8165 2036   98  157 rf
+c15
+8165 2036   98  157 rectstroke
+1 j
+0 j
+c14
+8366 2036  103  157 rf
+c15
+8366 2036  103  157 rectstroke
+1 j
+0 j
+c14
+8568 2036  117  157 rf
+c15
+8568 2036  117  157 rectstroke
+1 j
+0 j
+c14
+8860 2193   98  156 rf
+c15
+8860 2193   98  156 rectstroke
+1 j
+0 j
+c14
+8466  626  101  157 rf
+c15
+8466  626  101  157 rectstroke
+1 j
+0 j
+c14
+9099 2506  101  157 rf
+c15
+9099 2506  101  157 rectstroke
+1 j
+0 j
+c14
+9056 2193  105  156 rf
+c15
+9056 2193  105  156 rectstroke
+1 j
+0 j
+c14
+9398 2506   97  157 rf
+c15
+9398 2506   97  157 rectstroke
+1 j
+0 j
+c8
+3908  939  128  157 rf
+c9
+3908  939  128  157 rectstroke
+1 j
+0 j
+c10
+4052 1409   63  157 rf
+c11
+4052 1409   63  157 rectstroke
+1 j
+0 j
+c10
+4683 1096   64  157 rf
+c11
+4683 1096   64  157 rectstroke
+1 j
+0 j
+c10
+5053 1096   65  157 rf
+c11
+5053 1096   65  157 rectstroke
+1 j
+0 j
+c10
+5424 1096   64  157 rf
+c11
+5424 1096   64  157 rectstroke
+1 j
+0 j
+c10
+5688 1096   62  157 rf
+c11
+5688 1096   62  157 rectstroke
+1 j
+0 j
+c10
+5851 1096   62  157 rf
+c11
+5851 1096   62  157 rectstroke
+1 j
+0 j
+c10
+7359 1409   64  157 rf
+c11
+7359 1409   64  157 rectstroke
+1 j
+0 j
+c10
+7639 1096   65  157 rf
+c11
+7639 1096   65  157 rectstroke
+1 j
+0 j
+c10
+7730 1879   65  157 rf
+c11
+7730 1879   65  157 rectstroke
+1 j
+0 j
+c12
+4202  939   55  157 rf
+c13
+4202  939   55  157 rectstroke
+1 j
+0 j
+c14
+4313 1409   97  157 rf
+c15
+4313 1409   97  157 rectstroke
+1 j
+0 j
+c14
+4755 1409  104  157 rf
+c15
+4755 1409  104  157 rectstroke
+1 j
+0 j
+c14
+5553 1723  100  156 rf
+c15
+5553 1723  100  156 rectstroke
+1 j
+0 j
+c14
+6018 1723  103  156 rf
+c15
+6018 1723  103  156 rectstroke
+1 j
+0 j
+c14
+6590 1723  104  156 rf
+c15
+6590 1723  104  156 rectstroke
+1 j
+0 j
+c14
+6921 1723  102  156 rf
+c15
+6921 1723  102  156 rectstroke
+1 j
+0 j
+c14
+7456 1723  100  156 rf
+c15
+7456 1723  100  156 rectstroke
+1 j
+0 j
+c14
+7884 1723  104  156 rf
+c15
+7884 1723  104  156 rectstroke
+1 j
+0 j
+c14
+7873  313  101  156 rf
+gr
+c15
+7873  313  101  156 rectstroke
+gs 627 313 11284 2508 rc
+1 j
+0 j
+c12
+4732  939   61  157 rf
+c13
+4732  939   61  157 rectstroke
+1 j
+0 j
+c14
+4793  939   97  157 rf
+c15
+4793  939   97  157 rectstroke
+1 j
+0 j
+c14
+4957  939  104  157 rf
+c15
+4957  939  104  157 rectstroke
+1 j
+0 j
+c14
+5218 1096  101  157 rf
+c15
+5218 1096  101  157 rectstroke
+1 j
+0 j
+c14
+5589 1096   99  157 rf
+c15
+5589 1096   99  157 rectstroke
+1 j
+0 j
+c14
+6113 1096  100  157 rf
+c15
+6113 1096  100  157 rectstroke
+1 j
+0 j
+c14
+6412 1096  106  157 rf
+c15
+6412 1096  106  157 rectstroke
+1 j
+0 j
+c14
+7539 1096  100  157 rf
+c15
+7539 1096  100  157 rectstroke
+1 j
+0 j
+c14
+8142 1096  101  157 rf
+c15
+8142 1096  101  157 rectstroke
+1 j
+0 j
+c14
+8078  313   98  156 rf
+gr
+c15
+8078  313   98  156 rectstroke
+gs 627 313 11284 2508 rc
+1 j
+0 j
+c12
+5061  939   62  157 rf
+c13
+5061  939   62  157 rectstroke
+1 j
+0 j
+c14
+5322  939  103  157 rf
+c15
+5322  939  103  157 rectstroke
+1 j
+0 j
+c14
+5123  939   99  157 rf
+c15
+5123  939   99  157 rectstroke
+1 j
+0 j
+c14
+5529  939  104  157 rf
+c15
+5529  939  104  157 rectstroke
+1 j
+0 j
+c14
+6031  939   99  157 rf
+c15
+6031  939   99  157 rectstroke
+1 j
+0 j
+c14
+6436  939  102  157 rf
+c15
+6436  939  102  157 rectstroke
+1 j
+0 j
+c14
+6949 1253  101  156 rf
+c15
+6949 1253  101  156 rectstroke
+1 j
+0 j
+c14
+7769 1253  101  156 rf
+c15
+7769 1253  101  156 rectstroke
+1 j
+0 j
+c14
+8175 1253  105  156 rf
+c15
+8175 1253  105  156 rectstroke
+1 j
+0 j
+c14
+8483 1253  105  156 rf
+c15
+8483 1253  105  156 rectstroke
+1 j
+0 j
+c12
+5332  469   55  157 rf
+c13
+5332  469   55  157 rectstroke
+1 j
+0 j
+c14
+5669  469   97  157 rf
+c15
+5669  469   97  157 rectstroke
+1 j
+0 j
+c14
+5766  469   98  157 rf
+c15
+5766  469   98  157 rectstroke
+1 j
+0 j
+c14
+6021  469  105  157 rf
+c15
+6021  469  105  157 rectstroke
+1 j
+0 j
+c14
+6234  939   99  157 rf
+c15
+6234  939   99  157 rectstroke
+1 j
+0 j
+c14
+6638  939   99  157 rf
+c15
+6638  939   99  157 rectstroke
+1 j
+0 j
+c14
+7232 1096  106  157 rf
+c15
+7232 1096  106  157 rectstroke
+1 j
+0 j
+c14
+7473  313  101  156 rf
+gr
+c15
+7473  313  101  156 rectstroke
+gs 627 313 11284 2508 rc
+1 j
+0 j
+c14
+7974  313  104  156 rf
+gr
+c15
+7974  313  104  156 rectstroke
+gs 627 313 11284 2508 rc
+1 j
+0 j
+c14
+8652  313  104  156 rf
+gr
+c15
+8652  313  104  156 rectstroke
+gs 627 313 11284 2508 rc
+1 j
+0 j
+c12
+6301 1409   56  157 rf
+c13
+6301 1409   56  157 rectstroke
+1 j
+0 j
+c14
+6435  469  103  157 rf
+c15
+6435  469  103  157 rectstroke
+1 j
+0 j
+c14
+6638  469  100  157 rf
+c15
+6638  469  100  157 rectstroke
+1 j
+0 j
+c14
+6738  469  105  157 rf
+c15
+6738  469  105  157 rectstroke
+1 j
+0 j
+c14
+6514 1253  101  156 rf
+c15
+6514 1253  101  156 rectstroke
+1 j
+0 j
+c14
+6826 1096  100  157 rf
+c15
+6826 1096  100  157 rectstroke
+1 j
+0 j
+c14
+7704 1096  105  157 rf
+c15
+7704 1096  105  157 rectstroke
+1 j
+0 j
+c14
+8280 1253  104  156 rf
+c15
+8280 1253  104  156 rectstroke
+1 j
+0 j
+c14
+8735 1096  100  157 rf
+c15
+8735 1096  100  157 rectstroke
+1 j
+0 j
+c14
+8756  313  103  156 rf
+gr
+c15
+8756  313  103  156 rectstroke
+gs 627 313 11284 2508 rc
+1 j
+0 j
+c12
+7093 1409   59  157 rf
+c13
+7093 1409   59  157 rectstroke
+1 j
+0 j
+c14
+7242  469  101  157 rf
+c15
+7242  469  101  157 rectstroke
+1 j
+0 j
+c14
+7343  469  102  157 rf
+c15
+7343  469  102  157 rectstroke
+1 j
+0 j
+c14
+7601  469  101  157 rf
+c15
+7601  469  101  157 rectstroke
+1 j
+0 j
+c14
+7356 1253  104  156 rf
+c15
+7356 1253  104  156 rectstroke
+1 j
+0 j
+c14
+7665 1253  104  156 rf
+c15
+7665 1253  104  156 rectstroke
+1 j
+0 j
+c14
+7870 1253  102  156 rf
+c15
+7870 1253  102  156 rectstroke
+1 j
+0 j
+c14
+8384 1253   99  156 rf
+c15
+8384 1253   99  156 rectstroke
+1 j
+0 j
+c14
+8689 1253   99  156 rf
+c15
+8689 1253   99  156 rectstroke
+1 j
+0 j
+c14
+8939 1879  102  157 rf
+c15
+8939 1879  102  157 rectstroke
+1 j
+0 j
+c12
+7222 2663   58  157 rf
+c13
+7222 2663   58  157 rectstroke
+1 j
+0 j
+c14
+7280 2663  100  157 rf
+c15
+7280 2663  100  157 rectstroke
+1 j
+0 j
+c14
+7380 2663  103  157 rf
+c15
+7380 2663  103  157 rectstroke
+1 j
+0 j
+c14
+7720 1566  105  157 rf
+c15
+7720 1566  105  157 rectstroke
+1 j
+0 j
+c14
+8025 1566  101  157 rf
+c15
+8025 1566  101  157 rectstroke
+1 j
+0 j
+c14
+8268 2193   97  156 rf
+c15
+8268 2193   97  156 rectstroke
+1 j
+0 j
+c14
+8321 1566  104  157 rf
+c15
+8321 1566  104  157 rectstroke
+1 j
+0 j
+c14
+8380 1879   99  157 rf
+c15
+8380 1879   99  157 rectstroke
+1 j
+0 j
+c14
+8839 1879  100  157 rf
+c15
+8839 1879  100  157 rectstroke
+1 j
+0 j
+c14
+9041 1879   99  157 rf
+c15
+9041 1879   99  157 rectstroke
+1 j
+0 j
+c12
+7483 2663   57  157 rf
+c13
+7483 2663   57  157 rectstroke
+1 j
+0 j
+c14
+7741 2663  103  157 rf
+c15
+7741 2663  103  157 rectstroke
+1 j
+0 j
+c14
+7844 2663  103  157 rf
+c15
+7844 2663  103  157 rectstroke
+1 j
+0 j
+c14
+8328 2663  113  157 rf
+c15
+8328 2663  113  157 rectstroke
+1 j
+0 j
+c14
+8556 2663  128  157 rf
+c15
+8556 2663  128  157 rectstroke
+1 j
+0 j
+c14
+8656 2193   99  156 rf
+c15
+8656 2193   99  156 rectstroke
+1 j
+0 j
+c14
+8376  783  100  156 rf
+c15
+8376  783  100  156 rectstroke
+1 j
+0 j
+c14
+8881  783  102  156 rf
+c15
+8881  783  102  156 rectstroke
+1 j
+0 j
+c14
+8678  783  100  156 rf
+c15
+8678  783  100  156 rectstroke
+1 j
+0 j
+c14
+9487  939  104  157 rf
+c15
+9487  939  104  157 rectstroke
+1 j
+0 j
+c12
+7998 1879   62  157 rf
+c13
+7998 1879   62  157 rectstroke
+1 j
+0 j
+c14
+8275 1879  105  157 rf
+c15
+8275 1879  105  157 rectstroke
+1 j
+0 j
+c14
+8469 2036   99  157 rf
+c15
+8469 2036   99  157 rectstroke
+1 j
+0 j
+c14
+8855 2663  116  157 rf
+c15
+8855 2663  116  157 rectstroke
+1 j
+0 j
+c14
+8767  626  103  157 rf
+c15
+8767  626  103  157 rectstroke
+1 j
+0 j
+c14
+8958 2193   98  156 rf
+c15
+8958 2193   98  156 rectstroke
+1 j
+0 j
+c14
+8567  626   98  157 rf
+c15
+8567  626   98  157 rectstroke
+1 j
+0 j
+c14
+9260 2193  105  156 rf
+c15
+9260 2193  105  156 rectstroke
+1 j
+0 j
+c14
+9161 2193   99  156 rf
+c15
+9161 2193   99  156 rectstroke
+1 j
+0 j
+c14
+9495 2506  102  157 rf
+c15
+9495 2506  102  157 rectstroke
+1 j
+0 j
+c8
+4410 1409  134  157 rf
+c9
+4410 1409  134  157 rectstroke
+1 j
+0 j
+c10
+4925 1409   66  157 rf
+c11
+4925 1409   66  157 rectstroke
+1 j
+0 j
+c10
+5853 1723   64  156 rf
+c11
+5853 1723   64  156 rectstroke
+1 j
+0 j
+c10
+6422 1723   65  156 rf
+c11
+6422 1723   65  156 rectstroke
+1 j
+0 j
+c10
+6856 1723   65  156 rf
+c11
+6856 1723   65  156 rectstroke
+1 j
+0 j
+c10
+7329 1723   66  156 rf
+c11
+7329 1723   66  156 rectstroke
+1 j
+0 j
+c10
+7758 1723   65  156 rf
+c11
+7758 1723   65  156 rectstroke
+1 j
+0 j
+c10
+8313 1723   66  156 rf
+c11
+8313 1723   66  156 rectstroke
+1 j
+0 j
+c10
+8281  313   66  156 rf
+gr
+c11
+8281  313   66  156 rectstroke
+gs 627 313 11284 2508 rc
+1 j
+0 j
+c12
+4991 1409   59  157 rf
+c13
+4991 1409   59  157 rectstroke
+1 j
+0 j
+c14
+5211 1409  105  157 rf
+c15
+5211 1409  105  157 rectstroke
+1 j
+0 j
+c14
+6013 1096  100  157 rf
+c15
+6013 1096  100  157 rectstroke
+1 j
+0 j
+c14
+6518 1096  103  157 rf
+c15
+6518 1096  103  157 rectstroke
+1 j
+0 j
+c14
+6927 1096  101  157 rf
+c15
+6927 1096  101  157 rectstroke
+1 j
+0 j
+c14
+7438 1096  101  157 rf
+c15
+7438 1096  101  157 rectstroke
+1 j
+0 j
+c14
+7874 1096  103  157 rf
+c15
+7874 1096  103  157 rectstroke
+1 j
+0 j
+c14
+8469 1096   99  157 rf
+c15
+8469 1096   99  157 rectstroke
+1 j
+0 j
+c14
+8447  313   98  156 rf
+gr
+c15
+8447  313   98  156 rectstroke
+gs 627 313 11284 2508 rc
+1 j
+0 j
+c12
+5518 1409   62  157 rf
+c13
+5518 1409   62  157 rectstroke
+1 j
+0 j
+c14
+5770 1409  105  157 rf
+c15
+5770 1409  105  157 rectstroke
+1 j
+0 j
+c14
+5932  939   99  157 rf
+c15
+5932  939   99  157 rectstroke
+1 j
+0 j
+c14
+6538  939   99  157 rf
+c15
+6538  939   99  157 rectstroke
+1 j
+0 j
+c14
+6939  939  100  157 rf
+c15
+6939  939  100  157 rectstroke
+1 j
+0 j
+c14
+7556 1723  101  156 rf
+c15
+7556 1723  101  156 rectstroke
+1 j
+0 j
+c14
+8197 1723  116  156 rf
+c15
+8197 1723  116  156 rectstroke
+1 j
+0 j
+c14
+8477 1723  101  156 rf
+c15
+8477 1723  101  156 rectstroke
+1 j
+0 j
+c14
+8883 1723  101  156 rf
+c15
+8883 1723  101  156 rectstroke
+1 j
+0 j
+c12
+5965  469   56  157 rf
+c13
+5965  469   56  157 rectstroke
+1 j
+0 j
+c14
+6333  469  102  157 rf
+c15
+6333  469  102  157 rectstroke
+1 j
+0 j
+c14
+6538  469  100  157 rf
+c15
+6538  469  100  157 rectstroke
+1 j
+0 j
+c14
+7023 1723  100  156 rf
+c15
+7023 1723  100  156 rectstroke
+1 j
+0 j
+c14
+7139  939   98  157 rf
+c15
+7139  939   98  157 rectstroke
+1 j
+0 j
+c14
+7441  939  102  157 rf
+c15
+7441  939  102  157 rectstroke
+1 j
+0 j
+c14
+8265  939  101  157 rf
+c15
+8265  939  101  157 rectstroke
+1 j
+0 j
+c14
+8682 1723  101  156 rf
+c15
+8682 1723  101  156 rectstroke
+1 j
+0 j
+c14
+8859  313  101  156 rf
+gr
+c15
+8859  313  101  156 rectstroke
+gs 627 313 11284 2508 rc
+1 j
+0 j
+c12
+6796 1723   60  156 rf
+c13
+6796 1723   60  156 rectstroke
+1 j
+0 j
+c14
+6945  469   98  157 rf
+c15
+6945  469   98  157 rectstroke
+1 j
+0 j
+c14
+7145  469   97  157 rf
+c15
+7145  469   97  157 rectstroke
+1 j
+0 j
+c14
+7039  939  100  157 rf
+c15
+7039  939  100  157 rectstroke
+1 j
+0 j
+c14
+7657 1723  101  156 rf
+c15
+7657 1723  101  156 rectstroke
+1 j
+0 j
+c14
+8092 1723  105  156 rf
+c15
+8092 1723  105  156 rectstroke
+1 j
+0 j
+c14
+8568  939  109  157 rf
+c15
+8568  939  109  157 rectstroke
+1 j
+0 j
+c14
+8892 1253  101  156 rf
+c15
+8892 1253  101  156 rectstroke
+1 j
+0 j
+c14
+8960  313  103  156 rf
+gr
+c15
+8960  313  103  156 rectstroke
+gs 627 313 11284 2508 rc
+1 j
+0 j
+c12
+7395 1723   60  156 rf
+c13
+7395 1723   60  156 rectstroke
+1 j
+0 j
+c14
+7802  469  104  157 rf
+c15
+7802  469  104  157 rectstroke
+1 j
+0 j
+c14
+7906  469  102  157 rf
+c15
+7906  469  102  157 rectstroke
+1 j
+0 j
+c14
+7543  939  104  157 rf
+c15
+7543  939  104  157 rectstroke
+1 j
+0 j
+c14
+7853  939  103  157 rf
+c15
+7853  939  103  157 rectstroke
+1 j
+0 j
+c14
+8463  469  103  157 rf
+c15
+8463  469  103  157 rectstroke
+1 j
+0 j
+c14
+8589 1253  100  156 rf
+c15
+8589 1253  100  156 rectstroke
+1 j
+0 j
+c14
+8788 1253  104  156 rf
+c15
+8788 1253  104  156 rectstroke
+1 j
+0 j
+c14
+9063  313  103  156 rf
+gr
+c15
+9063  313  103  156 rectstroke
+gs 627 313 11284 2508 rc
+1 j
+0 j
+c12
+7823 1723   61  156 rf
+c13
+7823 1723   61  156 rectstroke
+1 j
+0 j
+c14
+7947 2663  104  157 rf
+c15
+7947 2663  104  157 rectstroke
+1 j
+0 j
+c14
+8211  469   98  157 rf
+c15
+8211  469   98  157 rectstroke
+1 j
+0 j
+c14
+8223 1566   98  157 rf
+c15
+8223 1566   98  157 rectstroke
+1 j
+0 j
+c14
+8529 1566  104  157 rf
+c15
+8529 1566  104  157 rectstroke
+1 j
+0 j
+c14
+8733 1566  102  157 rf
+c15
+8733 1566  102  157 rectstroke
+1 j
+0 j
+c14
+8780  939  100  157 rf
+c15
+8780  939  100  157 rectstroke
+1 j
+0 j
+c14
+9070 2349  102  157 rf
+c15
+9070 2349  102  157 rectstroke
+1 j
+0 j
+c14
+9172 2349  102  157 rf
+c15
+9172 2349  102  157 rectstroke
+1 j
+0 j
+c12
+8267 2663   61  157 rf
+c13
+8267 2663   61  157 rectstroke
+1 j
+0 j
+c14
+8442 2663  114  157 rf
+c15
+8442 2663  114  157 rectstroke
+1 j
+0 j
+c14
+8684 2663  113  157 rf
+c15
+8684 2663  113  157 rectstroke
+1 j
+0 j
+c14
+8778  783  103  156 rf
+c15
+8778  783  103  156 rectstroke
+1 j
+0 j
+c14
+8835 1566  100  157 rf
+c15
+8835 1566  100  157 rectstroke
+1 j
+0 j
+c14
+8574  783  104  156 rf
+c15
+8574  783  104  156 rectstroke
+1 j
+0 j
+c14
+9078  939  100  157 rf
+c15
+9078  939  100  157 rectstroke
+1 j
+0 j
+c14
+9093 1253  102  156 rf
+c15
+9093 1253  102  156 rectstroke
+1 j
+0 j
+c14
+9591  939  104  157 rf
+c15
+9591  939  104  157 rectstroke
+1 j
+0 j
+c12
+8479 1879   56  157 rf
+c13
+8479 1879   56  157 rectstroke
+1 j
+0 j
+c14
+8685 2036   98  157 rf
+c15
+8685 2036   98  157 rectstroke
+1 j
+0 j
+c14
+8984  783   99  156 rf
+c15
+8984  783   99  156 rectstroke
+1 j
+0 j
+c14
+8870  626  100  157 rf
+c15
+8870  626  100  157 rectstroke
+1 j
+0 j
+c14
+9083  783  102  156 rf
+c15
+9083  783  102  156 rectstroke
+1 j
+0 j
+c14
+8665  626  102  157 rf
+c15
+8665  626  102  157 rectstroke
+1 j
+0 j
+c14
+9365 2193  100  156 rf
+c15
+9365 2193  100  156 rectstroke
+1 j
+0 j
+c14
+9288  783  105  156 rf
+c15
+9288  783  105  156 rectstroke
+1 j
+0 j
+c14
+9597 2506  101  157 rf
+c15
+9597 2506  101  157 rectstroke
+1 j
+0 j
+c8
+5580 1409  128  157 rf
+c9
+5580 1409  128  157 rectstroke
+1 j
+0 j
+c10
+6357 1409   64  157 rf
+c11
+6357 1409   64  157 rectstroke
+1 j
+0 j
+c10
+6801 1409   63  157 rf
+c11
+6801 1409   63  157 rectstroke
+1 j
+0 j
+c10
+7639 1409   65  157 rf
+c11
+7639 1409   65  157 rectstroke
+1 j
+0 j
+c10
+7809 1096   65  157 rf
+c11
+7809 1096   65  157 rectstroke
+1 j
+0 j
+c10
+8243 1096   65  157 rf
+c11
+8243 1096   65  157 rectstroke
+1 j
+0 j
+c10
+8670 1096   65  157 rf
+c11
+8670 1096   65  157 rectstroke
+1 j
+0 j
+c10
+9039 1096   65  157 rf
+c11
+9039 1096   65  157 rectstroke
+1 j
+0 j
+c12
+6246 1409   55  157 rf
+c13
+6246 1409   55  157 rectstroke
+1 j
+0 j
+c14
+6421 1409   99  157 rf
+c15
+6421 1409   99  157 rectstroke
+1 j
+0 j
+c14
+7255 1409  104  157 rf
+c15
+7255 1409  104  157 rectstroke
+1 j
+0 j
+c14
+7704 1409  102  157 rf
+c15
+7704 1409  102  157 rectstroke
+1 j
+0 j
+c14
+8041 1096  101  157 rf
+c15
+8041 1096  101  157 rectstroke
+1 j
+0 j
+c14
+8366 1096  103  157 rf
+c15
+8366 1096  103  157 rectstroke
+1 j
+0 j
+c14
+8835 1096  102  157 rf
+c15
+8835 1096  102  157 rectstroke
+1 j
+0 j
+c14
+9171 1096  100  157 rf
+c15
+9171 1096  100  157 rectstroke
+1 j
+0 j
+c12
+6617 1409   63  157 rf
+c13
+6617 1409   63  157 rectstroke
+1 j
+0 j
+c14
+7152 1409  103  157 rf
+c15
+7152 1409  103  157 rectstroke
+1 j
+0 j
+c14
+7478 1409   98  157 rf
+c15
+7478 1409   98  157 rectstroke
+1 j
+0 j
+c14
+8004 1409  102  157 rf
+c15
+8004 1409  102  157 rectstroke
+1 j
+0 j
+c14
+7956  939  102  157 rf
+c15
+7956  939  102  157 rectstroke
+1 j
+0 j
+c14
+8568 1096  102  157 rf
+c15
+8568 1096  102  157 rectstroke
+1 j
+0 j
+c14
+8937 1096  102  157 rf
+c15
+8937 1096  102  157 rectstroke
+1 j
+0 j
+c14
+9376 1096   99  157 rf
+c15
+9376 1096   99  157 rectstroke
+1 j
+0 j
+c12
+7445  469   55  157 rf
+c13
+7445  469   55  157 rectstroke
+1 j
+0 j
+c14
+7702  469  100  157 rf
+c15
+7702  469  100  157 rectstroke
+1 j
+0 j
+c14
+7903 1409  101  157 rf
+c15
+7903 1409  101  157 rectstroke
+1 j
+0 j
+c14
+8009  469  100  157 rf
+c15
+8009  469  100  157 rectstroke
+1 j
+0 j
+c14
+8379 1723   98  156 rf
+c15
+8379 1723   98  156 rectstroke
+1 j
+0 j
+c14
+8677  939  103  157 rf
+c15
+8677  939  103  157 rectstroke
+1 j
+0 j
+c14
+8993 1253   99  156 rf
+c15
+8993 1253   99  156 rectstroke
+1 j
+0 j
+c14
+9140 1879  104  157 rf
+c15
+9140 1879  104  157 rectstroke
+1 j
+0 j
+c12
+7977 1096   64  157 rf
+c13
+7977 1096   64  157 rectstroke
+1 j
+0 j
+c14
+8110  469  101  157 rf
+c15
+8110  469  101  157 rectstroke
+1 j
+0 j
+c14
+8563 1409  102  157 rf
+c15
+8563 1409  102  157 rectstroke
+1 j
+0 j
+c14
+8365  469   98  157 rf
+c15
+8365  469   98  157 rectstroke
+1 j
+0 j
+c14
+8578 1723  104  156 rf
+c15
+8578 1723  104  156 rectstroke
+1 j
+0 j
+c14
+8984 1723  100  156 rf
+c15
+8984 1723  100  156 rectstroke
+1 j
+0 j
+c14
+9084 1723  117  156 rf
+c15
+9084 1723  117  156 rectstroke
+1 j
+0 j
+c14
+9185  783  103  156 rf
+c15
+9185  783  103  156 rectstroke
+1 j
+0 j
+c12
+8308 1096   58  157 rf
+c13
+8308 1096   58  157 rectstroke
+1 j
+0 j
+c14
+8566  469   98  157 rf
+c15
+8566  469   98  157 rectstroke
+1 j
+0 j
+c14
+8633 1566  100  157 rf
+c15
+8633 1566  100  157 rectstroke
+1 j
+0 j
+c14
+8885  469  102  157 rf
+c15
+8885  469  102  157 rectstroke
+1 j
+0 j
+c14
+9034 1566  101  157 rf
+c15
+9034 1566  101  157 rectstroke
+1 j
+0 j
+c14
+8980  939   98  157 rf
+c15
+8980  939   98  157 rectstroke
+1 j
+0 j
+c14
+9201 1723  113  156 rf
+c15
+9201 1723  113  156 rectstroke
+1 j
+0 j
+c14
+9274 2349  101  157 rf
+c15
+9274 2349  101  157 rectstroke
+1 j
+0 j
+c12
+8798 2663   57  157 rf
+c13
+8798 2663   57  157 rectstroke
+1 j
+0 j
+c14
+8971 2663  108  157 rf
+c15
+8971 2663  108  157 rectstroke
+1 j
+0 j
+c14
+9135 1566   99  157 rf
+c15
+9135 1566   99  157 rectstroke
+1 j
+0 j
+c14
+9092  469  113  157 rf
+c15
+9092  469  113  157 rectstroke
+1 j
+0 j
+c14
+8968 2349  102  157 rf
+c15
+8968 2349  102  157 rectstroke
+1 j
+0 j
+c14
+9178  939   99  157 rf
+c15
+9178  939   99  157 rectstroke
+1 j
+0 j
+c14
+9268  313  101  156 rf
+gr
+c15
+9268  313  101  156 rectstroke
+gs 627 313 11284 2508 rc
+1 j
+0 j
+c14
+9695 1566  114  157 rf
+c15
+9695 1566  114  157 rectstroke
+1 j
+0 j
+c12
+8887 2036   59  157 rf
+c13
+8887 2036   59  157 rectstroke
+1 j
+0 j
+c14
+9152 2036  100  157 rf
+c15
+9152 2036  100  157 rectstroke
+1 j
+0 j
+c14
+9050 2036  102  157 rf
+c15
+9050 2036  102  157 rectstroke
+1 j
+0 j
+c14
+9244 1879  101  157 rf
+c15
+9244 1879  101  157 rectstroke
+1 j
+0 j
+c14
+8946 2036  104  157 rf
+c15
+8946 2036  104  157 rectstroke
+1 j
+0 j
+c14
+9465 2193   97  156 rf
+c15
+9465 2193   97  156 rectstroke
+1 j
+0 j
+c14
+9447 1879  102  157 rf
+c15
+9447 1879  102  157 rectstroke
+1 j
+0 j
+c14
+9699 2506  112  157 rf
+c15
+9699 2506  112  157 rectstroke
+1 j
+0 j
+c8
+6964 1409  129  157 rf
+c9
+6964 1409  129  157 rectstroke
+1 j
+0 j
+c10
+7576 1409   63  157 rf
+c11
+7576 1409   63  157 rectstroke
+1 j
+0 j
+c10
+8170 1409   66  157 rf
+c11
+8170 1409   66  157 rectstroke
+1 j
+0 j
+c10
+8665 1409   65  157 rf
+c11
+8665 1409   65  157 rectstroke
+1 j
+0 j
+c10
+8763  469   66  157 rf
+c11
+8763  469   66  157 rectstroke
+1 j
+0 j
+c10
+9104 1096   67  157 rf
+c11
+9104 1096   67  157 rectstroke
+1 j
+0 j
+c10
+9308 2036   68  157 rf
+c11
+9308 2036   68  157 rectstroke
+1 j
+0 j
+c12
+7423 1409   55  157 rf
+c13
+7423 1409   55  157 rectstroke
+1 j
+0 j
+c14
+7806 1409   97  157 rf
+c15
+7806 1409   97  157 rectstroke
+1 j
+0 j
+c14
+8461 1409  102  157 rf
+c15
+8461 1409  102  157 rectstroke
+1 j
+0 j
+c14
+8949 1409  104  157 rf
+c15
+8949 1409  104  157 rectstroke
+1 j
+0 j
+c14
+8987  469  105  157 rf
+c15
+8987  469  105  157 rectstroke
+1 j
+0 j
+c14
+9271 1096  105  157 rf
+c15
+9271 1096  105  157 rectstroke
+1 j
+0 j
+c14
+9475 1096  101  157 rf
+c15
+9475 1096  101  157 rectstroke
+1 j
+0 j
+c12
+8107 1409   63  157 rf
+c13
+8107 1409   63  157 rectstroke
+1 j
+0 j
+c14
+8364 1409   97  157 rf
+c15
+8364 1409   97  157 rectstroke
+1 j
+0 j
+c14
+8730 1409   99  157 rf
+c15
+8730 1409   99  157 rectstroke
+1 j
+0 j
+c14
+9152 1409  100  157 rf
+c15
+9152 1409  100  157 rectstroke
+1 j
+0 j
+c14
+8880  939   99  157 rf
+c15
+8880  939   99  157 rectstroke
+1 j
+0 j
+c14
+9195 1253  102  156 rf
+c15
+9195 1253  102  156 rectstroke
+1 j
+0 j
+c14
+9382  939  105  157 rf
+c15
+9382  939  105  157 rectstroke
+1 j
+0 j
+c12
+8309  469   56  157 rf
+c13
+8309  469   56  157 rectstroke
+1 j
+0 j
+c14
+8970  626  101  157 rf
+c15
+8970  626  101  157 rectstroke
+1 j
+0 j
+c14
+8664  469   99  157 rf
+c15
+8664  469   99  157 rectstroke
+1 j
+0 j
+c14
+8783 1723  100  156 rf
+c15
+8783 1723  100  156 rectstroke
+1 j
+0 j
+c14
+9195  626  104  157 rf
+c15
+9195  626  104  157 rectstroke
+1 j
+0 j
+c14
+9297 1253   98  156 rf
+c15
+9297 1253   98  156 rectstroke
+1 j
+0 j
+c14
+9396 1253  100  156 rf
+c15
+9396 1253  100  156 rectstroke
+1 j
+0 j
+c12
+8829  469   56  157 rf
+c13
+8829  469   56  157 rectstroke
+1 j
+0 j
+c14
+8936 1566   98  157 rf
+c15
+8936 1566   98  157 rectstroke
+1 j
+0 j
+c14
+9234 1566  105  157 rf
+c15
+9234 1566  105  157 rectstroke
+1 j
+0 j
+c14
+9394  783  100  156 rf
+c15
+9394  783  100  156 rectstroke
+1 j
+0 j
+c14
+9167  313  101  156 rf
+gr
+c15
+9167  313  101  156 rectstroke
+gs 627 313 11284 2508 rc
+1 j
+0 j
+c14
+9314 1723  109  156 rf
+c15
+9314 1723  109  156 rectstroke
+1 j
+0 j
+c14
+9478 2349  100  157 rf
+c15
+9478 2349  100  157 rectstroke
+1 j
+0 j
+c12
+9079 2663   56  157 rf
+c13
+9079 2663   56  157 rectstroke
+1 j
+0 j
+c14
+9299  626  110  157 rf
+c15
+9299  626  110  157 rectstroke
+1 j
+0 j
+c14
+9241 2663  101  157 rf
+c15
+9241 2663  101  157 rectstroke
+1 j
+0 j
+c14
+9135 2663  106  157 rf
+c15
+9135 2663  106  157 rectstroke
+1 j
+0 j
+c14
+9342 2663  100  157 rf
+c15
+9342 2663  100  157 rectstroke
+1 j
+0 j
+c14
+9369  313  100  156 rf
+gr
+c15
+9369  313  100  156 rectstroke
+gs 627 313 11284 2508 rc
+1 j
+0 j
+c14
+9810 1723  136  156 rf
+c15
+9810 1723  136  156 rectstroke
+1 j
+0 j
+c12
+9252 2036   56  157 rf
+c13
+9252 2036   56  157 rectstroke
+1 j
+0 j
+c14
+9376 2036  105  157 rf
+c15
+9376 2036  105  157 rectstroke
+1 j
+0 j
+c14
+9442 2663  103  157 rf
+c15
+9442 2663  103  157 rectstroke
+1 j
+0 j
+c14
+9423 1723  102  156 rf
+c15
+9423 1723  102  156 rectstroke
+1 j
+0 j
+c14
+9578 2349  105  157 rf
+c15
+9578 2349  105  157 rectstroke
+1 j
+0 j
+c14
+9580  626  105  157 rf
+c15
+9580  626  105  157 rectstroke
+1 j
+0 j
+c14
+9811 1566  136  157 rf
+c15
+9811 1566  136  157 rectstroke
+1 j
+0 j
+c8
+8236 1409  128  157 rf
+c9
+8236 1409  128  157 rectstroke
+1 j
+0 j
+c10
+8885 1409   64  157 rf
+c11
+8885 1409   64  157 rectstroke
+1 j
+0 j
+c10
+9252 1409   66  157 rf
+c11
+9252 1409   66  157 rectstroke
+1 j
+0 j
+c10
+9129  626   66  157 rf
+c11
+9129  626   66  157 rectstroke
+1 j
+0 j
+c10
+9470  313   65  156 rf
+gr
+c11
+9470  313   65  156 rectstroke
+gs 627 313 11284 2508 rc
+1 j
+0 j
+c10
+9576 1096   66  157 rf
+c11
+9576 1096   66  157 rectstroke
+1 j
+0 j
+c12
+8830 1409   55  157 rf
+c13
+8830 1409   55  157 rectstroke
+1 j
+0 j
+c14
+9053 1409   99  157 rf
+c15
+9053 1409   99  157 rectstroke
+1 j
+0 j
+c14
+9345 1879  102  157 rf
+c15
+9345 1879  102  157 rectstroke
+1 j
+0 j
+c14
+9277  939  105  157 rf
+c15
+9277  939  105  157 rectstroke
+1 j
+0 j
+c14
+9549 1879  102  157 rf
+c15
+9549 1879  102  157 rectstroke
+1 j
+0 j
+c14
+9642 1253  104  156 rf
+c15
+9642 1253  104  156 rectstroke
+1 j
+0 j
+c12
+9071  626   58  157 rf
+c13
+9071  626   58  157 rectstroke
+1 j
+0 j
+c14
+9205  469  115  157 rf
+c15
+9205  469  115  157 rectstroke
+1 j
+0 j
+c14
+9375 2349  103  157 rf
+c15
+9375 2349  103  157 rectstroke
+1 j
+0 j
+c14
+9320  469  115  157 rf
+c15
+9320  469  115  157 rectstroke
+1 j
+0 j
+c14
+9554  469  152  157 rf
+c15
+9554  469  152  157 rectstroke
+1 j
+0 j
+c14
+9642 1096  127  157 rf
+c15
+9642 1096  127  157 rectstroke
+1 j
+0 j
+c12
+9339 1566   66  157 rf
+c13
+9339 1566   66  157 rectstroke
+1 j
+0 j
+c14
+9405 1566  103  157 rf
+c15
+9405 1566  103  157 rectstroke
+1 j
+0 j
+c14
+9494  783  102  156 rf
+c15
+9494  783  102  156 rectstroke
+1 j
+0 j
+c14
+9435  469  119  157 rf
+c15
+9435  469  119  157 rectstroke
+1 j
+0 j
+c14
+9562 2193  145  156 rf
+c15
+9562 2193  145  156 rectstroke
+1 j
+0 j
+c14
+9642  313  130  156 rf
+gr
+c15
+9642  313  130  156 rectstroke
+gs 627 313 11284 2508 rc
+1 j
+0 j
+c12
+9409  626   65  157 rf
+c13
+9409  626   65  157 rectstroke
+1 j
+0 j
+c14
+9496 1253  105  156 rf
+c15
+9496 1253  105  156 rectstroke
+1 j
+0 j
+c14
+9474  626  106  157 rf
+c15
+9474  626  106  157 rectstroke
+1 j
+0 j
+c14
+9525 1723  101  156 rf
+c15
+9525 1723  101  156 rectstroke
+1 j
+0 j
+c14
+9536  313   98  156 rf
+gr
+c15
+9536  313   98  156 rectstroke
+gs 627 313 11284 2508 rc
+1 j
+0 j
+c14
+9946 1723  113  156 rf
+c15
+9946 1723  113  156 rectstroke
+1 j
+0 j
+c12
+9481 2036   60  157 rf
+c13
+9481 2036   60  157 rectstroke
+1 j
+0 j
+c14
+9545 2663  100  157 rf
+c15
+9545 2663  100  157 rectstroke
+1 j
+0 j
+c14
+9541 2036  102  157 rf
+c15
+9541 2036  102  157 rectstroke
+1 j
+0 j
+c14
+9683 1409  106  157 rf
+c15
+9683 1409  106  157 rectstroke
+1 j
+0 j
+c14
+9685 2349  103  157 rf
+c15
+9685 2349  103  157 rectstroke
+1 j
+0 j
+c14
+9948 2036  113  157 rf
+c15
+9948 2036  113  157 rectstroke
+1 j
+0 j
+c8
+9318 1409  132  157 rf
+c9
+9318 1409  132  157 rectstroke
+1 j
+0 j
+c10
+9519 1409   72  157 rf
+c11
+9519 1409   72  157 rectstroke
+1 j
+0 j
+c10
+9450 1409   69  157 rf
+c11
+9450 1409   69  157 rectstroke
+1 j
+0 j
+c10
+9651 1879   66  157 rf
+c11
+9651 1879   66  157 rectstroke
+1 j
+0 j
+c10
+9746 1253   65  156 rf
+c11
+9746 1253   65  156 rectstroke
+1 j
+0 j
+c12
+9508 1566   79  157 rf
+c13
+9508 1566   79  157 rectstroke
+1 j
+0 j
+c14
+9596  783  103  156 rf
+c15
+9596  783  103  156 rectstroke
+1 j
+0 j
+c14
+9587 1566  104  157 rf
+c15
+9587 1566  104  157 rectstroke
+1 j
+0 j
+c14
+9718 2193  111  156 rf
+c15
+9718 2193  111  156 rectstroke
+1 j
+0 j
+c14
+9812 1253  108  156 rf
+c15
+9812 1253  108  156 rectstroke
+1 j
+0 j
+c12
+9591 1409   63  157 rf
+c13
+9591 1409   63  157 rectstroke
+1 j
+0 j
+c14
+9654 2663  102  157 rf
+c15
+9654 2663  102  157 rectstroke
+1 j
+0 j
+c14
+9655 1723  100  156 rf
+c15
+9655 1723  100  156 rectstroke
+1 j
+0 j
+c14
+9718 1879  126  157 rf
+c15
+9718 1879  126  157 rectstroke
+1 j
+0 j
+c14
+9811 1409  129  157 rf
+c15
+9811 1409  129  157 rectstroke
+1 j
+0 j
+c12
+9655 2036   60  157 rf
+c13
+9655 2036   60  157 rectstroke
+1 j
+0 j
+c14
+9716  469  102  157 rf
+c15
+9716  469  102  157 rectstroke
+1 j
+0 j
+c14
+9716  939  104  157 rf
+c15
+9716  939  104  157 rectstroke
+1 j
+0 j
+c14
+9718  783  128  156 rf
+c15
+9718  783  128  156 rectstroke
+1 j
+0 j
+c14
+10059  783  119  156 rf
+c15
+10059  783  119  156 rectstroke
+1 j
+0 j
+c12
+9715 2036   56  157 rf
+c13
+9715 2036   56  157 rectstroke
+1 j
+0 j
+c14
+9772 2036  101  157 rf
+c15
+9772 2036  101  157 rectstroke
+1 j
+0 j
+c14
+9790  313  101  156 rf
+gr
+c15
+9790  313  101  156 rectstroke
+gs 627 313 11284 2508 rc
+1 j
+0 j
+c14
+9788 2349  101  157 rf
+c15
+9788 2349  101  157 rectstroke
+1 j
+0 j
+c14
+10061 2036  119  157 rf
+c15
+10061 2036  119  157 rectstroke
+1 j
+0 j
+c8
+9699  626  139  157 rf
+c9
+9699  626  139  157 rectstroke
+1 j
+0 j
+c10
+9838  939   77  157 rf
+c11
+9838  939   77  157 rectstroke
+1 j
+0 j
+c10
+9839 2663   76  157 rf
+c11
+9839 2663   76  157 rectstroke
+1 j
+0 j
+c10
+9920 2663   66  157 rf
+c11
+9920 2663   66  157 rectstroke
+1 j
+0 j
+c12
+9838  626   92  157 rf
+c13
+9838  626   92  157 rectstroke
+1 j
+0 j
+c14
+9930 2506  103  157 rf
+c15
+9930 2506  103  157 rectstroke
+1 j
+0 j
+c14
+9933 2193  101  156 rf
+c15
+9933 2193  101  156 rectstroke
+1 j
+0 j
+c14
+9986  939  100  157 rf
+c15
+9986  939  100  157 rectstroke
+1 j
+0 j
+c12
+9931  469   62  157 rf
+c13
+9931  469   62  157 rectstroke
+1 j
+0 j
+c14
+9995 2663  103  157 rf
+c15
+9995 2663  103  157 rectstroke
+1 j
+0 j
+c14
+9994 1879  102  157 rf
+c15
+9994 1879  102  157 rectstroke
+1 j
+0 j
+c14
+10179 1879  121  157 rf
+c15
+10179 1879  121  157 rectstroke
+1 j
+0 j
+c12
+9994 2349   61  157 rf
+c13
+9994 2349   61  157 rectstroke
+1 j
+0 j
+c14
+10056 1253  102  156 rf
+c15
+10056 1253  102  156 rectstroke
+1 j
+0 j
+c14
+10055  313  102  156 rf
+gr
+c15
+10055  313  102  156 rectstroke
+gs 627 313 11284 2508 rc
+1 j
+0 j
+c14
+10180 2036  122  157 rf
+c15
+10180 2036  122  157 rectstroke
+1 j
+0 j
+c8
+10033 2506  136  157 rf
+c9
+10033 2506  136  157 rectstroke
+1 j
+0 j
+c10
+10170 2193   78  156 rf
+c11
+10170 2193   78  156 rectstroke
+1 j
+0 j
+c10
+10169 2506   80  157 rf
+c11
+10169 2506   80  157 rectstroke
+1 j
+0 j
+c12
+10169 2663   89  157 rf
+c13
+10169 2663   89  157 rectstroke
+1 j
+0 j
+c14
+10258 2663  101  157 rf
+c15
+10258 2663  101  157 rectstroke
+1 j
+0 j
+c14
+10301  626  105  157 rf
+c15
+10301  626  105  157 rectstroke
+1 j
+0 j
+c12
+10259 2506   61  157 rf
+c13
+10259 2506   61  157 rectstroke
+1 j
+0 j
+c14
+10321  783  101  156 rf
+c15
+10321  783  101  156 rectstroke
+1 j
+0 j
+c14
+10320 2506  101  157 rf
+c15
+10320 2506  101  157 rectstroke
+1 j
+0 j
+c8
+10359 2036  133  157 rf
+c9
+10359 2036  133  157 rectstroke
+1 j
+0 j
+c10
+10492 1566   75  157 rf
+c11
+10492 1566   75  157 rectstroke
+1 j
+0 j
+c12
+10494 2506   91  157 rf
+c13
+10494 2506   91  157 rectstroke
+1 j
+0 j
+c14
+10585 2506   99  157 rf
+c15
+10585 2506   99  157 rectstroke
+1 j
+0 j
+c8
+10685 2193  136  156 rf
+c9
+10685 2193  136  156 rectstroke
+1 j
+gr
+
+12 w
+c9
+0 sg
+6017 3108 mt 
+(time \(ms\)) s
+ 377 1760 mt  -90 rotate
+(core ID) s
+90 rotate
+5152  218 mt 
+(QuickSched tiled QR decomposition tasks) s
+6 w
+
+end %%Color Dict
+
+eplot
+%%EndObject
+
+epage
+end
+
+showpage
+
+%%Trailer
+%%EOF
