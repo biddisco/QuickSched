@@ -36,7 +36,7 @@
 /* Some local constants. */
 #define cell_pool_grow 100
 #define cell_maxparts 100
-#define task_limit 4000
+#define task_limit 5000
 #define const_G 6.6738e-11
 #define dist_min 0.5
 
@@ -66,10 +66,11 @@ struct cell {
     
 /** Task types. */
 enum task_type {
-    task_type_self,
+    task_type_self = 0,
     task_type_pair,
     task_type_pair_pc,
-    task_type_com
+    task_type_com,
+    task_type_count
     };
     
     
@@ -677,6 +678,22 @@ void test_bh ( int N , int nr_threads , int runs ) {
     create_tasks( &s , root , NULL );
     tot_setup += getticks() - tic;
 
+    /* Dump the number of tasks. */
+    message( "total nr of tasks: %i." , s.count );
+    message( "total nr of deps: %i." , s.count_deps );
+    message( "total nr of res: %i." , s.count_res );
+    message( "total nr of locks: %i." , s.count_locks );
+    message( "total nr of uses: %i." , s.count_uses );
+    int counts[ task_type_count ];
+    for ( k = 0 ; k < task_type_count ; k++ )
+        counts[k] = 0;
+    for ( k = 0 ; k < s.count ; k++ )
+        counts[ s.tasks[k].type ] += 1;
+    printf( "task counts: [ " );
+    for ( k = 0 ; k < task_type_count ; k++ )
+        printf( "%i " , counts[k] );
+    printf( "].\n" );
+        
     /* Loop over the number of runs. */
     for ( k = 0 ; k < runs ; k++ ) {
     
