@@ -73,6 +73,9 @@ enum task_type {
     task_type_count
     };
     
+/** Per-type timers. */
+ticks task_timers[ task_type_count ];
+    
     
 /** Global variable for the pool of allocated cells. */
 struct cell *cell_pool = NULL;
@@ -626,6 +629,8 @@ void test_bh ( int N , int nr_threads , int runs ) {
     /* Runner function. */
     void runner ( int type , void *data ) {
     
+        ticks tic = getticks();
+    
         /* Decode the data. */
         struct cell **d = (struct cell **)data;
     
@@ -646,7 +651,14 @@ void test_bh ( int N , int nr_threads , int runs ) {
             default:
                 error( "Unknown task type." );
             }
+            
+        atomic_add( &task_timers[type] , getticks() - tic );
+        
         }
+        
+    /* Initialize the per-task type timers. */
+    for ( k = 0 ; k < task_type_count ; k++ )
+        task_timers[k] = 0;
     
     /* Initialize the scheduler. */
     qsched_init( &s , nr_threads , qsched_flag_noreown );
@@ -717,6 +729,12 @@ void test_bh ( int N , int nr_threads , int runs ) {
     /* Dump the timers. */
     for ( k = 0 ; k < qsched_timer_count ; k++ )
         message( "timer %s is %lli ticks." , qsched_timer_names[k] , s.timers[k]/runs );
+    
+    /* Dump the per-task type timers. */
+    printf( "task timers: [ " );
+    for ( k = 0 ; k < task_type_count ; k++ )
+        printf( "%lli " , task_timers[k]/runs );
+    printf( "] ticks.\n" );
     
     /* Clean up. */
     qsched_free( &s );
