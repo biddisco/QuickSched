@@ -719,7 +719,7 @@ struct task *qsched_gettask ( struct qsched *s , int qid ) {
         /* Try to get a task from my own queue. */
         {
             TIMER_TIC
-            tid = queue_get( &s->queues[qid] , s );
+            tid = queue_get( &s->queues[qid] , s , 1 );
             TIMER_TOC( s , qsched_timer_queue )
             if ( tid < 0 ) {
 
@@ -730,7 +730,7 @@ struct task *qsched_gettask ( struct qsched *s , int qid ) {
                 while ( naq > 0 ) {
                     k = rand() % naq;
                     TIMER_TIC2
-                    tid = queue_get( &s->queues[ qids[k] ] , s );
+                    tid = queue_get( &s->queues[ qids[k] ] , s , 0 );
                     TIMER_TOC( s , qsched_timer_queue )
                     if ( tid < 0 )
                         qids[k] = qids[ --naq ];

@@ -40,11 +40,12 @@
  *
  * @param q The #queue.
  * @param s The #sched in which this queue's tasks lives.
+ * @param insists If set, wait at the queue's lock, otherwise fail.
  *
  * @return The task ID or -1 if no available task could be found.
  */
  
-int queue_get ( struct queue *q , struct qsched *s ) {
+int queue_get ( struct queue *q , struct qsched *s , int insist ) {
 
     int k, j, temp, tid, *inds, w, count;
     struct task *tasks = s->tasks;
@@ -55,8 +56,12 @@ int queue_get ( struct queue *q , struct qsched *s ) {
         
     /* Lock this queue. */
     TIMER_TIC
-    if ( lock_lock( &q->lock ) != 0 )
-        error( "Failed to lock queue." );
+    if ( insist ) {
+        if ( lock_lock( &q->lock ) != 0 )
+            error( "Failed to lock queue." );
+        }
+    else if ( lock_trylock( &q->lock ) != 0 )
+        return qsched_task_none;
     TIMER_TOC( s , qsched_timer_qlock );
         
     /* Get a pointer to the indices. */
@@ -103,7 +108,7 @@ int queue_get ( struct queue *q , struct qsched *s ) {
         
     /* Otherwise, clear the task ID. */
     else
-        tid = -1;
+        tid = qsched_task_none;
         
     /* Unlock the queue. */
     lock_unlock_blind( &q->lock );

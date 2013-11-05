@@ -36,11 +36,11 @@ struct queue {
     /* Maximum number of tasks in queue. */
     int size;
 
-    };
+    } __attribute__((aligned (128)));
 
 
 /* Function prototypes. */
-int queue_get ( struct queue *q , struct qsched *s );
+int queue_get ( struct queue *q , struct qsched *s , int insist );
 void queue_put ( struct queue *q , struct qsched *s , int tid );
 void queue_init ( struct queue *q , int size );
 void queue_free ( struct queue *q );
