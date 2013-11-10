@@ -21,9 +21,9 @@ AUTOMAKE_OPTIONS=gnu
 
 # Add the source directory and debug to CFLAGS
 AM_CFLAGS = -g -Wall -Werror -I../src $(OPENMP_CFLAGS) -DCPU_TPS=2.67e9 -DTIMERS \
-    -fsanitize=address -fno-omit-frame-pointer
+    # -fsanitize=address -fno-omit-frame-pointer
 
-AM_LDFLAGS = -lm -fsanitize=address
+AM_LDFLAGS = -lm # -fsanitize=address
 
 # Set-up the library
 bin_PROGRAMS = test test_qr test_bh
@@ -36,7 +36,7 @@ test_LDADD =  ../src/.libs/libquicksched.a
 # Sources for test_qr
 test_qr_SOURCES = test_qr.c
 test_qr_CFLAGS = $(AM_CFLAGS)
-test_qr_LDADD =  ../src/.libs/libquicksched.a -llapacke -lblas
+test_qr_LDADD =  ../src/.libs/libquicksched.a -llapacke -llapack -lblas
 
 # Sources for test_bh
 test_bh_SOURCES = test_bh.c
