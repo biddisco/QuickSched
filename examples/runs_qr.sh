@@ -2,7 +2,7 @@
 
 # Executable and parameters
 prog=test_qr
-params="-m 32 -n 32 -r 10"
+params="-m 32 -n 32 -k 64 -r 10"
 
 # Main loop
 for n in {1..64}
