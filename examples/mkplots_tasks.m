@@ -48,7 +48,7 @@ print -depsc2 tasks_mm_dynamic.eps
 
 %% Plot the task timelines for tasks allocation
 % Load the data
-tasks = importdata( 'test.dump' );
+tasks = importdata( 'test_qr.tasks' );
 tasks(:,6) = ( tasks(:,6) - tasks(:,5) ) * tpms;
 start = min( tasks(:,5) );
 tasks(:,5) = ( tasks(:,5) - start ) * tpms;
@@ -72,15 +72,50 @@ end
 hold off;
 xlabel('time (ms)');
 ylabel('core ID');
-set(gca,'YTick',1:(max(tasks(:,1))+1))
-title('tiled QR decomposition tasks');
-axis([ 0 , max( tasks(:,5) + tasks(:,6) ) , -0.5 , nr_cores-0.5 ]);
+set(gca,'YTick',0:(max(tasks(:,2))))
+title('QuickSched tiled QR decomposition tasks');
+axis([ 0 , 110 , -0.5 , nr_cores-0.5 ]);
 
 % Print this plot
 set( gcf , 'PaperSize' , 2.3*[ 16 4 ] );
 set( gcf , 'PaperPosition' , 2.3*[ 0.25 0.25 16 4 ] );
-print -depsc2 tasks_qr_dynamic.eps
-!epstopdf tasks_qr_dynamic.eps 
+print -depsc2 figures/tasks_qr.eps
+
+
+
+%% Plot the task timelines for tasks allocation (OmpSs)
+% Load the data
+tasks = importdata( 'test_qr_ompss.tasks' );
+tasks(:,4) = ( tasks(:,4) - tasks(:,3) ) * tpms;
+start = min( tasks(:,3) );
+tasks(:,3) = ( tasks(:,3) - start ) * tpms;
+nr_cores = max( tasks(:,1) ) + 1;
+
+% Init the plot
+clf;
+subplot('position',[ 0.05 , 0.1 , 0.9 , 0.8 ]);
+colours = [ 255 34 0 ; 130 255 0 ; 0 184 255 ; 255 237 0 ] / 255;
+hold on;
+
+% Plot the tasks
+for k=1:size(tasks,1)
+    c = colours( tasks(k,2)+1 , : );
+    rectangle( 'Position' , [ tasks(k,3) , tasks(k,1)-0.5 , tasks(k,4) , 1 ] , ...
+        'EdgeColor' , 0.8*c , 'LineWidth' , 1 , 'FaceColor' , c );
+end
+
+% Set the axes and stuff.
+hold off;
+xlabel('time (ms)');
+ylabel('core ID');
+set(gca,'YTick',0:(max(tasks(:,1))))
+title('OmpSs tiled QR decomposition tasks');
+axis([ 0 , 110 , -0.5 , nr_cores-0.5 ]);
+
+% Print this plot
+set( gcf , 'PaperSize' , 2.3*[ 16 4 ] );
+set( gcf , 'PaperPosition' , 2.3*[ 0.25 0.25 16 4 ] );
+print -depsc2 figures/tasks_qr_ompss.eps
 
 
 
@@ -111,7 +146,7 @@ end
 hold off;
 xlabel('time (ms)');
 ylabel('core ID');
-set(gca,'YTick',1:(max(tasks(:,1))+1))
+set(gca,'YTick',0:(max(tasks(:,1))))
 title('Barnes-Hut tasks');
 axis([ 0 , max( tasks(:,3) + tasks(:,4) ) , -0.5 , nr_cores-0.5 ]);
 
