@@ -1195,16 +1195,20 @@ The timings are for {\tt qsched\_run}, including the cost of
 Setting up the scheduler, tasks, and resources took, in all
 cases, an average of 7.2\,ms.
 
-The same decomposition was implementing using OmpSs v.\,1.99.0,
+The same decomposition was implemented using OmpSs v.\,1.99.0,
 calling the kernels directly using {\tt \#pragma omp task}
-annotations with the respective dependencies.
-The scaling and efficiency relative to QuickSched are 
+annotations with the respective dependencies, and
+the runtime parameters
+\begin{quote}
+    \tt --disable-yield --schedule=socket --cores-per-socket=16 --num-sockets=4
+\end{quote}
+\noindent The scaling and efficiency relative to QuickSched are 
 shown in \fig{QRResults} as well.
 The difference in timings is the result of the different
 task scheduling policies, as well as a smaller lag between the
 individual tasks, as shown in \fig{QRTasks},
-for a smaller $1024\times 1024$ matrix on 16 cores of the
-same hardware.
+which shows the assignment of the different tasks to cores for the
+64 core run.
 The most visible difference between both schedulers is that
 the DGEQRF tasks (in red) are scheduled as soon as they
 become available in QuickSched, thus preventing bottlenecks
@@ -1226,7 +1230,7 @@ near the end of the computation.
     \centerline{\epsfig{file=figures/tasks_qr.pdf,width=0.9\textwidth}}
     \centerline{\epsfig{file=figures/tasks_qr_ompss.pdf,width=0.9\textwidth}}
     \caption{Task scheduling in QuickSched (above) and OmpSs (below)
-        for a $1024\times 1024$ matrix on 16 cores.
+        for a $2048\times 2048$ matrix on 64 cores.
         The task colors correspond to those in \fig{QR}.}
     \label{fig:QRTasks}
 \end{figure}
