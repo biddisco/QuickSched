@@ -89,20 +89,33 @@ int queue_get ( struct queue *q , struct qsched *s , int insist ) {
     
         /* Fix the heap. */
         w = tasks[ inds[k] ].weight;
-        while ( 1 ) {
-            if ( ( j = 2*k + 1 ) >= count )
-                break;
-            if ( j+1 < count && tasks[ inds[j] ].weight < tasks[ inds[j+1] ].weight )
-                j = j + 1;
-            if ( tasks[ inds[j] ].weight > w ) {
-                temp = inds[j];
-                inds[j] = inds[k];
-                inds[k] = temp;
-                k = j;
+        if ( k > 0 && w > tasks[ inds[k/2] ].weight )
+            while ( k > 0 ) {
+                j = k / 2;
+                if ( w > tasks[ inds[j] ].weight ) {
+                    temp = inds[j];
+                    inds[j] = inds[k];
+                    inds[k] = temp;
+                    k = j;
+                    }
+                else
+                    break;
                 }
-            else
-                break;
-            }
+        else
+            while ( 1 ) {
+                if ( ( j = 2*k + 1 ) >= count )
+                    break;
+                if ( j+1 < count && tasks[ inds[j] ].weight < tasks[ inds[j+1] ].weight )
+                    j = j + 1;
+                if ( tasks[ inds[j] ].weight > w ) {
+                    temp = inds[j];
+                    inds[j] = inds[k];
+                    inds[k] = temp;
+                    k = j;
+                    }
+                else
+                    break;
+                }
         
         } /* did we get a task? */
         
