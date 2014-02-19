@@ -35,7 +35,7 @@
 
 /* Some local constants. */
 #define cell_pool_grow 100
-#define cell_maxparts 100
+#define cell_maxparts 1
 #define task_limit 5000
 #define const_G 6.6738e-11
 #define dist_min 0.5
@@ -101,7 +101,7 @@ struct cell *cell_get ( ) {
         bzero( cell_pool , sizeof(struct cell) * cell_pool_grow );
         
         /* Link them up via their progeny pointers. */
-        for ( k = 1 ; k < 100 ; k++ )
+        for ( k = 1 ; k < cell_pool_grow ; k++ )
             cell_pool[k-1].progeny[0] = &cell_pool[k];
     
         }
@@ -181,9 +181,9 @@ void cell_split ( struct cell *c , struct qsched *s ) {
         /* Split along the x-axis. */
         i = 0; j = count - 1;
         while ( i <= j ) {
-            while ( i <= count-1 && parts[i].x[0] <= pivot[0] )
+            while ( i <= count-1 && parts[i].x[0] < pivot[0] )
                 i += 1;
-            while ( j >= 0 && parts[j].x[0] > pivot[0] )
+            while ( j >= 0 && parts[j].x[0] >= pivot[0] )
                 j -= 1;
             if ( i < j ) {
                 temp = parts[i]; parts[i] = parts[j]; parts[j] = temp;
@@ -196,9 +196,9 @@ void cell_split ( struct cell *c , struct qsched *s ) {
         for ( k = 1 ; k >= 0 ; k-- ) {
             i = left[k]; j = right[k];
             while ( i <= j ) {
-                while ( i <= right[k] && parts[i].x[1] <= pivot[1] )
+                while ( i <= right[k] && parts[i].x[1] < pivot[1] )
                     i += 1;
-                while ( j >= left[k] && parts[j].x[1] > pivot[1] )
+                while ( j >= left[k] && parts[j].x[1] >= pivot[1] )
                     j -= 1;
                 if ( i < j ) {
                     temp = parts[i]; parts[i] = parts[j]; parts[j] = temp;
@@ -212,9 +212,9 @@ void cell_split ( struct cell *c , struct qsched *s ) {
         for ( k = 3 ; k >= 0 ; k-- ) {
             i = left[k]; j = right[k];
             while ( i <= j ) {
-                while ( i <= right[k] && parts[i].x[2] <= pivot[2] )
+                while ( i <= right[k] && parts[i].x[2] < pivot[2] )
                     i += 1;
-                while ( j >= left[k] && parts[j].x[2] > pivot[2] )
+                while ( j >= left[k] && parts[j].x[2] >= pivot[2] )
                     j -= 1;
                 if ( i < j ) {
                     temp = parts[i]; parts[i] = parts[j]; parts[j] = temp;
@@ -305,8 +305,12 @@ void iact_pair_pc ( struct cell *ci , struct cell *cj ) {
     struct part *parts = ci->parts;
     
     /* Early abort? */
-    if ( count == 0 )
+    if ( count == 0 || cj->count == 0 )
         return;
+        
+    /* Sanity check. */
+    if ( cj->mass == 0.0 )
+        error( "com does not seem to have been set." );
     
     /* Init the com's data. */
     for ( k = 0 ; k < 3 ; k++ )
@@ -351,12 +355,6 @@ void iact_pair ( struct cell *ci , struct cell *cj ) {
     if ( count_i == 0 || count_j == 0 )
         return;
     
-    /* Recurse? */
-    if ( ci->split && cj->split )
-        for ( j = 0 ; j < 8 ; j++ )
-            for ( k = j+1 ; k < 8 ; k++ )
-                iact_pair( ci->progeny[j] , cj->progeny[k] );
-            
     /* Get the minimum distance between both cells. */
     for ( r2 = 0.0, k = 0 ; k < 3 ; k++ ) {
         dx[k] = fabs( ci->loc[k] - cj->loc[k] );
@@ -366,7 +364,7 @@ void iact_pair ( struct cell *ci , struct cell *cj ) {
         }
 
     /* Sufficiently well-separated? */
-    if ( r2/ci->h[0] > dist_min*dist_min ) {
+    if ( r2 > dist_min*dist_min*ci->h[0]*ci->h[0] ) {
 
         /* Compute the center of mass interactions. */
         iact_pair_pc( ci , cj );
@@ -541,6 +539,10 @@ void create_tasks ( struct qsched *s , struct cell *ci , struct cell *cj ) {
             
             /* Add the resource. */
             qsched_addlock( s , tid , ci->res );
+            
+            /* If this call might recurse, add a dependency on the cell's COM. */
+            if ( ci->split )
+                qsched_addunlock( s , ci->com_tid , tid );
         
             }
     
@@ -558,7 +560,7 @@ void create_tasks ( struct qsched *s , struct cell *ci , struct cell *cj ) {
             }
             
         /* Are the cells sufficiently well separated? */
-        if ( r2/ci->h[0] > dist_min*dist_min ) {
+        if ( r2 > dist_min*dist_min*ci->h[0]*ci->h[0] ) {
 
             /* Interact ci's parts with cj as a cell. */
             data[0] = ci; data[1] = cj;
@@ -568,7 +570,7 @@ void create_tasks ( struct qsched *s , struct cell *ci , struct cell *cj ) {
 
             /* Interact cj's parts with ci as a cell. */
             data[0] = cj; data[1] = ci;
-            tid = qsched_addtask( s , task_type_pair_pc , task_flag_none , data , sizeof(struct cell *) * 2 , ci->count );
+            tid = qsched_addtask( s , task_type_pair_pc , task_flag_none , data , sizeof(struct cell *) * 2 , cj->count );
             qsched_addlock( s , tid , cj->res );
             qsched_addunlock( s , ci->com_tid , tid );
 
