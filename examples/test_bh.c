@@ -60,7 +60,7 @@ struct cell {
     struct cell *parent;
     double com[3];
     double mass;
-    int res, com_tid;
+    int res, com_tid, depth;
     };
     
     
@@ -139,8 +139,10 @@ void cell_split ( struct cell *c , struct qsched *s ) {
     static struct cell *root = NULL;
     
     /* Set the root cell. */
-    if ( root == NULL )
+    if ( root == NULL ) {
         root = c;
+        c->depth = 0;
+        }
     
     /* Add a resource for this cell if it doesn't have one yet. */
     if ( c->res == qsched_res_none ) 
@@ -159,6 +161,7 @@ void cell_split ( struct cell *c , struct qsched *s ) {
         for ( k = 0 ; k < 8 ; k++ ) {
             c->progeny[k] = cp = cell_get();
             cp->parent = c;
+            cp->depth = c->depth + 1;
             cp->loc[0] = c->loc[0];
             cp->loc[1] = c->loc[1];
             cp->loc[2] = c->loc[2];
@@ -308,6 +311,11 @@ void iact_pair_pc ( struct cell *ci , struct cell *cj ) {
     if ( count == 0 || cj->count == 0 )
         return;
         
+    /* message( "ci=[%.3e,%.3e,%.3e], cj=[%.3e,%.3e,%.3e], h=%.3e/%.3e.",
+        ci->loc[0], ci->loc[1], ci->loc[2], 
+        cj->loc[0], cj->loc[1], cj->loc[2],
+        ci->h[0], cj->h[0] ); */
+    
     /* Sanity check. */
     if ( cj->mass == 0.0 )
         error( "com does not seem to have been set." );
@@ -357,30 +365,51 @@ void iact_pair ( struct cell *ci , struct cell *cj ) {
     
     /* Get the minimum distance between both cells. */
     for ( r2 = 0.0, k = 0 ; k < 3 ; k++ ) {
-        dx[k] = fabs( ci->loc[k] - cj->loc[k] );
-        if ( dx[k] > 0 )
-            dx[k] -= ci->h[k];
+        dx[k] = ci->loc[k] - cj->loc[k];
+        if ( dx[k] < 0 )
+            dx[k] = -dx[k] - ci->h[k];
+        else if ( dx[k] > 0 )
+            dx[k] -= cj->h[k];
         r2 += dx[k]*dx[k];
+        }
+        
+    // Cells at different level?
+    if ( ci->depth > cj->depth ) {
+    
+        // If well separated, go ahead!
+        if ( r2 > dist_min*dist_min*ci->h[0]*cj->h[0] )
+            iact_pair_pc( ci , cj );
+        
+        // Otherwise, split cj as well.
+        else
+            for ( k = 0 ; k < 8 ; k++ )
+                iact_pair( ci , cj->progeny[k] );
+    
         }
 
     /* Sufficiently well-separated? */
-    if ( r2 > dist_min*dist_min*ci->h[0]*ci->h[0] ) {
+    else if ( r2 > dist_min*dist_min*ci->h[0]*cj->h[0] ) {
 
         /* Compute the center of mass interactions. */
         iact_pair_pc( ci , cj );
-        iact_pair_pc( cj , ci );
 
         }
 
     /* Recurse? */
     else if ( ci->split && cj->split )
-        for ( j = 0 ; j < 8 ; j++ )
-            for ( k = j+1 ; k < 8 ; k++ )
-                iact_pair( ci->progeny[j] , cj->progeny[k] );
+        for ( k = 0 ; k < 8 ; k++ ) {
+            iact_pair( cj->progeny[k] , ci );
+            iact_pair( ci->progeny[k] , cj );
+            }
             
     /* Otherwise, do direct interactions. */
-    else {
+    else if ( ci < cj ) {
 
+        /* message( "ci=[%.3e,%.3e,%.3e], cj=[%.3e,%.3e,%.3e], h=%.3e/%.3e.",
+            ci->loc[0], ci->loc[1], ci->loc[2], 
+            cj->loc[0], cj->loc[1], cj->loc[2],
+            ci->h[0], cj->h[0] ); */
+    
         /* Loop over all particles... */
         for ( i = 0 ; i < count_i ; i++ ) {
 
@@ -437,6 +466,9 @@ void iact_self ( struct cell *c ) {
     /* Early abort? */
     if ( count == 0 )
         return;
+    
+    /* message( "cell=[%.3e,%.3e,%.3e], h=%.3e.",
+        c->loc[0], c->loc[1], c->loc[2], c->h[0] ); */
     
     /* Recurse? */
     if ( c->split )
@@ -553,26 +585,40 @@ void create_tasks ( struct qsched *s , struct cell *ci , struct cell *cj ) {
     
         /* Get the minimum distance between both cells. */
         for ( r2 = 0.0, k = 0 ; k < 3 ; k++ ) {
-            dx = fabs( ci->loc[k] - cj->loc[k] );
-            if ( dx > 0 )
-                dx -= ci->h[k];
+            dx = ci->loc[k] - cj->loc[k];
+            if ( dx < 0 )
+                dx = -dx - ci->h[k];
+            else if ( dx > 0 )
+                dx -= cj->h[k];
             r2 += dx*dx;
             }
-            
+        
+        // Cells at different level?
+        if ( cj->depth < ci->depth ) {
+
+            // If well separated, go ahead!
+            if ( r2 > dist_min*dist_min*ci->h[0]*cj->h[0] ) {
+                data[0] = ci; data[1] = cj;
+                tid = qsched_addtask( s , task_type_pair_pc , task_flag_none , data , sizeof(struct cell *) * 2 , ci->count );
+                qsched_addlock( s , tid , ci->res );
+                qsched_addunlock( s , cj->com_tid , tid );
+                }
+
+            // Otherwise, split cj as well.
+            else
+                for ( k = 0 ; k < 8 ; k++ )
+                    create_tasks( s , ci , cj->progeny[k] );
+
+            }
+
         /* Are the cells sufficiently well separated? */
-        if ( r2 > dist_min*dist_min*ci->h[0]*ci->h[0] ) {
+        else if ( r2 > dist_min*dist_min*ci->h[0]*ci->h[0] ) {
 
             /* Interact ci's parts with cj as a cell. */
             data[0] = ci; data[1] = cj;
             tid = qsched_addtask( s , task_type_pair_pc , task_flag_none , data , sizeof(struct cell *) * 2 , ci->count );
             qsched_addlock( s , tid , ci->res );
             qsched_addunlock( s , cj->com_tid , tid );
-
-            /* Interact cj's parts with ci as a cell. */
-            data[0] = cj; data[1] = ci;
-            tid = qsched_addtask( s , task_type_pair_pc , task_flag_none , data , sizeof(struct cell *) * 2 , cj->count );
-            qsched_addlock( s , tid , cj->res );
-            qsched_addunlock( s , ci->com_tid , tid );
 
             }
             
@@ -581,14 +627,15 @@ void create_tasks ( struct qsched *s , struct cell *ci , struct cell *cj ) {
                   ci->count > task_limit && cj->count > task_limit ) {
              
             /* Loop over all pairs between ci and cj's progeny. */
-            for ( j = 0 ; j < 8 ; j++ )
-                for ( k = 0 ; k < 8 ; k++ )
-                    create_tasks( s , ci->progeny[j] , cj->progeny[k] );
+            for ( k = 0 ; k < 8 ; k++ ) {
+                create_tasks( s , ci->progeny[k] , cj );
+                create_tasks( s , cj->progeny[k] , ci );
+                }
         
             }
             
         /* Otherwise, generate a part-part task. */
-        else {
+        else if ( ci < cj ) {
         
             /* Set the data. */
             data[0] = ci; data[1] = cj;
@@ -668,12 +715,14 @@ void test_bh ( int N , int nr_threads , int runs ) {
     /* Init and fill the particle array. */
     if ( ( parts = (struct part *)malloc( sizeof(struct part) * N ) ) == NULL )
         error( "Failed to allocate particle buffer." );
+    // int hN = ceil( cbrt( N ) );
+    // double h = 1.0 / hN;
     for ( k = 0 ; k < N ; k++ ) {
         parts[k].id = k;
-        parts[k].x[0] = ((double)rand())/RAND_MAX;
-        parts[k].x[1] = ((double)rand())/RAND_MAX;
-        parts[k].x[2] = ((double)rand())/RAND_MAX;
-        parts[k].mass = ((double)rand())/RAND_MAX;
+        parts[k].x[0] = ((double)rand())/RAND_MAX; // h*(k % hN);
+        parts[k].x[1] = ((double)rand())/RAND_MAX; // h*((k / hN) % hN);
+        parts[k].x[2] = ((double)rand())/RAND_MAX; // h*(k / hN / hN);
+        parts[k].mass = ((double)rand())/RAND_MAX; // 1.0;
         parts[k].a[0] = 0.0;
         parts[k].a[1] = 0.0;
         parts[k].a[2] = 0.0;
