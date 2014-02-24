@@ -163,8 +163,8 @@ struct qsched {
 
 /* Function prototypes. */
 /* Internal functions. */
-void qsched_sort ( int *restrict data , int *restrict ind , int N , int min , int max );
-void qsched_sort_rec ( int *restrict data , int *restrict ind , int N , int min , int max );
+void qsched_sort ( int *data , int *ind , int N , int min , int max );
+void qsched_sort_rec ( int *data , int *ind , int N , int min , int max );
 struct task *qsched_gettask ( struct qsched *s , int qid );
 void qsched_done ( struct qsched *s , struct task *t );
 void *qsched_getdata( struct qsched *s , struct task *t );
