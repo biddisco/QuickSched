@@ -26,7 +26,7 @@ AM_CFLAGS = -g -Wall -Werror -I../src $(OPENMP_CFLAGS) -DCPU_TPS=2.67e9 -DTIMERS
 AM_LDFLAGS = -lm # -fsanitize=address
 
 # Set-up the library
-bin_PROGRAMS = test test_qr test_bh
+bin_PROGRAMS = test test_qr test_bh test_bh_2
 
 # Sources for test
 test_SOURCES = test.c
@@ -42,4 +42,9 @@ test_qr_LDADD =  ../src/.libs/libquicksched.a -llapacke -llapack -lblas
 test_bh_SOURCES = test_bh.c
 test_bh_CFLAGS = $(AM_CFLAGS)
 test_bh_LDADD =  ../src/.libs/libquicksched.a
+
+# Sources for test_bh_2
+test_bh_2_SOURCES = test_bh_2.c
+test_bh_2_CFLAGS = $(AM_CFLAGS)
+test_bh_2_LDADD =  ../src/.libs/libquicksched.a
 
