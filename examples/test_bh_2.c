@@ -35,7 +35,7 @@
 
 /* Some local constants. */
 #define cell_pool_grow 100
-#define cell_maxparts 1
+#define cell_maxparts 20
 #define task_limit 5000
 #define const_G 6.6738e-11
 #define dist_min 0.5 // 0.5
@@ -406,7 +406,7 @@ void iact_pair ( struct cell *ci , struct cell *cj ) {
 
       /* Distance between the CoMs */
       for ( r2 = 0.0, k = 0 ; k < 3 ; k++ ) {
-        dx[k] = fabs( ci->loc[k] - cj->loc[k] );	
+        dx[k] = fabs( ci->com[k] - cj->com[k] );	
         r2 += dx[k]*dx[k];
       }
 
@@ -659,8 +659,8 @@ void create_tasks ( struct qsched *s , struct cell *ci , struct cell *cj ) {
         r2 += dx*dx;
       }
       
-      double s_max_i = ci->h[0]; 
-      double s_max_j = cj->h[0]; 
+      const double s_max_i = ci->h[0]; 
+      const double s_max_j = cj->h[0]; 
       
       /* Check whether we can use the multipoles. */
       if ( ( dist_min * dist_min * r2 > s_max_i * s_max_i ) && ( dist_min * dist_min * r2 > s_max_j * s_max_j ) )
