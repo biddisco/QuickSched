@@ -34,9 +34,9 @@
 
 
 /* Some local constants. */
-#define cell_pool_grow 100
+#define cell_pool_grow 1000
 #define cell_maxparts 1
-#define task_limit 5000
+#define task_limit 1
 #define const_G 6.6738e-8
 #define dist_min 0.5 // 0.5
 
@@ -65,9 +65,11 @@ struct cell {
     struct cell* firstchild; /* Next node if opening */
     struct cell* sibling;  /* Next node */
     double com_legacy[3];
+    double com_new[3];
+    double mass_new;
     double mass_legacy;
     int res, com_tid; //, depth; 
-    };
+    }  __attribute__((aligned (128)));
     
     
 /** Task types. */
@@ -287,6 +289,7 @@ void cell_split ( struct cell *c , struct qsched *s ) {
 
 
 
+
 /* ----------------------------------------------------------------------------------------------- */
 /* New tree walk */
 /* ----------------------------------------------------------------------------------------------- */
@@ -297,6 +300,71 @@ void cell_split ( struct cell *c , struct qsched *s ) {
  * @param c The #cell.
  */
 void comp_com ( struct cell *c ) {
+
+    int k, count = c->count;
+    struct cell *cp;
+    struct part *p, *parts = c->parts;
+
+    c->com_new[0] = c->com_new[1] = c->com_new[2] = c->mass_new = 0.;
+
+    if ( c->split ) {
+
+      /* Loop over the projenitors */
+      cp = c->firstchild;
+
+      while ( cp != c->sibling )
+	{  
+	    /* Collect multipole information */
+            c->com_new[0] += cp->com_new[0]*cp->mass_new;
+            c->com_new[1] += cp->com_new[1]*cp->mass_new;
+            c->com_new[2] += cp->com_new[2]*cp->mass_new;
+            c->mass_new += cp->mass_new;
+
+	    /* Move to next child */
+	    cp = cp->sibling;
+	}
+
+      
+        /* Finish multipole calculation */
+	if ( c->mass_new != 0. )
+	  {
+	    c->com_new[0] /= c->mass_new;
+	    c->com_new[1] /= c->mass_new;
+	    c->com_new[2] /= c->mass_new;
+	  }
+	else
+	  {
+	    c->com_new[0] = 0.;
+	    c->com_new[1] = 0.;
+	    c->com_new[2] = 0.;
+	  }
+            
+        }
+
+    /* Otherwise, collect the multipole from local data. */
+    else {
+    
+        for ( k = 0 ; k < count ; k++ ) {
+            p = &parts[k];
+            c->com_new[0] += p->x[0]*p->mass;
+            c->com_new[1] += p->x[1]*p->mass;
+            c->com_new[2] += p->x[2]*p->mass;
+            c->mass_new += p->mass;
+            }
+
+	if ( c-> mass_new > 0. )
+	  {
+	    c->com_new[0] /= c->mass_new; 
+	    c->com_new[1] /= c->mass_new; 
+	    c->com_new[2] /= c->mass_new;
+	  }
+	else
+	  {
+	    c->com_new[0] = 0.;
+	    c->com_new[1] = 0.;
+	    c->com_new[2] = 0.;
+	  }            
+        }
   } 
 
 /**
@@ -308,6 +376,56 @@ void comp_com ( struct cell *c ) {
  */
  
 void iact_pair_pc ( struct cell *ci , struct cell *cj ) {
+    int j, k, count = ci->count;
+    double com[3], mcom, dx[3], r2, ir, w;
+    struct part *parts = ci->parts;
+    
+    /* Early abort? */
+    if ( count == 0 || cj->count == 0 )
+        return;
+        
+    /* message( "ci=[%.3e,%.3e,%.3e], cj=[%.3e,%.3e,%.3e], h=%.3e/%.3e.",
+        ci->loc[0], ci->loc[1], ci->loc[2], 
+        cj->loc[0], cj->loc[1], cj->loc[2],
+        ci->h[0], cj->h[0] ); */
+    
+    /* Sanity check. */
+    if ( cj->mass_new == 0.0 ){
+      printf("%e %e %e %d %p\n", cj->com_new[0], cj->com_new[1], cj->com_new[2], cj->count, cj);
+
+      for ( j = 0 ; j < cj->count ; ++j )
+	printf("part %d mass= %e\n", j, cj->parts[j].mass );
+
+        error( "com does not seem to have been set." );
+    }
+
+    /* Init the com's data. */
+    for ( k = 0 ; k < 3 ; k++ )
+        com[k] = cj->com_new[k];
+    mcom = cj->mass_new;
+
+    /* Loop over every particle in ci. */
+    for ( j = 0 ; j < count ; j++ ) {
+
+        /* Compute the pairwise distance. */
+        for ( r2 = 0.0 , k = 0 ; k < 3 ; k++ ) {
+            dx[k] = com[k] - parts[j].x[k];
+            r2 += dx[k]*dx[k];
+            }
+
+        /* Apply the gravitational acceleration. */
+        ir = 1.0 / sqrt( r2 );
+        w = mcom * const_G * ir * ir * ir;
+        for ( k = 0 ; k < 3 ; k++ )
+            parts[j].a[k] += w * dx[k];
+
+#if ICHECK >= 0
+	if ( parts[j].id == ICHECK )
+	  printf("[NEW] Can interact with the monopole. x= %f %f %f m= %f h= %f\n", com[0], com[1], com[2], mcom, cj->h[0]);
+#endif
+
+        } /* loop over every particle. */
+
   }
 
 
@@ -321,7 +439,146 @@ void iact_pair_pc ( struct cell *ci , struct cell *cj ) {
  */
  
 void iact_pair ( struct cell *ci , struct cell *cj ) {
-  }
+  
+    int i, j, k;
+    int count_i = ci->count, count_j = cj->count;
+    double dx[3], xi[3], ai[3], mi, mj, r2, w, ir;
+    struct part *parts_i = ci->parts, *parts_j = cj->parts;
+    struct cell *cp;
+
+    /* Early abort? */
+    if ( count_i == 0 || count_j == 0 )
+        return;
+
+    /* Sanity check */
+    if ( ci == cj )
+      error("The impossible has happened: pair interaction between a cell and itsel.");  //debug
+
+
+    /* Distance between the CoMs */
+    for ( r2 = 0.0, k = 0 ; k < 3 ; k++ ) {
+      dx[k] = fabs( ci->com_new[k] - cj->com_new[k] );	
+      r2 += dx[k]*dx[k];
+    }
+    
+    double s_max_i = ci->h[0]; 
+    double s_max_j = cj->h[0]; 
+      
+    if ( ( dist_min * dist_min * r2 > s_max_i * s_max_i ) && ( dist_min * dist_min * r2 > s_max_j * s_max_j ) )
+      {
+	iact_pair_pc( ci, cj );
+	iact_pair_pc( cj, ci );
+      }
+    else if ( ci->split == 0 && cj->split == 0 )
+      {
+	/* Do direct summation */
+	
+        /* Loop over all particles... */
+        for ( i = 0 ; i < count_i ; i++ ) {
+	  
+	  /* Init the ith particle's data. */
+	  for ( k = 0 ; k < 3 ; k++ ) {
+	    xi[k] = parts_i[i].x[k];
+	    ai[k] = 0.0;
+	  }
+	  mi = parts_i[i].mass;
+	  
+	  /* Loop over every following particle. */
+	  for ( j = 0 ; j < count_j ; j++ ) {
+	    
+	    /* Compute the pairwise distance. */
+	    for ( r2 = 0.0 , k = 0 ; k < 3 ; k++ ) {
+	      dx[k] = xi[k] - parts_j[j].x[k];
+	      r2 += dx[k]*dx[k];
+	    }
+	    
+	    /* Apply the gravitational acceleration. */
+	    ir = 1.0 / sqrt( r2 );
+	    w = const_G * ir * ir * ir;
+	    mj = parts_j[j].mass;
+	    for ( k = 0 ; k < 3 ; k++ ) {
+	      parts_j[j].a[k] += w * dx[k] * mi;
+	      ai[k] -= w * dx[k] * mj;
+	    }
+	    
+
+
+#if ICHECK >= 0
+	    if ( parts_i[i].id == ICHECK )
+	      printf("[NEW] Interaction with particle id= %d (pair i)\n", parts_j[j].id);
+	    
+	    if ( parts_j[j].id == ICHECK )
+	      printf("[NEW] Interaction with particle id= %d (pair j) h_i= %f h_j= %f ci= %p cj= %p count_i= %d count_j= %d d_i= %d d_j= %d\n", parts_i[i].id, ci->h[0], cj->h[0], ci, cj, count_i, count_j,
+		     ci->res, cj->res ) ;
+#endif
+      
+
+          } /* loop over every other particle. */
+
+            /* Store the accumulated acceleration on the ith part. */
+	  for ( k = 0 ; k < 3 ; k++ )
+	    parts_i[i].a[k] += ai[k];
+	  
+	} /* loop over all particles. */
+	
+	
+      }
+    else {
+      
+      /* We can split one of the two cells. Let's try the biggest one */
+      if ( ci->h[0] > cj->h[0] ) {
+	
+	if (  ci->split ) {
+	  cp = ci->firstchild;
+	  
+	  while( cp != ci->sibling ) {
+	    iact_pair ( cp, cj );
+	    cp = cp->sibling;
+	  }
+	}
+	/* Ok. take the small one then... */
+	else if ( cj->split ) {
+	  cp = cj->firstchild;
+	  
+	  while( cp != cj->sibling ) {
+	    iact_pair ( ci, cp );
+	    cp = cp->sibling;
+	  }
+	}
+	
+	else
+	  error("Want to split unpslitable cells !\n");
+	
+      }
+      else {
+
+	/* Same but with ci and cj reversed */
+
+	if ( cj->split ) {
+	  cp = cj->firstchild;
+	  
+	  while( cp != cj->sibling ) {
+	    iact_pair ( ci, cp );
+	    cp = cp->sibling;
+	  }
+	}
+
+	else if (  ci->split )  {
+	  cp = ci->firstchild;
+	  
+	  while( cp != ci->sibling ) {
+	    iact_pair ( cp, cj );
+	    cp = cp->sibling;
+	  }
+	}
+	else
+	  error("Want to split unpslitable cells !\n");
+
+      }
+    }
+ }
+
+
 
 
 
@@ -334,7 +591,88 @@ void iact_pair ( struct cell *ci , struct cell *cj ) {
  */
  
 void iact_self ( struct cell *c ) {
-  }
+    int i, j, k, count = c->count;
+    double xi[3], ai[3], mi, mj, dx[3], r2, ir, w;
+    struct part *parts = c->parts;
+    struct cell *cp, *cps;
+
+    /* Early abort? */
+    if ( count == 0 )
+        return;
+
+    /* message( "cell=[%.3e,%.3e,%.3e], h=%.3e.",
+        c->loc[0], c->loc[1], c->loc[2], c->h[0] ); */
+    
+    /* Recurse? */
+    if ( c->split )
+      {
+	cp = c->firstchild; 
+
+	while ( cp != c->sibling ) {
+	  iact_self( cp );
+
+	  cps = cp->sibling;
+
+	  while ( cps != c->sibling ) {
+	    iact_pair( cp , cps );
+	    cps = cps->sibling;
+	  }
+	  
+	  cp = cp->sibling;
+	}
+
+      }
+    /* Otherwise, compute interactions directly. */
+    else {
+
+        /* Loop over all particles... */
+        for ( i = 0 ; i < count ; i++ ) {
+        
+            /* Init the ith particle's data. */
+            for ( k = 0 ; k < 3 ; k++ ) {
+                xi[k] = parts[i].x[k];
+                ai[k] = 0.0;
+                }
+            mi = parts[i].mass;
+                
+            /* Loop over every following particle. */
+            for ( j = i+1 ; j < count ; j++ ) {
+            
+                /* Compute the pairwise distance. */
+                for ( r2 = 0.0 , k = 0 ; k < 3 ; k++ ) {
+                    dx[k] = xi[k] - parts[j].x[k];
+                    r2 += dx[k]*dx[k];
+                    }
+                    
+                /* Apply the gravitational acceleration. */
+                ir = 1.0 / sqrt( r2 );
+                w = const_G * ir * ir * ir;
+                mj = parts[j].mass;
+                for ( k = 0 ; k < 3 ; k++ ) {
+                    parts[j].a[k] += w * dx[k] * mi;
+                    ai[k] -= w * dx[k] * mj;
+                    }
+
+#if ICHECK >= 0
+		if ( parts[i].id == ICHECK )
+		  printf("[NEW] Interaction with particle id= %d (self i)\n", parts[j].id);
+
+		if ( parts[j].id == ICHECK )
+		  printf("[NEW] Interaction with particle id= %d (self j)\n", parts[i].id);
+#endif
+            
+                } /* loop over every other particle. */
+                
+            /* Store the accumulated acceleration on the ith part. */
+            for ( k = 0 ; k < 3 ; k++ )
+                parts[i].a[k] += ai[k];
+        
+            } /* loop over all particles. */
+    
+        } /* otherwise, compute interactions directly. */
+
+    }
+
 
 
 
@@ -347,7 +685,186 @@ void iact_self ( struct cell *c ) {
  */
  
 void create_tasks ( struct qsched *s , struct cell *ci , struct cell *cj ) {
-  }
+
+    int k;
+    qsched_task_t tid;
+    struct cell *data[2], *cp, *cps;
+    double dx, r2;
+    
+    /* If either cell is empty, stop. */
+    if ( ci->count == 0 || ( cj != NULL && cj->count == 0 ) )
+        return;
+
+    /* Single cell? */
+    if ( cj == NULL ) {
+    
+        /* Is this cell split? */
+        if ( ci->split && ci->count > task_limit ) {
+	  
+ 	    cp = ci->firstchild; 
+
+	    /* Recurse over the progeny. */	  
+	    while ( cp != ci->sibling ) {
+
+	      /* Make self-task. */
+	      create_tasks( s , cp , NULL );
+
+	      cps = cp->sibling;
+
+	      /* Make all pair tasks. */
+	      while ( cps != ci->sibling ) {
+		create_tasks( s , cp , cps );
+		cps = cps->sibling;
+	      }
+	    
+	      cp = cp->sibling;
+	    }
+	  
+	}
+            
+        /* Otherwise, add a self-interaction task. */
+        else {
+            
+            /* Set the data. */
+            data[0] = ci; data[1] = NULL;
+            
+            /* Create the task. */
+            tid = qsched_addtask( s , task_type_self , task_flag_none , data , sizeof(struct cell *) * 2 , ci->count*ci->count/2 );
+            
+            /* Add the resource. */
+            qsched_addlock( s , tid , ci->res );
+            
+            /* If this call might recurse, add a dependency on the cell's COM. */
+            if ( ci->split )
+                qsched_addunlock( s , ci->com_tid , tid );
+        
+            }
+    
+        }
+        
+    /* Otherwise, it's a pair. */
+    else {
+
+      /* Distance between the cells */
+      for ( r2 = 0.0, k = 0 ; k < 3 ; k++ ) {
+        dx = fabs( ci->loc[k] - cj->loc[k] );	
+        r2 += dx*dx;
+      }
+      
+      const double s_max_i = ci->h[0]; 
+      const double s_max_j = cj->h[0]; 
+      
+      /* Check whether we can use the multipoles. */
+      if ( ( dist_min * dist_min * r2 > s_max_i * s_max_i ) && ( dist_min * dist_min * r2 > s_max_j * s_max_j ) )
+	{  
+	  data[0] = ci; data[1] = cj;
+	  tid = qsched_addtask( s , task_type_pair_pc , task_flag_none , data , sizeof(struct cell *) * 2 , ci->count );
+	  qsched_addlock( s , tid , ci->res );
+	  qsched_addunlock( s , cj->com_tid , tid );
+	  
+	  data[0] = cj; data[1] = ci;
+	  tid = qsched_addtask( s , task_type_pair_pc , task_flag_none , data , sizeof(struct cell *) * 2 , cj->count );
+	  qsched_addlock( s , tid , cj->res );
+	  qsched_addunlock( s , ci->com_tid , tid );
+	}
+      
+            
+      /* Otherwise, generate a part-part task. */
+      else if ( ci->split == 0 && cj->split == 0 )
+	{
+        
+	  /* Set the data. */
+	  data[0] = ci; data[1] = cj;
+
+	  /* Create the task. */
+	  tid = qsched_addtask( s , task_type_pair , task_flag_none , data , sizeof(struct cell *) * 2 , ci->count*cj->count );
+
+	  /* Add the resources. */
+	  qsched_addlock( s , tid , ci->res );
+	  qsched_addlock( s , tid , cj->res );
+
+	  /* qsched_addunlock( s , ci->com_tid , tid ); */
+	  /* qsched_addunlock( s , cj->com_tid , tid ); */
+	}
+
+
+      else if ( ci->count > task_limit && cj->count > task_limit )
+	{
+	  	  
+	  /* We can split one of the two cells. Let's try the biggest one */
+	  if ( ci->h[0] > cj->h[0] ) {
+	    
+	    if ( ci->split ) {
+	      cp = ci->firstchild;
+	      while ( cp != ci->sibling ) {
+		create_tasks ( s , cp, cj );
+		cp = cp->sibling;
+	      }
+	    }	    
+	    else if ( cj->split ) {
+	      cp = cj->firstchild;
+	      while ( cp != cj->sibling ) { 
+		create_tasks ( s , ci, cp );
+		cp = cp->sibling;
+	      }
+	    }
+	    else
+	      error("Want to split unpslitable cells !\n");
+	    
+	  }
+	  else {
+	    
+	    if ( cj->split ) {
+	      cp = cj->firstchild;
+	      while ( cp != cj->sibling ) { 
+		create_tasks ( s , ci, cp );
+		cp = cp->sibling;
+	      }
+	    }
+	    
+	    else if (  ci->split ) {
+	      cp = ci->firstchild;
+	      while ( cp != ci->sibling ) {
+		create_tasks ( s , cp, cj );
+		cp = cp->sibling;
+	      }
+	    }	    
+	    else
+	      error("Want to split unpslitable cells !\n");
+
+	  }
+	}
+
+      /* /\* Create a task if too few particles *\/ */
+      else 
+      	{
+      	  /* Set the data. */
+      	  data[0] = ci; data[1] = cj;
+
+      	  /* Create the task. */
+      	  tid = qsched_addtask( s , task_type_pair , task_flag_none , data , sizeof(struct cell *) * 2 , ci->count*cj->count );
+
+      	  /* Add the resources. */
+      	  qsched_addlock( s , tid , ci->res );
+      	  qsched_addlock( s , tid , cj->res );
+
+      	  /* Depend on the COMs in case this task recurses. */
+      	  if ( ci->split || cj->split ) {
+      	    qsched_addunlock( s , ci->com_tid , tid );
+      	    qsched_addunlock( s , cj->com_tid , tid );
+      	  }
+      	}
+
+	
+
+      } /* otherwise, it's a pair. */
+      
+    }
+
+
+
+
+
 
 
 /* ----------------------------------------------------------------------------------------------- */
@@ -525,7 +1042,7 @@ void legacy_interact( struct part* parts, int i , struct cell* root , int monito
 
 #if ICHECK >= 0
 	  if( parts[i].id == monitor )
-	    printf( "[BH_] Can interact with the monopole. x= %f %f %f m= %f h= %f\n", cell->com_legacy[0] , cell->com_legacy[1] , cell->com_legacy[2] , cell->mass_legacy , cell->h[0]);
+	    printf( "[BH_] Can interact with the monopole. x= %f %f %f m= %f h= %f\n", cell->com[0] , cell->com[1] , cell->com[2] , cell->mass , cell->h[0]);
 #endif
 
 
@@ -761,7 +1278,7 @@ void test_bh ( int N , int nr_threads , int runs , char* fileName ) {
     /* Do a N^2 interactions calculation */
 
     tic_exact = getticks();
-    //interact_exact( N , parts , ICHECK );
+    interact_exact( N , parts , ICHECK );
     toc_exact = getticks();
 
     printf( "Exact calculation (1 thread) took %lli (= %e) ticks\n", toc_exact - tic_exact , (float)(toc_exact - tic_exact) );
@@ -784,12 +1301,6 @@ void test_bh ( int N , int nr_threads , int runs , char* fileName ) {
         counts[k] = 0;
     for ( k = 0 ; k < s.count ; k++ )
         counts[ s.tasks[k].type ] += 1;
-    printf( "task counts: [ %8s %8s %8s %8s ]\n" , "self", "direct" , "m-poles" , "CoMs" );
-    printf( "task counts: [ " );
-    for ( k = 0 ; k < task_type_count ; k++ )
-        printf( "%8i " , counts[k] );
-    printf( "].\n" );
-
 
     char buffer[200];
     sprintf( buffer, "timings_legacy_%d_%d.dat", cell_maxparts, nr_threads );
@@ -824,7 +1335,32 @@ void test_bh ( int N , int nr_threads , int runs , char* fileName ) {
     fclose(fileTime);
 
 
-    printf( "task counts: [ %8i %8i %8i %8i ].\n" , 0 , countPairs , countMultipoles , countCoMs );
+    printf( "task counts: [ %8s %8s %8s %8s ]\n" , "self", "direct" , "m-poles" , "CoMs" );
+    printf( "task counts: [ %8i %8i %8i %8i ] (legacy).\n" , 0 , countPairs , countMultipoles , countCoMs );
+    printf( "task counts: [ " );
+    for ( k = 0 ; k < task_type_count ; k++ )
+        printf( "%8i " , counts[k] );
+    printf( "] (new).\n" );
+
+
+    /* Loop over the number of runs. */
+    for ( k = 0 ; k < runs ; k++ ) {
+
+      for ( i = 0 ; i < N ; ++i ) {
+      	parts[i].a[0] = 0.;
+      	parts[i].a[1] = 0.;
+      	parts[i].a[2] = 0.;
+      }
+
+        /* Execute the tasks. */
+        tic = getticks();
+        qsched_run( &s , nr_threads , runner );
+	toc_run = getticks();
+	message( "%ith run took %lli (= %e) ticks..." , k , toc_run - tic , (float)(toc_run - tic) );
+        tot_run += toc_run - tic;
+        
+        }
+
 
     /* Dump the tasks. */
     /* for ( k = 0 ; k < s.count ; k++ ) */
