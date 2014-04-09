@@ -36,7 +36,7 @@
 /* Some local constants. */
 #define cell_pool_grow 1000
 #define cell_maxparts 1
-#define task_limit 1
+#define task_limit 500
 #define const_G 6.6738e-8
 #define dist_min 0.5 // 0.5
 
@@ -57,18 +57,26 @@ struct part {
 /** Data structure for the BH tree cell. */
 struct cell {
     double loc[3];
-    double h[1];
+    double h;
+
     int split, count;
     struct part *parts;
-    //struct cell *progeny[8];
-    //struct cell *parent;
+
     struct cell* firstchild; /* Next node if opening */
     struct cell* sibling;  /* Next node */
-    double com_legacy[3];
-    double com_new[3];
-    double mass_new;
-    double mass_legacy;
-    int res, com_tid; //, depth; 
+
+    union {
+      struct {
+	double com[3];
+	double mass;
+      } legacy;
+      struct {
+	double com[3];
+	double mass;
+      } new;
+    } u;
+
+    int res, com_tid;
     }  __attribute__((aligned (128)));
     
     
@@ -118,7 +126,7 @@ struct cell *cell_get ( ) {
     res = cell_pool;
     cell_pool = cell_pool->firstchild;
     
-    /* /\* Clean up a few things. *\/ */
+    /* Clean up a few things. */
     res->res = qsched_res_none;
     res->firstchild = 0;
     
@@ -161,7 +169,8 @@ void cell_split ( struct cell *c , struct qsched *s ) {
         c->res = qsched_addres( s , qsched_owner_none , qsched_res_none );
     
     /* Attach a center-of-mass task to the cell. */
-    c->com_tid = qsched_addtask( s , task_type_com , task_flag_none , &c , sizeof(struct cell *) , 1 );
+    if( count > 0 )
+        c->com_tid = qsched_addtask( s , task_type_com , task_flag_none , &c , sizeof(struct cell *) , 1 );
     
     /* Does this cell need to be split? */
     if ( count > cell_maxparts ) {
@@ -177,21 +186,21 @@ void cell_split ( struct cell *c , struct qsched *s ) {
             cp->loc[0] = c->loc[0];
             cp->loc[1] = c->loc[1];
             cp->loc[2] = c->loc[2];
-            cp->h[0] = c->h[0]/2;
-            cp->h[0] = c->h[0]/2;
-            cp->h[0] = c->h[0]/2;
+            cp->h = c->h/2;
+            cp->h = c->h/2;
+            cp->h = c->h/2;
             cp->res = qsched_addres( s , qsched_owner_none , c->res );
             if ( k & 4 )
-                cp->loc[0] += cp->h[0];
+                cp->loc[0] += cp->h;
             if ( k & 2 )
-                cp->loc[1] += cp->h[0];
+                cp->loc[1] += cp->h;
             if ( k & 1 )
-                cp->loc[2] += cp->h[0];
+                cp->loc[2] += cp->h;
             }
     
         /* Init the pivots. */
         for ( k = 0 ; k < 3 ; k++ )
-            pivot[k] = c->loc[k] + c->h[0]/2;
+            pivot[k] = c->loc[k] + c->h/2;
 
         /* Split along the x-axis. */
         i = 0; j = count - 1;
@@ -273,7 +282,8 @@ void cell_split ( struct cell *c , struct qsched *s ) {
             
         /* Link the COM tasks. */
         for ( k = 0 ; k < 8 ; k++ )
-            qsched_addunlock( s , progenitors[k]->com_tid , c->com_tid );
+ 	    if( progenitors[k]->count > 0 )
+                qsched_addunlock( s , progenitors[k]->com_tid , c->com_tid );
             
         } /* does the cell need to be split? */
         
@@ -305,7 +315,7 @@ void comp_com ( struct cell *c ) {
     struct cell *cp;
     struct part *p, *parts = c->parts;
 
-    c->com_new[0] = c->com_new[1] = c->com_new[2] = c->mass_new = 0.;
+    c->u.new.com[0] = c->u.new.com[1] = c->u.new.com[2] = c->u.new.mass = 0.;
 
     if ( c->split ) {
 
@@ -315,10 +325,10 @@ void comp_com ( struct cell *c ) {
       while ( cp != c->sibling )
 	{  
 	    /* Collect multipole information */
-            c->com_new[0] += cp->com_new[0]*cp->mass_new;
-            c->com_new[1] += cp->com_new[1]*cp->mass_new;
-            c->com_new[2] += cp->com_new[2]*cp->mass_new;
-            c->mass_new += cp->mass_new;
+            c->u.new.com[0] += cp->u.new.com[0]*cp->u.new.mass;
+            c->u.new.com[1] += cp->u.new.com[1]*cp->u.new.mass;
+            c->u.new.com[2] += cp->u.new.com[2]*cp->u.new.mass;
+            c->u.new.mass += cp->u.new.mass;
 
 	    /* Move to next child */
 	    cp = cp->sibling;
@@ -326,17 +336,17 @@ void comp_com ( struct cell *c ) {
 
       
         /* Finish multipole calculation */
-	if ( c->mass_new != 0. )
+	if ( c->u.new.mass != 0. )
 	  {
-	    c->com_new[0] /= c->mass_new;
-	    c->com_new[1] /= c->mass_new;
-	    c->com_new[2] /= c->mass_new;
+	    c->u.new.com[0] /= c->u.new.mass;
+	    c->u.new.com[1] /= c->u.new.mass;
+	    c->u.new.com[2] /= c->u.new.mass;
 	  }
 	else
 	  {
-	    c->com_new[0] = 0.;
-	    c->com_new[1] = 0.;
-	    c->com_new[2] = 0.;
+	    c->u.new.com[0] = 0.;
+	    c->u.new.com[1] = 0.;
+	    c->u.new.com[2] = 0.;
 	  }
             
         }
@@ -346,23 +356,23 @@ void comp_com ( struct cell *c ) {
     
         for ( k = 0 ; k < count ; k++ ) {
             p = &parts[k];
-            c->com_new[0] += p->x[0]*p->mass;
-            c->com_new[1] += p->x[1]*p->mass;
-            c->com_new[2] += p->x[2]*p->mass;
-            c->mass_new += p->mass;
+            c->u.new.com[0] += p->x[0]*p->mass;
+            c->u.new.com[1] += p->x[1]*p->mass;
+            c->u.new.com[2] += p->x[2]*p->mass;
+            c->u.new.mass += p->mass;
             }
 
-	if ( c-> mass_new > 0. )
+	if ( c->u.new.mass > 0. )
 	  {
-	    c->com_new[0] /= c->mass_new; 
-	    c->com_new[1] /= c->mass_new; 
-	    c->com_new[2] /= c->mass_new;
+	    c->u.new.com[0] /= c->u.new.mass; 
+	    c->u.new.com[1] /= c->u.new.mass; 
+	    c->u.new.com[2] /= c->u.new.mass;
 	  }
 	else
 	  {
-	    c->com_new[0] = 0.;
-	    c->com_new[1] = 0.;
-	    c->com_new[2] = 0.;
+	    c->u.new.com[0] = 0.;
+	    c->u.new.com[1] = 0.;
+	    c->u.new.com[2] = 0.;
 	  }            
         }
   } 
@@ -387,22 +397,26 @@ void iact_pair_pc ( struct cell *ci , struct cell *cj ) {
     /* message( "ci=[%.3e,%.3e,%.3e], cj=[%.3e,%.3e,%.3e], h=%.3e/%.3e.",
         ci->loc[0], ci->loc[1], ci->loc[2], 
         cj->loc[0], cj->loc[1], cj->loc[2],
-        ci->h[0], cj->h[0] ); */
+        ci->h, cj->h ); */
     
     /* Sanity check. */
-    if ( cj->mass_new == 0.0 ){
-      printf("%e %e %e %d %p\n", cj->com_new[0], cj->com_new[1], cj->com_new[2], cj->count, cj);
+    if ( cj->u.new.mass == 0.0 ){
+      printf("%e %e %e %d %p %d %p\n", cj->u.new.com[0], cj->u.new.com[1], cj->u.new.com[2], cj->count, cj , cj->split, cj->sibling);
 
       for ( j = 0 ; j < cj->count ; ++j )
-	printf("part %d mass= %e\n", j, cj->parts[j].mass );
+	printf("part %d mass= %e id= %d\n", j, cj->parts[j].mass , cj->parts[j].id );
 
         error( "com does not seem to have been set." );
     }
 
+    /* Corectness check */
+    if ( cj->u.new.mass != cj->u.legacy.mass )
+      error( "Calculation of the CoM is wrong ! m_new= %f m_legacy= %f", cj->u.new.mass , cj->u.legacy.mass );
+
     /* Init the com's data. */
     for ( k = 0 ; k < 3 ; k++ )
-        com[k] = cj->com_new[k];
-    mcom = cj->mass_new;
+        com[k] = cj->u.new.com[k];
+    mcom = cj->u.new.mass;
 
     /* Loop over every particle in ci. */
     for ( j = 0 ; j < count ; j++ ) {
@@ -421,7 +435,7 @@ void iact_pair_pc ( struct cell *ci , struct cell *cj ) {
 
 #if ICHECK >= 0
 	if ( parts[j].id == ICHECK )
-	  printf("[NEW] Can interact with the monopole. x= %f %f %f m= %f h= %f\n", com[0], com[1], com[2], mcom, cj->h[0]);
+	  printf("[NEW] Can interact with the monopole. x= %f %f %f m= %f h= %f\n", com[0], com[1], com[2], mcom, cj->h);
 #endif
 
         } /* loop over every particle. */
@@ -457,12 +471,12 @@ void iact_pair ( struct cell *ci , struct cell *cj ) {
 
     /* Distance between the CoMs */
     for ( r2 = 0.0, k = 0 ; k < 3 ; k++ ) {
-      dx[k] = fabs( ci->com_new[k] - cj->com_new[k] );	
+      dx[k] = fabs( ci->u.new.com[k] - cj->u.new.com[k] );	
       r2 += dx[k]*dx[k];
     }
     
-    double s_max_i = ci->h[0]; 
-    double s_max_j = cj->h[0]; 
+    double s_max_i = ci->h; 
+    double s_max_j = cj->h; 
       
     if ( ( dist_min * dist_min * r2 > s_max_i * s_max_i ) && ( dist_min * dist_min * r2 > s_max_j * s_max_j ) )
       {
@@ -508,7 +522,7 @@ void iact_pair ( struct cell *ci , struct cell *cj ) {
 	      printf("[NEW] Interaction with particle id= %d (pair i)\n", parts_j[j].id);
 	    
 	    if ( parts_j[j].id == ICHECK )
-	      printf("[NEW] Interaction with particle id= %d (pair j) h_i= %f h_j= %f ci= %p cj= %p count_i= %d count_j= %d d_i= %d d_j= %d\n", parts_i[i].id, ci->h[0], cj->h[0], ci, cj, count_i, count_j,
+	      printf("[NEW] Interaction with particle id= %d (pair j) h_i= %f h_j= %f ci= %p cj= %p count_i= %d count_j= %d d_i= %d d_j= %d\n", parts_i[i].id, ci->h, cj->h, ci, cj, count_i, count_j,
 		     ci->res, cj->res ) ;
 #endif
       
@@ -526,7 +540,7 @@ void iact_pair ( struct cell *ci , struct cell *cj ) {
     else {
       
       /* We can split one of the two cells. Let's try the biggest one */
-      if ( ci->h[0] > cj->h[0] ) {
+      if ( ci->h > cj->h ) {
 	
 	if (  ci->split ) {
 	  cp = ci->firstchild;
@@ -601,7 +615,7 @@ void iact_self ( struct cell *c ) {
         return;
 
     /* message( "cell=[%.3e,%.3e,%.3e], h=%.3e.",
-        c->loc[0], c->loc[1], c->loc[2], c->h[0] ); */
+        c->loc[0], c->loc[1], c->loc[2], c->h ); */
     
     /* Recurse? */
     if ( c->split )
@@ -690,6 +704,7 @@ void create_tasks ( struct qsched *s , struct cell *ci , struct cell *cj ) {
     qsched_task_t tid;
     struct cell *data[2], *cp, *cps;
     double dx, r2;
+
     
     /* If either cell is empty, stop. */
     if ( ci->count == 0 || ( cj != NULL && cj->count == 0 ) )
@@ -750,12 +765,9 @@ void create_tasks ( struct qsched *s , struct cell *ci , struct cell *cj ) {
         dx = fabs( ci->loc[k] - cj->loc[k] );	
         r2 += dx*dx;
       }
-      
-      const double s_max_i = ci->h[0]; 
-      const double s_max_j = cj->h[0]; 
-      
+            
       /* Check whether we can use the multipoles. */
-      if ( ( dist_min * dist_min * r2 > s_max_i * s_max_i ) && ( dist_min * dist_min * r2 > s_max_j * s_max_j ) )
+      if ( ( dist_min * dist_min * r2 > ci->h * ci->h ) && ( dist_min * dist_min * r2 > cj->h * cj->h ) )
 	{  
 	  data[0] = ci; data[1] = cj;
 	  tid = qsched_addtask( s , task_type_pair_pc , task_flag_none , data , sizeof(struct cell *) * 2 , ci->count );
@@ -782,9 +794,8 @@ void create_tasks ( struct qsched *s , struct cell *ci , struct cell *cj ) {
 	  /* Add the resources. */
 	  qsched_addlock( s , tid , ci->res );
 	  qsched_addlock( s , tid , cj->res );
-
-	  /* qsched_addunlock( s , ci->com_tid , tid ); */
-	  /* qsched_addunlock( s , cj->com_tid , tid ); */
+	  qsched_addunlock( s , ci->com_tid , tid );
+	  qsched_addunlock( s , cj->com_tid , tid );
 	}
 
 
@@ -792,7 +803,7 @@ void create_tasks ( struct qsched *s , struct cell *ci , struct cell *cj ) {
 	{
 	  	  
 	  /* We can split one of the two cells. Let's try the biggest one */
-	  if ( ci->h[0] > cj->h[0] ) {
+	  if ( ci->h > cj->h ) {
 	    
 	    if ( ci->split ) {
 	      cp = ci->firstchild;
@@ -886,10 +897,10 @@ void legacy_comp_com ( struct cell *c , int* countCoMs ) {
     ++(*countCoMs);
 
     /* Initialize the monopole */
-    c->com_legacy[0] = 0.;
-    c->com_legacy[1] = 0.;
-    c->com_legacy[2] = 0.;
-    c->mass_legacy = 0.;
+    c->u.legacy.com[0] = 0.;
+    c->u.legacy.com[1] = 0.;
+    c->u.legacy.com[2] = 0.;
+    c->u.legacy.mass = 0.;
 
     /* Is the cell split? */
     if ( c->split ) {
@@ -903,10 +914,10 @@ void legacy_comp_com ( struct cell *c , int* countCoMs ) {
 	    legacy_comp_com( cp , countCoMs );
 
 	    /* Collect multipole information */
-            c->com_legacy[0] += cp->com_legacy[0]*cp->mass_legacy;
-            c->com_legacy[1] += cp->com_legacy[1]*cp->mass_legacy;
-            c->com_legacy[2] += cp->com_legacy[2]*cp->mass_legacy;
-            c->mass_legacy += cp->mass_legacy;
+            c->u.legacy.com[0] += cp->u.legacy.com[0]*cp->u.legacy.mass;
+            c->u.legacy.com[1] += cp->u.legacy.com[1]*cp->u.legacy.mass;
+            c->u.legacy.com[2] += cp->u.legacy.com[2]*cp->u.legacy.mass;
+            c->u.legacy.mass += cp->u.legacy.mass;
 
 	    /* Move to next child */
 	    cp = cp->sibling;
@@ -914,17 +925,17 @@ void legacy_comp_com ( struct cell *c , int* countCoMs ) {
 
       
         /* Finish multipole calculation */
-	if ( c->mass_legacy != 0. )
+	if ( c->u.legacy.mass != 0. )
 	  {
-	    c->com_legacy[0] /= c->mass_legacy;
-	    c->com_legacy[1] /= c->mass_legacy;
-	    c->com_legacy[2] /= c->mass_legacy;
+	    c->u.legacy.com[0] /= c->u.legacy.mass;
+	    c->u.legacy.com[1] /= c->u.legacy.mass;
+	    c->u.legacy.com[2] /= c->u.legacy.mass;
 	  }
 	else
 	  {
-	    c->com_legacy[0] = 0.;
-	    c->com_legacy[1] = 0.;
-	    c->com_legacy[2] = 0.;
+	    c->u.legacy.com[0] = 0.;
+	    c->u.legacy.com[1] = 0.;
+	    c->u.legacy.com[2] = 0.;
 	  }
             
         }
@@ -934,23 +945,23 @@ void legacy_comp_com ( struct cell *c , int* countCoMs ) {
 
         for ( k = 0 ; k < count ; k++ ) {
             p = &parts[k];
-            c->com_legacy[0] += p->x[0]*p->mass;
-            c->com_legacy[1] += p->x[1]*p->mass;
-            c->com_legacy[2] += p->x[2]*p->mass;
-            c->mass_legacy += p->mass;
+            c->u.legacy.com[0] += p->x[0]*p->mass;
+            c->u.legacy.com[1] += p->x[1]*p->mass;
+            c->u.legacy.com[2] += p->x[2]*p->mass;
+            c->u.legacy.mass += p->mass;
             }
 
-	if ( c->mass_legacy != 0. )
+	if ( c->u.legacy.mass != 0. )
 	  {
-	    c->com_legacy[0] /= c->mass_legacy;
-	    c->com_legacy[1] /= c->mass_legacy;
-	    c->com_legacy[2] /= c->mass_legacy;
+	    c->u.legacy.com[0] /= c->u.legacy.mass;
+	    c->u.legacy.com[1] /= c->u.legacy.mass;
+	    c->u.legacy.com[2] /= c->u.legacy.mass;
 	  }
 	else
 	  {
-	    c->com_legacy[0] = 0.;
-	    c->com_legacy[1] = 0.;
-	    c->com_legacy[2] = 0.;
+	    c->u.legacy.com[0] = 0.;
+	    c->u.legacy.com[1] = 0.;
+	    c->u.legacy.com[2] = 0.;
 	  }
         }
         
@@ -1017,18 +1028,18 @@ void legacy_interact( struct part* parts, int i , struct cell* root , int monito
 
 #if ICHECK >= 0
       if( parts[i].id == monitor )
-	printf( "This is a node with %d particles h= %f. r= %f theta= %f\n", cell->count, cell->h[0], sqrt( r2 ), dist_min );
+	printf( "This is a node with %d particles h= %f. r= %f theta= %f\n", cell->count, cell->h, sqrt( r2 ), dist_min );
 #endif
 
 
 	  /* We are in a node */	  
 	  for ( r2 = 0.0, k = 0 ; k < 3 ; k++ ) {
-	    dx[k] = cell->com_legacy[k] - parts[i].x[k];
+	    dx[k] = cell->u.legacy.com[k] - parts[i].x[k];
 	    r2 += dx[k]*dx[k];
 	  }
       
 	  /* Is the cell far enough ? */
-	  if( dist_min*dist_min*r2 < cell->h[0]*cell->h[0]  )
+	  if( dist_min*dist_min*r2 < cell->h*cell->h  )
 	    {
 
 #if ICHECK >= 0
@@ -1042,13 +1053,13 @@ void legacy_interact( struct part* parts, int i , struct cell* root , int monito
 
 #if ICHECK >= 0
 	  if( parts[i].id == monitor )
-	    printf( "[BH_] Can interact with the monopole. x= %f %f %f m= %f h= %f\n", cell->com[0] , cell->com[1] , cell->com[2] , cell->mass , cell->h[0]);
+	    printf( "[BH_] Can interact with the monopole. x= %f %f %f m= %f h= %f\n", cell->com[0] , cell->com[1] , cell->com[2] , cell->mass , cell->h);
 #endif
 
 
 	  /* Apply the gravitational acceleration. */
 	  ir = 1.0 / sqrt( r2 );
-	  w = cell->mass_legacy * const_G * ir * ir * ir;
+	  w = cell->u.legacy.mass * const_G * ir * ir * ir;
 	  for ( k = 0 ; k < 3 ; k++ )
             parts[i].a_legacy[k] += w * dx[k];
 	  
@@ -1268,7 +1279,7 @@ void test_bh ( int N , int nr_threads , int runs , char* fileName ) {
     /* Init the cells. */
     root = cell_get();
     root->loc[0] = 0.0; root->loc[1] = 0.0; root->loc[2] = 0.0;
-    root->h[0] = 1.0; root->h[0] = 1.0; root->h[0] = 1.0;
+    root->h = 1.0; root->h = 1.0; root->h = 1.0;
     root->count = N;
     root->parts = parts;
     cell_split( root , &s );
@@ -1346,11 +1357,11 @@ void test_bh ( int N , int nr_threads , int runs , char* fileName ) {
     /* Loop over the number of runs. */
     for ( k = 0 ; k < runs ; k++ ) {
 
-      for ( i = 0 ; i < N ; ++i ) {
-      	parts[i].a[0] = 0.;
-      	parts[i].a[1] = 0.;
-      	parts[i].a[2] = 0.;
-      }
+        for ( i = 0 ; i < N ; ++i ) {
+	    parts[i].a[0] = 0.;
+	    parts[i].a[1] = 0.;
+	    parts[i].a[2] = 0.;
+	}
 
         /* Execute the tasks. */
         tic = getticks();
@@ -1359,8 +1370,13 @@ void test_bh ( int N , int nr_threads , int runs , char* fileName ) {
 	message( "%ith run took %lli (= %e) ticks..." , k , toc_run - tic , (float)(toc_run - tic) );
         tot_run += toc_run - tic;
         
-        }
+    }
 
+
+    message("[check] root mass= %f %f", root->u.legacy.mass , root->u.new.mass );
+    message("[check] root CoMx= %f %f", root->u.legacy.com[0] , root->u.new.com[0] );
+    message("[check] root CoMy= %f %f", root->u.legacy.com[1] , root->u.new.com[1] );
+    message("[check] root CoMz= %f %f", root->u.legacy.com[2] , root->u.new.com[2] );
 
     /* Dump the tasks. */
     /* for ( k = 0 ; k < s.count ; k++ ) */
