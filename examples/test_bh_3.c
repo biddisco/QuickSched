@@ -46,6 +46,7 @@
 /** Data structure for the particles. */
 struct part {
     double x[3];
+    double a[3];
     double a_legacy[3];
     double a_exact[3];
     double mass;
@@ -286,8 +287,72 @@ void cell_split ( struct cell *c , struct qsched *s ) {
 
 
 
+/* ----------------------------------------------------------------------------------------------- */
+/* New tree walk */
+/* ----------------------------------------------------------------------------------------------- */
+
+/**
+ * @brief Compute the center of mass of a given cell.
+ *
+ * @param c The #cell.
+ */
+void comp_com ( struct cell *c ) {
+  } 
+
+/**
+ * @brief Compute the interactions between all particles in a cell
+ *        and the center of mass of another cell.
+ *
+ * @param ci The #cell containing the particles.
+ * @param cj The #cell containing the center of mass.
+ */
+ 
+void iact_pair_pc ( struct cell *ci , struct cell *cj ) {
+  }
 
 
+
+
+/**
+ * @brief Compute the interactions between all particles in a cell.
+ *
+ * @param ci The #cell.
+ * @param cj The other #cell.
+ */
+ 
+void iact_pair ( struct cell *ci , struct cell *cj ) {
+  }
+
+
+
+
+
+/**
+ * @brief Compute the interactions between all particles in a cell.
+ *
+ * @param c The #cell.
+ */
+ 
+void iact_self ( struct cell *c ) {
+  }
+
+
+
+/**
+ * @brief Create the tasks for the cell pair/self.
+ *
+ * @param s The #sched in which to create the tasks.
+ * @param ci The first #cell.
+ * @param cj The second #cell.
+ */
+ 
+void create_tasks ( struct qsched *s , struct cell *ci , struct cell *cj ) {
+  }
+
+
+/* ----------------------------------------------------------------------------------------------- */
+/* Legacy tree walk */
+/* ----------------------------------------------------------------------------------------------- */
 
 /**
  * @brief Compute the center of mass of a given cell recursively.
@@ -298,7 +363,7 @@ void cell_split ( struct cell *c , struct qsched *s ) {
 void legacy_comp_com ( struct cell *c , int* countCoMs ) {
 
     int k, count = c->count;
-    struct cell *cp, *nextsib;
+    struct cell *cp;
     struct part *p, *parts = c->parts;
 
     ++(*countCoMs);
@@ -389,7 +454,7 @@ void legacy_interact( struct part* parts, int i , struct cell* root , int monito
   
   int j,k;
   double r2, dx[3], ir, w;
-  struct cell* cell, *currentcell;
+  struct cell* cell;
 
   cell = root;
 
@@ -498,7 +563,6 @@ void legacy_interact( struct part* parts, int i , struct cell* root , int monito
 void legacy_tree_walk( int N , struct part* parts , struct cell* root , int monitor , int* countMultipoles, int* countPairs , int* countCoMs ) {
   
   int i;
-  struct cell* last = 0;
 
   /* Compute multipoles (recursively) */
   legacy_comp_com( root , countCoMs );
@@ -524,6 +588,13 @@ void legacy_tree_walk( int N , struct part* parts , struct cell* root , int moni
 
 
 
+
+
+
+
+/* ----------------------------------------------------------------------------------------------- */
+/* Exact interaction */
+/* ----------------------------------------------------------------------------------------------- */
 
 
 
@@ -570,6 +641,18 @@ void interact_exact( int N , struct part* parts , int monitor) {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
  
 /**
  * @brief Set up and run a task-based Barnes-Hutt N-body solver.
@@ -580,12 +663,50 @@ void interact_exact( int N , struct part* parts , int monitor) {
  
 void test_bh ( int N , int nr_threads , int runs , char* fileName ) {
 
-  int i , k;
+    int i , k, dummy;
     struct cell *root;
     struct part *parts;
+    FILE* file;
     struct qsched s;
     ticks tic, toc_run, tot_setup = 0, tot_run = 0, tic_exact, toc_exact;
     int countMultipoles, countPairs, countCoMs;
+
+
+    /* Runner function. */
+    void runner ( int type , void *data ) {
+    
+        ticks tic = getticks();
+    
+        /* Decode the data. */
+        struct cell **d = (struct cell **)data;
+    
+        /* Decode and execute the task. */
+        switch ( type ) {
+            case task_type_self:
+                iact_self( d[0] );
+                break;
+            case task_type_pair:
+                iact_pair( d[0] , d[1] );
+                break;
+            case task_type_pair_pc:
+                iact_pair_pc( d[0] , d[1] );
+                break;
+            case task_type_com:
+                comp_com( d[0] );
+                break;
+            default:
+                error( "Unknown task type." );
+            }
+            
+        atomic_add( &task_timers[type] , getticks() - tic );
+        
+        }
+
+        
+    /* Initialize the per-task type timers. */
+    for ( k = 0 ; k < task_type_count ; k++ )
+        task_timers[k] = 0;
+
 
     /* Initialize the scheduler. */
     qsched_init( &s , nr_threads , qsched_flag_noreown );
@@ -608,20 +729,21 @@ void test_bh ( int N , int nr_threads , int runs , char* fileName ) {
     }
     else {
 
-      FILE* file = fopen( fileName , "r" );
+      file = fopen( fileName , "r" );
       if ( file ) {
-	for ( k = 0 ; k < N ; k++ ) {
-	  fscanf( file , "%d" , &parts[k].id );
-	  fscanf( file , "%lf" , &parts[k].x[0] ); 
-	  fscanf( file , "%lf" , &parts[k].x[1] ); 
-	  fscanf( file , "%lf" , &parts[k].x[2] ); 
-	  fscanf( file , "%lf" , &parts[k].mass ); 
-	  parts[k].a_legacy[0] = 0.0;
-	  parts[k].a_legacy[1] = 0.0;
-	  parts[k].a_legacy[2] = 0.0;
-	}
+	  for ( k = 0 ; k < N ; k++ ) {
+	    if( ( dummy = fscanf( file , "%d" , &parts[k].id ) ) );
+	    if( ( dummy = fscanf( file , "%lf" , &parts[k].x[0] ) ) );
+	    if( ( dummy = fscanf( file , "%lf" , &parts[k].x[1] ) ) );
+	    if( ( dummy = fscanf( file , "%lf" , &parts[k].x[2] ) ) );
+	    if( ( dummy = fscanf( file , "%lf" , &parts[k].mass ) ) );
+	    parts[k].a_legacy[0] = 0.0;
+	    parts[k].a_legacy[1] = 0.0;
+	    parts[k].a_legacy[2] = 0.0;
+	  }
+	  fclose( file );
       }
-
+      
     }
       
 
@@ -646,27 +768,27 @@ void test_bh ( int N , int nr_threads , int runs , char* fileName ) {
     
     printf("----------------------------------------------------------\n");
 
-    /* /\* Create the tasks. *\/ */
-    /* tic = getticks(); */
-    /* create_tasks( &s , root , NULL ); */
-    /* tot_setup += getticks() - tic; */
+    /* Create the tasks. */
+    tic = getticks();
+    create_tasks( &s , root , NULL );
+    tot_setup += getticks() - tic;
 
-    /* /\* Dump the number of tasks. *\/ */
-    /* message( "total nr of tasks: %i." , s.count ); */
-    /* message( "total nr of deps: %i." , s.count_deps ); */
-    /* message( "total nr of res: %i." , s.count_res ); */
-    /* message( "total nr of locks: %i." , s.count_locks ); */
-    /* message( "total nr of uses: %i." , s.count_uses ); */
-    /* int counts[ task_type_count ]; */
-    /* for ( k = 0 ; k < task_type_count ; k++ ) */
-    /*     counts[k] = 0; */
-    /* for ( k = 0 ; k < s.count ; k++ ) */
-    /*     counts[ s.tasks[k].type ] += 1; */
-    /* printf( "task counts: [ %8s %8s %8s %8s ]\n" , "self", "direct" , "m-poles" , "CoMs" ); */
-    /* printf( "task counts: [ " ); */
-    /* for ( k = 0 ; k < task_type_count ; k++ ) */
-    /*     printf( "%8i " , counts[k] ); */
-    /* printf( "].\n" ); */
+    /* Dump the number of tasks. */
+    message( "total nr of tasks: %i." , s.count );
+    message( "total nr of deps: %i." , s.count_deps );
+    message( "total nr of res: %i." , s.count_res );
+    message( "total nr of locks: %i." , s.count_locks );
+    message( "total nr of uses: %i." , s.count_uses );
+    int counts[ task_type_count ];
+    for ( k = 0 ; k < task_type_count ; k++ )
+        counts[k] = 0;
+    for ( k = 0 ; k < s.count ; k++ )
+        counts[ s.tasks[k].type ] += 1;
+    printf( "task counts: [ %8s %8s %8s %8s ]\n" , "self", "direct" , "m-poles" , "CoMs" );
+    printf( "task counts: [ " );
+    for ( k = 0 ; k < task_type_count ; k++ )
+        printf( "%8i " , counts[k] );
+    printf( "].\n" );
 
 
     char buffer[200];
@@ -686,7 +808,6 @@ void test_bh ( int N , int nr_threads , int runs , char* fileName ) {
 	countMultipoles = 0;
 	countPairs = 0;
 	countCoMs = 0;
-
 
         /* Execute the legacy walk. */
         tic = getticks();
@@ -709,23 +830,23 @@ void test_bh ( int N , int nr_threads , int runs , char* fileName ) {
     /* for ( k = 0 ; k < s.count ; k++ ) */
     /*     printf( " %i %i %lli %lli\n" , s.tasks[k].type , s.tasks[k].qid , s.tasks[k].tic , s.tasks[k].toc ); */
         
-    /* /\* Dump the costs. *\/ */
-    /* message( "costs: setup=%lli ticks, run=%lli ticks." , */
-    /*     tot_setup , tot_run/runs ); */
+    /* Dump the costs. */
+    message( "costs: setup=%lli ticks, run=%lli ticks." ,
+        tot_setup , tot_run/runs );
         
-    /* /\* Dump the timers. *\/ */
-    /* for ( k = 0 ; k < qsched_timer_count ; k++ ) */
-    /*     message( "timer %s is %lli ticks." , qsched_timer_names[k] , s.timers[k]/runs ); */
+    /* Dump the timers. */
+    for ( k = 0 ; k < qsched_timer_count ; k++ )
+        message( "timer %s is %lli ticks." , qsched_timer_names[k] , s.timers[k]/runs );
     
-    /* /\* Dump the per-task type timers. *\/ */
-    /* printf( "task timers: [ " ); */
-    /* for ( k = 0 ; k < task_type_count ; k++ ) */
-    /*     printf( "%lli " , task_timers[k]/runs ); */
-    /* printf( "] ticks.\n" ); */
+    /* Dump the per-task type timers. */
+    printf( "task timers: [ " );
+    for ( k = 0 ; k < task_type_count ; k++ )
+        printf( "%lli " , task_timers[k]/runs );
+    printf( "] ticks.\n" );
 
 
     /* Dump the particles to a file */
-    FILE* file = fopen( "particle_dump.dat" , "w" );
+    file = fopen( "particle_dump.dat" , "w" );
     fprintf(file, "# a_exact.x   a_exact.y    a_exact.z    a_legacy.x    a_legacy.y    a_legacy.z    a_new.x     a_new.y    a_new.z\n");
     for ( k = 0 ; k < N ; ++k )
       fprintf ( file , "%d %e %e %e %e %e %e %e %e %e %e %e %e\n" ,
@@ -733,7 +854,7 @@ void test_bh ( int N , int nr_threads , int runs , char* fileName ) {
 		parts[k].x[0], parts[k].x[1], parts[k].x[2],
 		parts[k].a_exact[0] , parts[k].a_exact[1] , parts[k].a_exact[2] ,
     		parts[k].a_legacy[0] , parts[k].a_legacy[1] , parts[k].a_legacy[2] ,
-    		0., 0., 0. );//parts[k].a[0] , parts[k].a[1] , parts[k].a[2] );
+    		parts[k].a[0] , parts[k].a[1] , parts[k].a[2] );
     fclose( file );
     
     /* Clean up. */
