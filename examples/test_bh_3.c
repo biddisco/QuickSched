@@ -36,10 +36,9 @@
 /* Some local constants. */
 #define cell_pool_grow 1000
 #define cell_maxparts 1
-#define task_limit 500
+#define task_limit 5000
 #define const_G 6.6738e-8
 #define dist_min 0.5 // 0.5
-
 
 #define ICHECK -1
 
@@ -65,18 +64,25 @@ struct cell {
     struct cell* firstchild; /* Next node if opening */
     struct cell* sibling;  /* Next node */
 
-    union {
+    /* We keep both CoMs and masses to make sure the comp_com calculation is correct */
+    union { 
+
+      /* Information for the legacy walk */
       struct {
 	double com[3];
 	double mass;
       } legacy;
+
+      /* Information for the QuickShed walk */
       struct {
 	double com[3];
 	double mass;
       } new;
+
     } u;
 
     int res, com_tid;
+   
     }  __attribute__((aligned (128)));
     
     
@@ -404,7 +410,7 @@ void iact_pair_pc ( struct cell *ci , struct cell *cj ) {
       printf("%e %e %e %d %p %d %p\n", cj->u.new.com[0], cj->u.new.com[1], cj->u.new.com[2], cj->count, cj , cj->split, cj->sibling);
 
       for ( j = 0 ; j < cj->count ; ++j )
-	printf("part %d mass= %e id= %d\n", j, cj->parts[j].mass , cj->parts[j].id );
+    	printf("part %d mass= %e id= %d\n", j, cj->parts[j].mass , cj->parts[j].id );
 
         error( "com does not seem to have been set." );
     }
@@ -456,7 +462,7 @@ void iact_pair ( struct cell *ci , struct cell *cj ) {
   
     int i, j, k;
     int count_i = ci->count, count_j = cj->count;
-    double dx[3], xi[3], ai[3], mi, mj, r2, w, ir;
+    double dx[3], xi[3], ai[3], mi, mj, r2, r2_i, r2_j, w, ir;
     struct part *parts_i = ci->parts, *parts_j = cj->parts;
     struct cell *cp;
 
@@ -470,15 +476,17 @@ void iact_pair ( struct cell *ci , struct cell *cj ) {
 
 
     /* Distance between the CoMs */
-    for ( r2 = 0.0, k = 0 ; k < 3 ; k++ ) {
-      dx[k] = fabs( ci->u.new.com[k] - cj->u.new.com[k] );	
-      r2 += dx[k]*dx[k];
+    for ( r2 = 0.0, r2_i = 0.0, r2_j = 0.0, k = 0 ; k < 3 ; k++ ) {
+      //   dx[k] = fabs( ci->u.new.com[k] - cj->u.new.com[k] );	
+      dx[k] = fabs( ci->loc[k] - cj->loc[k] );	
+
+      r2 += dx[k] * dx[k];
+      r2_i += ( dx[k] - 0.5*ci->h ) * ( dx[k] - 0.5*ci->h );
+      r2_j += ( dx[k] - 0.5*cj->h ) * ( dx[k] - 0.5*cj->h );
     }
+
     
-    double s_max_i = ci->h; 
-    double s_max_j = cj->h; 
-      
-    if ( ( dist_min * dist_min * r2 > s_max_i * s_max_i ) && ( dist_min * dist_min * r2 > s_max_j * s_max_j ) )
+    if ( ( dist_min * dist_min * r2_j > ci->h * ci->h ) && ( dist_min * dist_min * r2_i > cj->h * cj->h ) )
       {
 	iact_pair_pc( ci, cj );
 	iact_pair_pc( cj, ci );
@@ -585,6 +593,7 @@ void iact_pair ( struct cell *ci , struct cell *cj ) {
 	    cp = cp->sibling;
 	  }
 	}
+
 	else
 	  error("Want to split unpslitable cells !\n");
 
@@ -703,7 +712,7 @@ void create_tasks ( struct qsched *s , struct cell *ci , struct cell *cj ) {
     int k;
     qsched_task_t tid;
     struct cell *data[2], *cp, *cps;
-    double dx, r2;
+    double dx, r2, r2_i, r2_j;
 
     
     /* If either cell is empty, stop. */
@@ -761,13 +770,17 @@ void create_tasks ( struct qsched *s , struct cell *ci , struct cell *cj ) {
     else {
 
       /* Distance between the cells */
-      for ( r2 = 0.0, k = 0 ; k < 3 ; k++ ) {
+      for ( r2 = 0.0, r2_i = 0.0, r2_j = 0.0,  k = 0 ; k < 3 ; k++ ) {
         dx = fabs( ci->loc[k] - cj->loc[k] );	
+
         r2 += dx*dx;
+	r2_i += ( dx - 0.5 * ci->h ) * ( dx - 0.5 * ci->h );
+	r2_j += ( dx - 0.5 * cj->h ) * ( dx - 0.5 * cj->h );
       }
-            
+
+
       /* Check whether we can use the multipoles. */
-      if ( ( dist_min * dist_min * r2 > ci->h * ci->h ) && ( dist_min * dist_min * r2 > cj->h * cj->h ) )
+      if ( ( dist_min * dist_min * r2_j > ci->h * ci->h ) && ( dist_min * dist_min * r2_i > cj->h * cj->h ) )
 	{  
 	  data[0] = ci; data[1] = cj;
 	  tid = qsched_addtask( s , task_type_pair_pc , task_flag_none , data , sizeof(struct cell *) * 2 , ci->count );
@@ -819,6 +832,7 @@ void create_tasks ( struct qsched *s , struct cell *ci , struct cell *cj ) {
 		cp = cp->sibling;
 	      }
 	    }
+
 	    else
 	      error("Want to split unpslitable cells !\n");
 	    
@@ -840,6 +854,7 @@ void create_tasks ( struct qsched *s , struct cell *ci , struct cell *cj ) {
 		cp = cp->sibling;
 	      }
 	    }	    
+
 	    else
 	      error("Want to split unpslitable cells !\n");
 
@@ -1289,7 +1304,7 @@ void test_bh ( int N , int nr_threads , int runs , char* fileName ) {
     /* Do a N^2 interactions calculation */
 
     tic_exact = getticks();
-    interact_exact( N , parts , ICHECK );
+    //interact_exact( N , parts , ICHECK );
     toc_exact = getticks();
 
     printf( "Exact calculation (1 thread) took %lli (= %e) ticks\n", toc_exact - tic_exact , (float)(toc_exact - tic_exact) );
