@@ -815,6 +815,7 @@ void legacy_comp_com(struct cell *c, int *countCoMs) {
     c->legacy.com[2] = 0.0;
     c->legacy.mass = 0.0;
   }
+
 }
 
 /**
@@ -968,14 +969,13 @@ void interact_exact(int N, struct part *parts, int monitor) {
     /* Some things to store locally. */
     double pix[3] = {parts[i].x[0], parts[i].x[1], parts[i].x[2]};
     double mi = parts[i].mass;
-    double ai[3] = {0.0, 0.0, 0.0};
 
     /* Loop over every other particle. */
     for (j = i + 1; j < N; ++j) {
 
       /* Compute the pairwise distance. */
       for (r2 = 0.0, k = 0; k < 3; k++) {
-        dx[k] = parts[i].x[k] - pix[k];
+        dx[k] = parts[j].x[k] - pix[k];
         r2 += dx[k] * dx[k];
       }
 
@@ -985,15 +985,11 @@ void interact_exact(int N, struct part *parts, int monitor) {
 
       for (k = 0; k < 3; k++) {
         double wdx = w * dx[k];
-        parts[j].a_exact[k] += wdx * mi;
-        ai[k] -= wdx * parts[j].mass;
+        parts[j].a_exact[k] -= wdx * mi;
+        parts[i].a_exact[k] += wdx * parts[j].mass;
       }
     }
 
-    /* Store the particle acceleration. */
-    for (k = 0; k < 3; k++) {
-      parts[i].a_exact[k] = ai[k];
-    }
   }
 
   for (i = 0; i < N; ++i)
@@ -1098,8 +1094,6 @@ void test_bh(int N, int nr_threads, int runs, char *fileName) {
   root->loc[1] = 0.0;
   root->loc[2] = 0.0;
   root->h = 1.0;
-  root->h = 1.0;
-  root->h = 1.0;
   root->count = N;
   root->parts = parts;
   cell_split(root, &s);
@@ -1109,7 +1103,7 @@ void test_bh(int N, int nr_threads, int runs, char *fileName) {
   /* Do a N^2 interactions calculation */
 
   tic_exact = getticks();
-  // interact_exact( N , parts , ICHECK );
+  interact_exact( N , parts , ICHECK );
   toc_exact = getticks();
 
   printf("Exact calculation (1 thread) took %lli (= %e) ticks\n",
@@ -1210,7 +1204,7 @@ void test_bh(int N, int nr_threads, int runs, char *fileName) {
 
   /* Dump the particles to a file */
   file = fopen("particle_dump.dat", "w");
-  fprintf(file, "# a_exact.x   a_exact.y    a_exact.z    a_legacy.x    "
+  fprintf(file, "# x y z a_exact.x   a_exact.y    a_exact.z    a_legacy.x    "
                 "a_legacy.y    a_legacy.z    a_new.x     a_new.y    a_new.z\n");
   for (k = 0; k < N; ++k)
     fprintf(file, "%d %e %e %e %e %e %e %e %e %e %e %e %e\n", parts[k].id,

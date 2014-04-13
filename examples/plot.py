@@ -64,7 +64,6 @@ accx_new = accx_new[rank]
 accy_new = accy_new[rank]
 accz_new = accz_new[rank]
 
-
 # # Read Gadget accelerations
 # data=loadtxt("particle_dump_gadget.dat")
 # id = data[:,0]
