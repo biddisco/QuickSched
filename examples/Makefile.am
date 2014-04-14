@@ -21,12 +21,12 @@ AUTOMAKE_OPTIONS=gnu
 
 # Add the source directory and debug to CFLAGS
 AM_CFLAGS = -g -Wall -Werror -I../src $(OPENMP_CFLAGS) -DCPU_TPS=2.67e9 -DTIMERS \
-    # -fsanitize=address -fno-omit-frame-pointer
+    -fsanitize=address -fno-omit-frame-pointer
 
-AM_LDFLAGS = -lm # -fsanitize=address
+AM_LDFLAGS = -lm -fsanitize=address
 
 # Set-up the library
-bin_PROGRAMS = test test_qr test_bh test_bh_2 test_bh_3
+bin_PROGRAMS = test test_qr test_bh test_bh_2 test_bh_3 test_bh_sorted
 
 # Sources for test
 test_SOURCES = test.c
@@ -36,7 +36,7 @@ test_LDADD =  ../src/.libs/libquicksched.a
 # Sources for test_qr
 test_qr_SOURCES = test_qr.c
 test_qr_CFLAGS = $(AM_CFLAGS)
-test_qr_LDADD =  ../src/.libs/libquicksched.a -llapacke -llapack -lblas
+test_qr_LDADD =  ../src/.libs/libquicksched.a -llapacke -llapacke -lblas
 
 # Sources for test_bh
 test_bh_SOURCES = test_bh.c
@@ -52,4 +52,9 @@ test_bh_2_LDADD =  ../src/.libs/libquicksched.a
 test_bh_3_SOURCES = test_bh_3.c
 test_bh_3_CFLAGS = $(AM_CFLAGS)
 test_bh_3_LDADD =  ../src/.libs/libquicksched.a
+
+# Sources for test_bh_sorted
+test_bh_sorted_SOURCES = test_bh_sorted.c
+test_bh_sorted_CFLAGS = $(AM_CFLAGS)
+test_bh_sorted_LDADD =  ../src/.libs/libquicksched.a
 
