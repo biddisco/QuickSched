@@ -30,6 +30,7 @@
 #include <float.h>
 #include <limits.h>
 #include <omp.h>
+#include <fenv.h>
 
 /* Local includes. */
 #include "quicksched.h"
@@ -42,17 +43,19 @@
 #define dist_min 0.5  // 0.5
 #define iact_pair iact_pair_sorted
 
-#define ICHECK 6178
+#define ICHECK -1
 
 /** Data structure for the particles. */
 struct part {
   double x[3];
-  double a[3];
-  double a_legacy[3];
+  union {
+    float a[3];
+    float a_legacy[3];
+  };
   double a_exact[3];
-  double mass;
+  float mass;
   int id;
-};
+} __attribute__((aligned(32)));
 
 /** Data structure for the sorted particle positions. */
 struct index {
@@ -79,13 +82,13 @@ struct cell {
     /* Information for the legacy walk */
     struct {
       double com[3];
-      double mass;
+      float mass;
     } legacy;
 
     /* Information for the QuickShed walk */
     struct {
       double com[3];
-      double mass;
+      float mass;
     } new;
   };
 
@@ -327,6 +330,9 @@ void cell_sort(struct cell *c, float *axis, int aid) {
     dest[c->count].ind = -1;
     dest[c->count].d = FLT_MAX;
   }
+
+  /* Mark this cell as sorted in the given direction. */
+  c->sorted |= (1 << aid);
 }
 
 /**
@@ -367,7 +373,7 @@ void get_axis(struct cell **ci, struct cell **cj, struct index **ind_i,
   /* Make sure the cells are sorted. */
   if (!((*ci)->sorted & (1 << aid))) cell_sort(*ci, axis, aid);
   if (!((*cj)->sorted & (1 << aid))) cell_sort(*cj, axis, aid);
-
+  
   /* Set the indices. */
   *ind_i = &(*ci)->indices[aid * ((*ci)->count + 1)];
   *ind_j = &(*cj)->indices[aid * ((*cj)->count + 1)];
@@ -375,6 +381,9 @@ void get_axis(struct cell **ci, struct cell **cj, struct index **ind_i,
   /* Compute the axis scaling correction. */
   *corr = (axis[0] * dx[0] + axis[1] * dx[1] + axis[2] * dx[2]) /
           sqrtf(dx[0] * dx[0] + dx[1] * dx[1] + dx[2] * dx[2]);
+
+  /* message("dx=[%.3e,%.3e,%.3e], axis=[%.3e,%.3e,%.3e], corr=%.3e.",
+    dx[0], dx[1], dx[2], axis[0], axis[1], axis[2], *corr); */
 
   /* Make sure the sorts are ok. */
   /* for (int k = 1; k < (*ci)->count; k++)
@@ -596,7 +605,7 @@ void comp_com(struct cell *c) {
 
     /* Loop over the projenitors and collect the multipole information. */
     for (cp = c->firstchild; cp != c->sibling; cp = cp->sibling) {
-      double cp_mass = cp->new.mass;
+      float cp_mass = cp->new.mass;
       com[0] += cp->new.com[0] * cp_mass;
       com[1] += cp->new.com[1] * cp_mass;
       com[2] += cp->new.com[2] * cp_mass;
@@ -608,7 +617,7 @@ void comp_com(struct cell *c) {
 
     for (k = 0; k < count; k++) {
       p = &parts[k];
-      double p_mass = p->mass;
+      float p_mass = p->mass;
       com[0] += p->x[0] * p_mass;
       com[1] += p->x[1] * p_mass;
       com[2] += p->x[2] * p_mass;
@@ -618,7 +627,7 @@ void comp_com(struct cell *c) {
 
   /* Store the COM data, if any was collected. */
   if (mass > 0.0) {
-    double imass = 1.0 / mass;
+    float imass = 1.0f / mass;
     c->new.com[0] = com[0] * imass;
     c->new.com[1] = com[1] * imass;
     c->new.com[2] = com[2] * imass;
@@ -640,7 +649,8 @@ void comp_com(struct cell *c) {
  */
 void iact_pair_pc(struct cell *ci, struct cell *cj) {
   int j, k, count = ci->count;
-  double com[3], mcom, dx[3], r2, ir, w;
+  double com[3];
+  float mcom, dx[3], r2, ir, w;
   struct part *parts = ci->parts;
 
   /* Early abort? */
@@ -681,7 +691,7 @@ void iact_pair_pc(struct cell *ci, struct cell *cj) {
     }
 
     /* Apply the gravitational acceleration. */
-    ir = 1.0 / sqrt(r2);
+    ir = 1.0f / sqrtf(r2);
     w = mcom * const_G * ir * ir * ir;
     for (k = 0; k < 3; k++) parts[j].a[k] += w * dx[k];
 
@@ -704,7 +714,8 @@ void iact_pair_unsorted(struct cell *ci, struct cell *cj) {
 
   int i, j, k;
   int count_i = ci->count, count_j = cj->count;
-  double dx[3], xi[3], ai[3], mi, mj, r2, r2_i, r2_j, w, ir;
+  double xi[3];
+  float dx[3], ai[3], mi, mj, r2, r2_i, r2_j, w, ir;
   double cih = ci->h, cjh = cj->h;
   struct part *parts_i = ci->parts, *parts_j = cj->parts;
   struct cell *cp;
@@ -718,22 +729,22 @@ void iact_pair_unsorted(struct cell *ci, struct cell *cj) {
           "itself.");  // debug
 
   /* Distance between the CoMs */
-  r2 = 0.0;
-  r2_i = 0.0;
-  r2_j = 0.0;
+  r2 = 0.0f;
+  r2_i = 0.0f;
+  r2_j = 0.0f;
   for (k = 0; k < 3; k++) {
     //   dx[k] = fabs( ci->new.com[k] - cj->new.com[k] );
     dx[k] = fabs(ci->loc[k] - cj->loc[k]);
 
     r2 += dx[k] * dx[k];
-    r2_i += (dx[k] - 0.5 * cih) * (dx[k] - 0.5 * cih);
-    r2_j += (dx[k] - 0.5 * cjh) * (dx[k] - 0.5 * cjh);
+    r2_i += (dx[k] - 0.5f * cih) * (dx[k] - 0.5f * cih);
+    r2_j += (dx[k] - 0.5f * cjh) * (dx[k] - 0.5f * cjh);
   }
 
   /* If ci and cj are sufficiently well separated, split this interaction
      into a pair of particle-cell interactions. */
-  if ((dist_min * dist_min * r2_j > ci->h * ci->h) &&
-      (dist_min * dist_min * r2_i > cj->h * cj->h)) {
+  if ((dist_min * dist_min * r2_j > cih * cih) &&
+      (dist_min * dist_min * r2_i > cjh * cjh)) {
     iact_pair_pc(ci, cj);
     iact_pair_pc(cj, ci);
 
@@ -747,7 +758,7 @@ void iact_pair_unsorted(struct cell *ci, struct cell *cj) {
       /* Init the ith particle's data. */
       for (k = 0; k < 3; k++) {
         xi[k] = parts_i[i].x[k];
-        ai[k] = 0.0;
+        ai[k] = 0.0f;
       }
       mi = parts_i[i].mass;
 
@@ -761,11 +772,11 @@ void iact_pair_unsorted(struct cell *ci, struct cell *cj) {
         }
 
         /* Apply the gravitational acceleration. */
-        ir = 1.0 / sqrt(r2);
+        ir = 1.0f / sqrtf(r2);
         w = const_G * ir * ir * ir;
         mj = parts_j[j].mass;
         for (k = 0; k < 3; k++) {
-          double wdx = w * dx[k];
+          float wdx = w * dx[k];
           parts_j[j].a[k] += wdx * mi;
           ai[k] -= wdx * mj;
         }
@@ -793,7 +804,7 @@ void iact_pair_unsorted(struct cell *ci, struct cell *cj) {
   } else {
 
     /* We can split one of the two cells. Let's try the biggest one first.*/
-    if (ci->h > cj->h) {
+    if (cih > cjh) {
       if (ci->split) {
         for (cp = ci->firstchild; cp != ci->sibling; cp = cp->sibling)
           iact_pair_unsorted(cp, cj);
@@ -823,7 +834,8 @@ void iact_pair_unsorted(struct cell *ci, struct cell *cj) {
 void iact_pair_sorted(struct cell *ci, struct cell *cj) {
 
   int i, j, k;
-  double dx[3], xi[3], ai[3], mi, mj, r2, r2_i, r2_j, w, ir;
+  double xi[3];
+  float dx[3], ai[3], mi, mj, r2, r2_i, r2_j, w, ir;
   struct cell *cp;
   int count_i = ci->count, count_j = cj->count;
   double cih = ci->h, cjh = cj->h;
@@ -846,14 +858,14 @@ void iact_pair_sorted(struct cell *ci, struct cell *cj) {
     dx[k] = fabs(ci->loc[k] - cj->loc[k]);
 
     r2 += dx[k] * dx[k];
-    r2_i += (dx[k] - 0.5 * cih) * (dx[k] - 0.5 * cih);
-    r2_j += (dx[k] - 0.5 * cjh) * (dx[k] - 0.5 * cjh);
+    r2_i += (dx[k] - 0.5f * cih) * (dx[k] - 0.5f * cih);
+    r2_j += (dx[k] - 0.5f * cjh) * (dx[k] - 0.5f * cjh);
   }
 
   /* If ci and cj are sufficiently well separated, split this interaction
      into a pair of particle-cell interactions. */
-  if ((dist_min * dist_min * r2_j > ci->h * ci->h) &&
-      (dist_min * dist_min * r2_i > cj->h * cj->h)) {
+  if ((dist_min * dist_min * r2_j > cih * cih) &&
+      (dist_min * dist_min * r2_i > cjh * cjh)) {
     iact_pair_pc(ci, cj);
     iact_pair_pc(cj, ci);
 
@@ -861,7 +873,7 @@ void iact_pair_sorted(struct cell *ci, struct cell *cj) {
   } else if (ci->split || cj->split) {
 
     /* We can split one of the two cells. Let's try the biggest one first.*/
-    if (ci->h > cj->h) {
+    if (cih > cjh) {
       if (ci->split) {
         for (cp = ci->firstchild; cp != ci->sibling; cp = cp->sibling)
           iact_pair_sorted(cp, cj);
@@ -887,11 +899,14 @@ void iact_pair_sorted(struct cell *ci, struct cell *cj) {
     /* Get the sorted indices and stuff. */
     struct index *ind_i, *ind_j;
     float corr;
-    double com[3] = {0.0, 0.0, 0.0}, com_mass = 0.0;
+    double com[3] = {0.0, 0.0, 0.0};
+    float com_mass = 0.0;
     get_axis(&ci, &cj, &ind_i, &ind_j, &corr);
     count_i = ci->count;
+    parts_i = ci->parts;
     cih = ci->h;
     count_j = cj->count;
+    parts_j = cj->parts;
     cjh = cj->h;
 
     /* Distance along the axis as of which we will use a multipole. */
@@ -924,14 +939,14 @@ void iact_pair_sorted(struct cell *ci, struct cell *cj) {
         }
 
         /* Apply the gravitational acceleration. */
-        ir = 1.0 / sqrt(r2);
+        ir = 1.0f / sqrtf(r2);
         w = const_G * ir * ir * ir;
         mj = parts_j[pjd].mass;
         for (k = 0; k < 3; k++) {
           float wdx = w * dx[k];
-          parts_j[pjd].x[k] += wdx * mi;
+          parts_j[pjd].a[k] += wdx * mi;
           ai[k] -= wdx * mj;
-          }
+        }
 
 #if ICHECK >= 0
         if (parts_i[pid].id == ICHECK)
@@ -962,12 +977,12 @@ void iact_pair_sorted(struct cell *ci, struct cell *cj) {
 
       /* Interact part_i with the center of mass. */
       if (com_mass > 0.0) {
-        double icom_mass = 1.0 / com_mass;
+        float icom_mass = 1.0f / com_mass;
         for (r2 = 0.0, k = 0; k < 3; k++) {
           dx[k] = xi[k] - com[k] * icom_mass;
           r2 += dx[k] * dx[k];
         }
-        ir = 1.0 / sqrt(r2);
+        ir = 1.0f / sqrtf(r2);
         w = const_G * ir * ir * ir;
         for (k = 0; k < 3; k++) ai[k] -= w * dx[k] * com_mass;
       }
@@ -976,17 +991,21 @@ void iact_pair_sorted(struct cell *ci, struct cell *cj) {
       for (k = 0; k < 3; k++) parts_i[pid].a[k] += ai[k];
 
     } /* loop over all particles in ci. */
-    
+
     /* Loop over the particles in cj, catch the COM interactions. */
     count_j = cj->count;
     int last_i = 0;
-    com[0] = 0.0; com[1] = 0.0; com[2] = 0.0; com_mass = 0.0;
+    com[0] = 0.0;
+    com[1] = 0.0;
+    com[2] = 0.0;
+    com_mass = 0.0f;
+    d_max = cih / dist_min / corr;
     for (j = 0; j < count_j; j++) {
-    
+
       /* Get the sorted index. */
       int pjd = ind_j[j].ind;
       float dj = ind_j[j].d;
-      
+
       /* Fill the COM with any new particles. */
       for (i = last_i; i < count_i && (dj - ind_i[i].d) > d_max; i++) {
         int pid = ind_i[i].ind;
@@ -996,22 +1015,21 @@ void iact_pair_sorted(struct cell *ci, struct cell *cj) {
         com[2] += parts_i[pid].x[2] * mi;
         com_mass += mi;
       }
-      
+
       /* Set the new last_i to the last particle checked. */
       last_i = i;
-      
+
       /* Interact part_j with the COM. */
       if (com_mass > 0.0) {
-        double icom_mass = 1.0 / com_mass;
+        float icom_mass = 1.0f / com_mass;
         for (r2 = 0.0, k = 0; k < 3; k++) {
           dx[k] = com[k] * icom_mass - parts_j[pjd].x[k];
           r2 += dx[k] * dx[k];
         }
-        ir = 1.0 / sqrt(r2);
+        ir = 1.0f / sqrtf(r2);
         w = const_G * ir * ir * ir;
         for (k = 0; k < 3; k++) parts_j[pjd].a[k] += w * dx[k] * com_mass;
       }
-    
     }
   }
 }
@@ -1023,7 +1041,8 @@ void iact_pair_sorted(struct cell *ci, struct cell *cj) {
  */
 void iact_self(struct cell *c) {
   int i, j, k, count = c->count;
-  double xi[3], ai[3], mi, mj, dx[3], r2, ir, w;
+  double xi[3];
+  float ai[3], mi, mj, dx[3], r2, ir, w;
   struct part *parts = c->parts;
   struct cell *cp, *cps;
 
@@ -1065,11 +1084,11 @@ void iact_self(struct cell *c) {
         }
 
         /* Apply the gravitational acceleration. */
-        ir = 1.0 / sqrt(r2);
+        ir = 1.0f / sqrtf(r2);
         w = const_G * ir * ir * ir;
         mj = parts[j].mass;
         for (k = 0; k < 3; k++) {
-          double wdx = w * dx[k];
+          float wdx = w * dx[k];
           parts[j].a[k] += wdx * mi;
           ai[k] -= wdx * mj;
         }
@@ -1271,7 +1290,7 @@ void legacy_comp_com(struct cell *c, int *countCoMs) {
       legacy_comp_com(cp, countCoMs);
 
       /* Collect multipole information */
-      double cp_mass = cp->legacy.mass;
+      float cp_mass = cp->legacy.mass;
       com[0] += cp->legacy.com[0] * cp_mass;
       com[1] += cp->legacy.com[1] * cp_mass;
       com[2] += cp->legacy.com[2] * cp_mass;
@@ -1283,7 +1302,7 @@ void legacy_comp_com(struct cell *c, int *countCoMs) {
 
     for (k = 0; k < count; k++) {
       p = &parts[k];
-      double p_mass = p->mass;
+      float p_mass = p->mass;
       com[0] += p->x[0] * p_mass;
       com[1] += p->x[1] * p_mass;
       com[2] += p->x[2] * p_mass;
@@ -1293,7 +1312,7 @@ void legacy_comp_com(struct cell *c, int *countCoMs) {
 
   /* Finish multipole calculation */
   if (mass > 0.0) {
-    double imass = 1.0 / mass;
+    float imass = 1.0f / mass;
     c->legacy.com[0] = com[0] * imass;
     c->legacy.com[1] = com[1] * imass;
     c->legacy.com[2] = com[2] * imass;
@@ -1321,8 +1340,8 @@ void legacy_interact(struct part *parts, int i, struct cell *root, int monitor,
                      int *countMultipoles, int *countPairs) {
 
   int j, k;
-  double r2, dx[3], ir, w;
-  double a[3] = {0.0, 0.0, 0.0};
+  float r2, dx[3], ir, w;
+  float a[3] = {0.0, 0.0, 0.0};
   double pix[3] = {parts[i].x[0], parts[i].x[1], parts[i].x[2]};
   int pid = parts[i].id;
   struct cell *cell = root;
@@ -1349,7 +1368,7 @@ void legacy_interact(struct part *parts, int i, struct cell *root, int monitor,
         }
 
         /* Apply the gravitational acceleration. */
-        ir = 1.0 / sqrt(r2);
+        ir = 1.0f / sqrtf(r2);
         w = cell->parts[j].mass * const_G * ir * ir * ir;
         for (k = 0; k < 3; k++) a[k] += w * dx[k];
 
@@ -1389,7 +1408,7 @@ void legacy_interact(struct part *parts, int i, struct cell *root, int monitor,
 #endif
 
       /* Apply the gravitational acceleration. */
-      ir = 1.0 / sqrt(r2);
+      ir = 1.0f / sqrtf(r2);
       w = cell->legacy.mass * const_G * ir * ir * ir;
       for (k = 0; k < 3; k++) a[k] += w * dx[k];
 
@@ -1449,14 +1468,14 @@ void legacy_tree_walk(int N, struct part *parts, struct cell *root, int monitor,
 void interact_exact(int N, struct part *parts, int monitor) {
 
   int i, j, k;
-  double ir, w, r2, dx[3];
+  float ir, w, r2, dx[3];
 
   /* Loop over all particles. */
   for (i = 0; i < N; ++i) {
 
     /* Some things to store locally. */
     double pix[3] = {parts[i].x[0], parts[i].x[1], parts[i].x[2]};
-    double mi = parts[i].mass;
+    float mi = parts[i].mass;
 
     /* Loop over every other particle. */
     for (j = i + 1; j < N; ++j) {
@@ -1468,11 +1487,11 @@ void interact_exact(int N, struct part *parts, int monitor) {
       }
 
       /* Apply the gravitational acceleration. */
-      ir = 1.0 / sqrt(r2);
+      ir = 1.0f / sqrtf(r2);
       w = const_G * ir * ir * ir;
 
       for (k = 0; k < 3; k++) {
-        double wdx = w * dx[k];
+        float wdx = w * dx[k];
         parts[j].a_exact[k] -= wdx * mi;
         parts[i].a_exact[k] += wdx * parts[j].mass;
       }
@@ -1568,7 +1587,7 @@ void test_bh(int N, int nr_threads, int runs, char *fileName) {
                    &parts[k].x[2]) !=
             3)
           error("Failed to read position of part %i.", k);
-        if (fscanf(file, "%lf", &parts[k].mass) != 1)
+        if (fscanf(file, "%f", &parts[k].mass) != 1)
           error("Failed to read mass of part %i.", k);
       }
       fclose(file);
@@ -1590,7 +1609,7 @@ void test_bh(int N, int nr_threads, int runs, char *fileName) {
   /* Do a N^2 interactions calculation */
 
   tic_exact = getticks();
-  interact_exact(N, parts, ICHECK);
+  // interact_exact(N, parts, ICHECK);
   toc_exact = getticks();
 
   printf("Exact calculation (1 thread) took %lli (= %e) ticks\n",
@@ -1725,6 +1744,9 @@ int main(int argc, char *argv[]) {
   int N = 1000, runs = 1;
   char fileName[100] = {0};
 
+  /* Die on FP-exceptions. */
+  feenableexcept(FE_DIVBYZERO | FE_INVALID | FE_OVERFLOW);
+
 /* Get the number of threads. */
 #pragma omp parallel shared(nr_threads)
   {
@@ -1754,7 +1776,7 @@ int main(int argc, char *argv[]) {
         fprintf(stderr,
                 "Usage: %s [-t nr_threads] [-n N] [-r runs] [-f file]\n",
                 argv[0]);
-        fprintf(stderr, "Solves the N-body problem using a Barnes-Hutt\n"
+        fprintf(stderr, "Solves the N-body problem using a Barnes-Hut\n"
                         "tree code with N random particles read from a file in "
                         "[0,1]^3 using\n"
                         "nr_threads threads.\n");
