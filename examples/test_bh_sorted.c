@@ -1196,8 +1196,6 @@ void create_tasks(struct qsched *s, struct cell *ci, struct cell *cj) {
       /* Add the resources. */
       qsched_addlock(s, tid, ci->res);
       qsched_addlock(s, tid, cj->res);
-      qsched_addunlock(s, ci->com_tid, tid);
-      qsched_addunlock(s, cj->com_tid, tid);
 
       /* Otherwise, compute the interaction recursively over the progeny. */
     } else if (ci->count > task_limit && cj->count > task_limit) {
