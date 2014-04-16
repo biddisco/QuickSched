@@ -41,18 +41,18 @@
 #define task_limit 5000
 #define const_G 6.6738e-8
 #define dist_min 0.5  // 0.5
-#define iact_pair iact_pair_sorted
+#define iact_pair iact_pair_unsorted
 
 #define ICHECK -1
 
 /** Data structure for the particles. */
 struct part {
   double x[3];
-  union {
+  /* union { */
     float a[3];
     float a_legacy[3];
-  };
-  double a_exact[3];
+  /* }; */
+  float a_exact[3];
   float mass;
   int id;
 } __attribute__((aligned(32)));
@@ -1609,7 +1609,7 @@ void test_bh(int N, int nr_threads, int runs, char *fileName) {
   /* Do a N^2 interactions calculation */
 
   tic_exact = getticks();
-  // interact_exact(N, parts, ICHECK);
+  interact_exact(N, parts, ICHECK);
   toc_exact = getticks();
 
   printf("Exact calculation (1 thread) took %lli (= %e) ticks\n",
@@ -1785,6 +1785,9 @@ int main(int argc, char *argv[]) {
 
   /* Tree node information */
   printf("Size of cell: %zu bytes.\n", sizeof(struct cell));
+
+  /* Part information */
+  printf("Size of part: %zu bytes.\n", sizeof(struct part));
 
   /* Dump arguments. */
   if (fileName[0] == 0) {

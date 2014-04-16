@@ -989,7 +989,7 @@ void legacy_tree_walk( int N , struct part* parts , struct cell* root , int moni
 void interact_exact( int N , struct part* parts , int monitor) {
 
   int i, j, k;
-  double ir, w, r2, dx[3];
+  double ir, w, r2, dx[3] = {0., 0., 0.};
 
   for ( i = 0 ; i < N ; ++i ) {
       
