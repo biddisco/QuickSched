@@ -41,7 +41,7 @@
 #define task_limit 5000
 #define const_G 6.6738e-8
 #define dist_min 0.5  // 0.5
-#define iact_pair iact_pair_unsorted
+#define iact_pair_direct iact_pair_direct_unsorted
 
 #define ICHECK -1
 
@@ -102,6 +102,7 @@ enum task_type {
   task_type_self = 0,
   task_type_pair,
   task_type_pair_pc,
+  task_type_pair_direct,
   task_type_com,
   task_type_count
 };
@@ -704,53 +705,25 @@ void iact_pair_pc(struct cell *ci, struct cell *cj) {
   } /* loop over every particle. */
 }
 
+
+
+
+
 /**
- * @brief Compute the interactions between all particles in a cell.
+ * @brief Compute the interactions between all particles in a cell
+ *        and all particles in the other cell (N^2 algorithm)
  *
- * @param ci The #cell.
- * @param cj The other #cell.
+ * @param ci The #cell containing the particles.
+ * @param cj The #cell containing the other particles
  */
-void iact_pair_unsorted(struct cell *ci, struct cell *cj) {
+void iact_pair_direct_unsorted(struct cell *ci, struct cell *cj) {
 
   int i, j, k;
   int count_i = ci->count, count_j = cj->count;
-  double xi[3];
-  float dx[3], ai[3], mi, mj, r2, r2_i, r2_j, w, ir;
-  double cih = ci->h, cjh = cj->h;
   struct part *parts_i = ci->parts, *parts_j = cj->parts;
-  struct cell *cp;
+  double xi[3];
+  float dx[3], ai[3], mi, mj, r2,  w, ir;
 
-  /* Early abort? */
-  if (count_i == 0 || count_j == 0) return;
-
-  /* Sanity check */
-  if (ci == cj)
-    error("The impossible has happened: pair interaction between a cell and "
-          "itself.");  // debug
-
-  /* Distance between the CoMs */
-  r2 = 0.0f;
-  r2_i = 0.0f;
-  r2_j = 0.0f;
-  for (k = 0; k < 3; k++) {
-    //   dx[k] = fabs( ci->new.com[k] - cj->new.com[k] );
-    dx[k] = fabs(ci->loc[k] - cj->loc[k]);
-
-    r2 += dx[k] * dx[k];
-    r2_i += (dx[k] - 0.5f * cih) * (dx[k] - 0.5f * cih);
-    r2_j += (dx[k] - 0.5f * cjh) * (dx[k] - 0.5f * cjh);
-  }
-
-  /* If ci and cj are sufficiently well separated, split this interaction
-     into a pair of particle-cell interactions. */
-  if ((dist_min * dist_min * r2_j > cih * cih) &&
-      (dist_min * dist_min * r2_i > cjh * cjh)) {
-    iact_pair_pc(ci, cj);
-    iact_pair_pc(cj, ci);
-
-    /* Otherwise, if neither cell is split, compute the particle-particle
-       interactions directly. */
-  } else if (!ci->split && !cj->split) {
 
     /* Loop over all particles in ci... */
     for (i = 0; i < count_i; i++) {
@@ -800,101 +773,28 @@ void iact_pair_unsorted(struct cell *ci, struct cell *cj) {
 
     } /* loop over all particles. */
 
-    /* Otherwise, compute the interaction recursively over the progeny. */
-  } else {
 
-    /* We can split one of the two cells. Let's try the biggest one first.*/
-    if (cih > cjh) {
-      if (ci->split) {
-        for (cp = ci->firstchild; cp != ci->sibling; cp = cp->sibling)
-          iact_pair_unsorted(cp, cj);
-      } else if (cj->split) {
-        for (cp = cj->firstchild; cp != cj->sibling; cp = cp->sibling)
-          iact_pair_unsorted(ci, cp);
-      }
-
-    } else {
-      if (cj->split) {
-        for (cp = cj->firstchild; cp != cj->sibling; cp = cp->sibling)
-          iact_pair_unsorted(ci, cp);
-      } else if (ci->split) {
-        for (cp = ci->firstchild; cp != ci->sibling; cp = cp->sibling)
-          iact_pair_unsorted(cp, cj);
-      }
-    }
-  }
 }
 
+
+
+
 /**
- * @brief Compute the interactions between all particles in a cell.
+ * @brief Compute the interactions between all particles in a cell
+ *        and all particles in the other cell using osrted interactions
  *
- * @param ci The #cell.
- * @param cj The other #cell.
+ * @param ci The #cell containing the particles.
+ * @param cj The #cell containing the other particles
  */
-void iact_pair_sorted(struct cell *ci, struct cell *cj) {
+void iact_pair_direct_sorted(struct cell *ci, struct cell *cj) {
 
   int i, j, k;
-  double xi[3];
-  float dx[3], ai[3], mi, mj, r2, r2_i, r2_j, w, ir;
-  struct cell *cp;
   int count_i = ci->count, count_j = cj->count;
-  double cih = ci->h, cjh = cj->h;
   struct part *parts_i = ci->parts, *parts_j = cj->parts;
+  double cih = ci->h, cjh = cj->h;
+  double xi[3];
+  float dx[3], ai[3], mi, mj, r2,  w, ir;
 
-  /* Early abort? */
-  if (count_i == 0 || count_j == 0) return;
-
-  /* Sanity check */
-  if (ci == cj)
-    error("The impossible has happened: pair interaction between a cell and "
-          "itself.");  // debug
-
-  /* Distance between the CoMs */
-  r2 = 0.0;
-  r2_i = 0.0;
-  r2_j = 0.0;
-  for (k = 0; k < 3; k++) {
-    //   dx[k] = fabs( ci->new.com[k] - cj->new.com[k] );
-    dx[k] = fabs(ci->loc[k] - cj->loc[k]);
-
-    r2 += dx[k] * dx[k];
-    r2_i += (dx[k] - 0.5f * cih) * (dx[k] - 0.5f * cih);
-    r2_j += (dx[k] - 0.5f * cjh) * (dx[k] - 0.5f * cjh);
-  }
-
-  /* If ci and cj are sufficiently well separated, split this interaction
-     into a pair of particle-cell interactions. */
-  if ((dist_min * dist_min * r2_j > cih * cih) &&
-      (dist_min * dist_min * r2_i > cjh * cjh)) {
-    iact_pair_pc(ci, cj);
-    iact_pair_pc(cj, ci);
-
-    /* Otherwise, compute the interaction recursively over the progeny. */
-  } else if (ci->split || cj->split) {
-
-    /* We can split one of the two cells. Let's try the biggest one first.*/
-    if (cih > cjh) {
-      if (ci->split) {
-        for (cp = ci->firstchild; cp != ci->sibling; cp = cp->sibling)
-          iact_pair_sorted(cp, cj);
-      } else if (cj->split) {
-        for (cp = cj->firstchild; cp != cj->sibling; cp = cp->sibling)
-          iact_pair_sorted(ci, cp);
-      }
-
-    } else {
-      if (cj->split) {
-        for (cp = cj->firstchild; cp != cj->sibling; cp = cp->sibling)
-          iact_pair_sorted(ci, cp);
-      } else if (ci->split) {
-        for (cp = ci->firstchild; cp != ci->sibling; cp = cp->sibling)
-          iact_pair_sorted(cp, cj);
-      }
-    }
-
-    /* Otherwise, if neither cell is split, compute the particle-particle
-       interactions directly. */
-  } else {
 
     /* Get the sorted indices and stuff. */
     struct index *ind_i, *ind_j;
@@ -1031,8 +931,90 @@ void iact_pair_sorted(struct cell *ci, struct cell *cj) {
         for (k = 0; k < 3; k++) parts_j[pjd].a[k] += w * dx[k] * com_mass;
       }
     }
+
+}
+
+
+
+
+/**
+ * @brief Decides whether two cells use the direct summation interaction or the multipole interactions
+ *
+ * @param ci The #cell.
+ * @param cj The other #cell.
+ */
+void iact_pair(struct cell *ci, struct cell *cj) {
+
+  int k;
+  int count_i = ci->count, count_j = cj->count;
+  float dx[3],  r2, r2_i, r2_j;
+  double cih = ci->h, cjh = cj->h;
+  struct cell *cp;
+
+  /* Early abort? */
+  if (count_i == 0 || count_j == 0) return;
+
+  /* Sanity check */
+  if (ci == cj)
+    error("The impossible has happened: pair interaction between a cell and "
+          "itself.");  // debug
+
+  /* Distance between the CoMs */
+  r2 = 0.0f;
+  r2_i = 0.0f;
+  r2_j = 0.0f;
+  for (k = 0; k < 3; k++) {
+    //   dx[k] = fabs( ci->new.com[k] - cj->new.com[k] );
+    dx[k] = fabs(ci->loc[k] - cj->loc[k]);
+
+    r2 += dx[k] * dx[k];
+    r2_i += (dx[k] - 0.5f * cih) * (dx[k] - 0.5f * cih);
+    r2_j += (dx[k] - 0.5f * cjh) * (dx[k] - 0.5f * cjh);
+  }
+
+  /* If ci and cj are sufficiently well separated, split this interaction
+     into a pair of particle-cell interactions. */
+  if ((dist_min * dist_min * r2_j > cih * cih) &&
+      (dist_min * dist_min * r2_i > cjh * cjh)) {
+    iact_pair_pc(ci, cj);
+    iact_pair_pc(cj, ci);
+
+    /* Otherwise, if neither cell is split, compute the particle-particle
+       interactions directly. */
+  } else if (!ci->split && !cj->split) {
+
+    iact_pair_direct(ci, cj);
+
+    /* Otherwise, compute the interaction recursively over the progeny. */
+  } else {
+
+    /* We can split one of the two cells. Let's try the biggest one first.*/
+    if (cih > cjh) {
+      if (ci->split) {
+        for (cp = ci->firstchild; cp != ci->sibling; cp = cp->sibling)
+          iact_pair(cp, cj);
+      } else if (cj->split) {
+        for (cp = cj->firstchild; cp != cj->sibling; cp = cp->sibling)
+          iact_pair(ci, cp);
+      }
+
+    } else {
+      if (cj->split) {
+        for (cp = cj->firstchild; cp != cj->sibling; cp = cp->sibling)
+          iact_pair(ci, cp);
+      } else if (ci->split) {
+        for (cp = ci->firstchild; cp != ci->sibling; cp = cp->sibling)
+          iact_pair(cp, cj);
+      }
+    }
   }
 }
+
+
+
+
+
+
 
 /**
  * @brief Compute the interactions between all particles in a cell.
@@ -1112,6 +1094,9 @@ void iact_self(struct cell *c) {
 
   } /* otherwise, compute interactions directly. */
 }
+
+
+
 
 /**
  * @brief Create the tasks for the cell pair/self.
@@ -1205,7 +1190,7 @@ void create_tasks(struct qsched *s, struct cell *ci, struct cell *cj) {
       data[1] = cj;
 
       /* Create the task. */
-      tid = qsched_addtask(s, task_type_pair, task_flag_none, data,
+      tid = qsched_addtask(s, task_type_pair_direct, task_flag_none, data,
                            sizeof(struct cell *) * 2, ci->count * cj->count);
 
       /* Add the resources. */
@@ -1543,6 +1528,9 @@ void test_bh(int N, int nr_threads, int runs, char *fileName) {
       case task_type_pair_pc:
         iact_pair_pc(d[0], d[1]);
         break;
+      case task_type_pair_direct:
+        iact_pair_direct(d[0], d[1]);
+        break;
       case task_type_com:
         comp_com(d[0]);
         break;
@@ -1663,10 +1651,9 @@ void test_bh(int N, int nr_threads, int runs, char *fileName) {
           root->parts[ICHECK].a[0], root->parts[ICHECK].a[1],
           root->parts[ICHECK].a[2]);
 #endif
-  printf("task counts: [ %8s %8s %8s %8s ]\n", "self", "direct", "m-poles",
+  printf("task counts: [ %8s %8s %8s %8s %8s ]\n", "self", "pair", "m-poles", "direct",
          "CoMs");
-  printf("task counts: [ %8i %8i %8i %8i ] (legacy).\n", 0, countPairs,
-         countMultipoles, countCoMs);
+  printf("task counts: [ %8i %8i %8i %8i %8i ] (legacy).\n", 0, 0, countMultipoles, countPairs, countCoMs);
   printf("task counts: [ ");
   for (k = 0; k < task_type_count; k++) printf("%8i ", counts[k]);
   printf("] (new).\n");
