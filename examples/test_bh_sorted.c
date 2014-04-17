@@ -38,9 +38,9 @@
 /* Some local constants. */
 #define cell_pool_grow 1000
 #define cell_maxparts 16
-#define task_limit 5000
+#define task_limit 5000000
 #define const_G 6.6738e-8
-#define dist_min 0.5  // 0.5
+#define dist_min 0.5  /* Used fpr legacy walk only */
 #define iact_pair_direct iact_pair_direct_unsorted
 
 #define ICHECK -1
@@ -569,10 +569,21 @@ void cell_split(struct cell *c, struct qsched *s) {
 
     /* Last progenitor links to the next sibling */
     progenitors[7]->sibling = c->sibling;
-    c->firstchild = progenitors[0];
 
     /* Recurse. */
     for (k = 0; k < 8; k++) cell_split(progenitors[k], s);
+
+
+    /* for ( k = 0; k < 7 ; k++ ) */
+    /*   if ( progenitors[k]->count > 0) */
+    /* 	{ */
+    /* 	  c->firstchild = progenitors[k]; */
+    /* 	  break; */
+    /* 	} */
+    /* if ( k == 8 ) error( "Cell has been split but all progenitors have 0 particles" ); */
+
+    c->firstchild = progenitors[0];
+
 
     /* Link the COM tasks. */
     for (k = 0; k < 8; k++)
@@ -662,6 +673,8 @@ static inline void iact_pair_pc(struct cell *ci, struct cell *cj) {
       cj->loc[0], cj->loc[1], cj->loc[2],
       ci->h, cj->h ); */
 
+#if ICHECK >= 0
+
   /* Sanity check. */
   if (cj->new.mass == 0.0) {
     message("%e %e %e %d %p %d %p", cj->new.com[0], cj->new.com[1],
@@ -673,10 +686,11 @@ static inline void iact_pair_pc(struct cell *ci, struct cell *cj) {
     error("com does not seem to have been set.");
   }
 
-  /* Corectness check */
+  /* Correctness check */
   if (cj->new.mass != cj->legacy.mass)
     error("Calculation of the CoM is wrong! m_new=%e m_legacy=%e", cj->new.mass,
           cj->legacy.mass);
+#endif
 
   /* Init the com's data. */
   for (k = 0; k < 3; k++) com[k] = cj->new.com[k];
@@ -947,65 +961,58 @@ void iact_pair(struct cell *ci, struct cell *cj) {
 
   int k;
   int count_i = ci->count, count_j = cj->count;
-  float dx[3],  r2, r2_i, r2_j;
-  double cih = ci->h, cjh = cj->h;
+  double center_i[3], center_j[3], dx[3];
+  double min_dist, cih = ci->h, cjh = cj->h;
   struct cell *cp;
 
   /* Early abort? */
-  if (count_i == 0 || count_j == 0) return;
+  if (count_i == 0 || count_j == 0) {
+    //    message( "Empty cell !" );
+    return;
+  }
 
   /* Sanity check */
   if (ci == cj)
     error("The impossible has happened: pair interaction between a cell and "
           "itself.");  // debug
 
-  /* Distance between the CoMs */
-  r2 = 0.0f;
-  r2_i = 0.0f;
-  r2_j = 0.0f;
+  /* Cell centers */
+  for (k = 0; k < 3; k++) center_i[k] = ci->loc[k] + 0.5 * cih;
+  for (k = 0; k < 3; k++) center_j[k] = cj->loc[k] + 0.5 * cjh;
+
+  /* Distance between the cell centers */
   for (k = 0; k < 3; k++) {
-    //   dx[k] = fabs( ci->new.com[k] - cj->new.com[k] );
-    dx[k] = fabs(ci->loc[k] - cj->loc[k]);
-
-    r2 += dx[k] * dx[k];
-    r2_i += (dx[k] - 0.5f * cih) * (dx[k] - 0.5f * cih);
-    r2_j += (dx[k] - 0.5f * cjh) * (dx[k] - 0.5f * cjh);
+    dx[k] = fabs(center_i[k] - center_j[k]);
   }
+ 
+  min_dist = cih + cjh;
 
-  /* If ci and cj are sufficiently well separated, split this interaction
-     into a pair of particle-cell interactions. */
-  if ((dist_min * dist_min * r2_j > cih * cih) &&
-      (dist_min * dist_min * r2_i > cjh * cjh)) {
+  /* Are the cells NOT neighbours ? */
+  if( ( dx[0] > min_dist ) || ( dx[1] > min_dist ) || ( dx[2] > min_dist ) ) {
+
     iact_pair_pc(ci, cj);
     iact_pair_pc(cj, ci);
 
-    /* Otherwise, if neither cell is split, compute the particle-particle
-       interactions directly. */
-  } else if (!ci->split && !cj->split) {
+  }
+  else {     /* Cells are direct neighbours */
 
-    iact_pair_direct(ci, cj);
+    /* Are both cells split ? */
+    if ( ci->split && cj->split ) {
 
-    /* Otherwise, compute the interaction recursively over the progeny. */
-  } else {
-
-    /* We can split one of the two cells. Let's try the biggest one first.*/
-    if (cih > cjh) {
-      if (ci->split) {
-        for (cp = ci->firstchild; cp != ci->sibling; cp = cp->sibling)
-          iact_pair(cp, cj);
-      } else if (cj->split) {
-        for (cp = cj->firstchild; cp != cj->sibling; cp = cp->sibling)
-          iact_pair(ci, cp);
+      /* We can split one of the two cells. Let's try the biggest one.*/
+      if (cih > cjh) {
+	for (cp = ci->firstchild; cp != ci->sibling; cp = cp->sibling)
+	    iact_pair(cp, cj);
+      } else {
+	  for (cp = cj->firstchild; cp != cj->sibling; cp = cp->sibling)
+	    iact_pair(ci, cp);
       }
+    }
 
-    } else {
-      if (cj->split) {
-        for (cp = cj->firstchild; cp != cj->sibling; cp = cp->sibling)
-          iact_pair(ci, cp);
-      } else if (ci->split) {
-        for (cp = ci->firstchild; cp != ci->sibling; cp = cp->sibling)
-          iact_pair(cp, cj);
-      }
+    else { /* Ok one of the cells is not split */
+
+      iact_pair_direct( ci, cj );
+
     }
   }
 }
@@ -1245,6 +1252,9 @@ void create_tasks(struct qsched *s, struct cell *ci, struct cell *cj) {
 
   } /* otherwise, it's a pair. */
 }
+
+
+
 
 /* -------------------------------------------------------------------------- */
 /* Legacy tree walk */
