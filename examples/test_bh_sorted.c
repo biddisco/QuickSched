@@ -48,10 +48,10 @@
 /** Data structure for the particles. */
 struct part {
   double x[3];
-  /* union { */
-    float a[3];
-    float a_legacy[3];
-  /* }; */
+  //union { 
+  float a[3];
+  float a_legacy[3];
+  //   }; 
   float a_exact[3];
   float mass;
   int id;
@@ -648,7 +648,7 @@ void comp_com(struct cell *c) {
  * @param ci The #cell containing the particles.
  * @param cj The #cell containing the center of mass.
  */
-void iact_pair_pc(struct cell *ci, struct cell *cj) {
+static inline void iact_pair_pc(struct cell *ci, struct cell *cj) {
   int j, k, count = ci->count;
   double com[3];
   float mcom, dx[3], r2, ir, w;
@@ -716,7 +716,7 @@ void iact_pair_pc(struct cell *ci, struct cell *cj) {
  * @param ci The #cell containing the particles.
  * @param cj The #cell containing the other particles
  */
-void iact_pair_direct_unsorted(struct cell *ci, struct cell *cj) {
+static inline void iact_pair_direct_unsorted(struct cell *ci, struct cell *cj) {
 
   int i, j, k;
   int count_i = ci->count, count_j = cj->count;
@@ -786,7 +786,7 @@ void iact_pair_direct_unsorted(struct cell *ci, struct cell *cj) {
  * @param ci The #cell containing the particles.
  * @param cj The #cell containing the other particles
  */
-void iact_pair_direct_sorted(struct cell *ci, struct cell *cj) {
+static inline void iact_pair_direct_sorted(struct cell *ci, struct cell *cj) {
 
   int i, j, k;
   int count_i = ci->count, count_j = cj->count;
