@@ -38,7 +38,7 @@
 /* Some local constants. */
 #define cell_pool_grow 1000
 #define cell_maxparts 16
-#define task_limit 5000000
+#define task_limit 5000
 #define const_G 6.6738e-8
 #define dist_min 0.5  /* Used fpr legacy walk only */
 #define iact_pair_direct iact_pair_direct_unsorted
@@ -1116,6 +1116,8 @@ void create_tasks(struct qsched *s, struct cell *ci, struct cell *cj) {
 
   int k;
   qsched_task_t tid;
+  double center_i[3], center_j[3], dx[3];
+  double min_dist, cih, cjh;
   struct cell *data[2], *cp, *cps;
 
   /* If either cell is empty, stop. */
@@ -1161,20 +1163,23 @@ void create_tasks(struct qsched *s, struct cell *ci, struct cell *cj) {
     /* Otherwise, it's a pair. */
   } else {
 
-    double dx, r2 = 0.0, r2_i = 0.0, r2_j = 0.0;
+    cih = ci->h;
+    cjh = cj->h;
 
-    /* Distance between the cells */
+    /* Cell centers */
+    for (k = 0; k < 3; k++) center_i[k] = ci->loc[k] + 0.5 * cih;
+    for (k = 0; k < 3; k++) center_j[k] = cj->loc[k] + 0.5 * cjh;
+
+    /* Distance between the cell centers */
     for (k = 0; k < 3; k++) {
-      dx = fabs(ci->loc[k] - cj->loc[k]);
-
-      r2 += dx * dx;
-      r2_i += (dx - 0.5 * ci->h) * (dx - 0.5 * ci->h);
-      r2_j += (dx - 0.5 * cj->h) * (dx - 0.5 * cj->h);
+      dx[k] = fabs(center_i[k] - center_j[k]);
     }
+ 
+    min_dist = cih + cjh;
 
-    /* Check whether we can use the multipoles. */
-    if ((dist_min * dist_min * r2_j > ci->h * ci->h) &&
-        (dist_min * dist_min * r2_i > cj->h * cj->h)) {
+    /* Are the cells NOT neighbours ? */
+    if( ( dx[0] > min_dist ) || ( dx[1] > min_dist ) || ( dx[2] > min_dist ) ) {
+
       data[0] = ci;
       data[1] = cj;
       tid = qsched_addtask(s, task_type_pair_pc, task_flag_none, data,
@@ -1189,70 +1194,91 @@ void create_tasks(struct qsched *s, struct cell *ci, struct cell *cj) {
       qsched_addlock(s, tid, cj->res);
       qsched_addunlock(s, ci->com_tid, tid);
 
-      /* Otherwise, if neither cells are split, generate a part-part task. */
-    } else if (!ci->split && !cj->split) {
-
-      /* Set the data. */
-      data[0] = ci;
-      data[1] = cj;
-
-      /* Create the task. */
-      tid = qsched_addtask(s, task_type_pair_direct, task_flag_none, data,
-                           sizeof(struct cell *) * 2, ci->count * cj->count);
-
-      /* Add the resources. */
-      qsched_addlock(s, tid, ci->res);
-      qsched_addlock(s, tid, cj->res);
-
-      /* Otherwise, compute the interaction recursively over the progeny. */
-    } else if (ci->count > task_limit && cj->count > task_limit) {
-
-      /* We can split one of the two cells. Let's try the biggest one */
-      if (ci->h > cj->h) {
-
-        if (ci->split) {
-          for (cp = ci->firstchild; cp != ci->sibling; cp = cp->sibling)
-            create_tasks(s, cp, cj);
-        } else if (cj->split) {
-          for (cp = cj->firstchild; cp != cj->sibling; cp = cp->sibling)
-            create_tasks(s, ci, cp);
-        }
-
-      } else {
-
-        if (cj->split) {
-          for (cp = cj->firstchild; cp != cj->sibling; cp = cp->sibling)
-            create_tasks(s, ci, cp);
-        } else if (ci->split) {
-          for (cp = ci->firstchild; cp != ci->sibling; cp = cp->sibling)
-            create_tasks(s, cp, cj);
-        }
-      }
-
-      /* Create a task if too few particles */
-    } else {
-      /* Set the data. */
-      data[0] = ci;
-      data[1] = cj;
-
-      /* Create the task. */
-      tid = qsched_addtask(s, task_type_pair, task_flag_none, data,
-                           sizeof(struct cell *) * 2, ci->count * cj->count);
-
-      /* Add the resources. */
-      qsched_addlock(s, tid, ci->res);
-      qsched_addlock(s, tid, cj->res);
-
-      /* Depend on the COMs in case this task recurses. */
-      if (ci->split || cj->split) {
-        qsched_addunlock(s, ci->com_tid, tid);
-        qsched_addunlock(s, cj->com_tid, tid);
-      }
     }
+    else {     /* Cells are direct neighbours */
 
-  } /* otherwise, it's a pair. */
+      /* Are both cells split ? */
+      if ( ci->split && cj->split ) {
+
+      	if ( ci->count > task_limit && cj->count > task_limit )
+      	  {
+
+      	    /* We can split one of the two cells. Let's try the biggest one.*/
+      	    if (cih > cjh) {
+      	      for (cp = ci->firstchild; cp != ci->sibling; cp = cp->sibling)
+      		create_tasks(s, cp, cj);
+      	    } else {
+      	      for (cp = cj->firstchild; cp != cj->sibling; cp = cp->sibling)
+      		create_tasks(s, ci, cp);
+      	    }
+      	  }
+      	else
+      	  {
+
+      	    if (cih > cjh) {
+      	      for (cp = ci->firstchild; cp != ci->sibling; cp = cp->sibling) {
+
+      		/* Set the data. */
+      		data[0] = cp;
+      		data[1] = cj;
+		
+      		/* Create the task. */
+      		tid = qsched_addtask(s, task_type_pair, task_flag_none, data,
+      				     sizeof(struct cell *) * 2, cp->count * cj->count);
+
+      		/* Add the resources. */
+      		qsched_addlock(s, tid, cp->res);
+      		qsched_addlock(s, tid, cj->res);
+
+      		/* Depend on the COMs in case this task recurses. */
+      		if (cp->split || cj->split) {
+      		  qsched_addunlock(s, cp->com_tid, tid);
+      		  qsched_addunlock(s, cj->com_tid, tid);
+      		}
+      	      }
+      	    } else {
+      	      for (cp = cj->firstchild; cp != cj->sibling; cp = cp->sibling) {
+
+      		/* Set the data. */
+      		data[0] = ci;
+      		data[1] = cp;
+		
+      		/* Create the task. */
+      		tid = qsched_addtask(s, task_type_pair, task_flag_none, data,
+      				     sizeof(struct cell *) * 2, ci->count * cp->count);
+
+      		/* Add the resources. */
+      		qsched_addlock(s, tid, ci->res);
+      		qsched_addlock(s, tid, cp->res);
+
+      		/* Depend on the COMs in case this task recurses. */
+      		if (ci->split || cp->split) {
+      		  qsched_addunlock(s, ci->com_tid, tid);
+      		  qsched_addunlock(s, cp->com_tid, tid);
+      		}
+      	      }
+      	    }
+      	  }
+      }
+      else { /* Ok one of the cells is not split */
+
+
+	/* Set the data. */
+	data[0] = ci;
+	data[1] = cj;
+
+	/* Create the task. */
+	tid = qsched_addtask(s, task_type_pair_direct, task_flag_none, data,
+			     sizeof(struct cell *) * 2, ci->count * cj->count);
+	
+	/* Add the resources. */
+	qsched_addlock(s, tid, ci->res);
+	qsched_addlock(s, tid, cj->res);
+
+      }
+    }   /* Cells are direct neighbours */
+  } /* Otherwise it's a pair */
 }
-
 
 
 
