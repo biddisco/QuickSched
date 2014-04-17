@@ -49,10 +49,10 @@
 struct part {
   double x[3];
   //union { 
-  float a[3];
-  float a_legacy[3];
-  //   }; 
-  float a_exact[3];
+    float a[3];
+    float a_legacy[3];
+    float a_exact[3];
+  //}; 
   float mass;
   int id;
 } __attribute__((aligned(32)));
@@ -429,6 +429,8 @@ struct cell *cell_get() {
   return res;
 }
 
+
+
 /**
  * @brief Sort the parts into eight bins along the given pivots and
  *        fill the multipoles. Also adds the hierarchical resources
@@ -451,8 +453,6 @@ void cell_split(struct cell *c, struct qsched *s) {
   /* Set the root cell. */
   if (root == NULL) {
     root = c;
-    // c->depth = 0;
-    // c->parent = 0;
     c->sibling = 0;
   }
 
@@ -474,14 +474,10 @@ void cell_split(struct cell *c, struct qsched *s) {
     /* Create the progeny. */
     for (k = 0; k < 8; k++) {
       progenitors[k] = cp = cell_get();
-      // cp->parent = c;
-      // cp->depth = c->depth + 1;
       cp->loc[0] = c->loc[0];
       cp->loc[1] = c->loc[1];
       cp->loc[2] = c->loc[2];
-      cp->h = c->h / 2;
-      cp->h = c->h / 2;
-      cp->h = c->h / 2;
+      cp->h = c->h * 0.5;
       cp->res = qsched_addres(s, qsched_owner_none, c->res);
       if (k & 4) cp->loc[0] += cp->h;
       if (k & 2) cp->loc[1] += cp->h;
@@ -489,7 +485,7 @@ void cell_split(struct cell *c, struct qsched *s) {
     }
 
     /* Init the pivots. */
-    for (k = 0; k < 3; k++) pivot[k] = c->loc[k] + c->h / 2;
+    for (k = 0; k < 3; k++) pivot[k] = c->loc[k] + c->h * 0.5;
 
     /* Split along the x-axis. */
     i = 0;
@@ -552,8 +548,18 @@ void cell_split(struct cell *c, struct qsched *s) {
       progenitors[k]->parts = &c->parts[left[k]];
     }
 
+    /* Find the first non-empty progenitor */
+    for ( k = 0; k < 8 ; k++ )
+      if ( progenitors[k]->count > 0)
+    	{
+    	  c->firstchild = progenitors[k];
+	  //message( "first child= %d", k);
+    	  break;
+    	}
+    if ( c->firstchild == NULL ) error( "Cell has been split but all progenitors have 0 particles" );
+
     /* Prepare the pointers. */
-    for (k = 0; k < 7; k++) {
+    for (k = 0; k < 8; k++) {
 
       /* Find the next non-empty sibling */
       for (kk = k + 1; kk < 8; ++kk) {
@@ -567,23 +573,10 @@ void cell_split(struct cell *c, struct qsched *s) {
       if (kk == 8) progenitors[k]->sibling = c->sibling;
     }
 
-    /* Last progenitor links to the next sibling */
-    progenitors[7]->sibling = c->sibling;
-
     /* Recurse. */
-    for (k = 0; k < 8; k++) cell_split(progenitors[k], s);
-
-
-    /* for ( k = 0; k < 7 ; k++ ) */
-    /*   if ( progenitors[k]->count > 0) */
-    /* 	{ */
-    /* 	  c->firstchild = progenitors[k]; */
-    /* 	  break; */
-    /* 	} */
-    /* if ( k == 8 ) error( "Cell has been split but all progenitors have 0 particles" ); */
-
-    c->firstchild = progenitors[0];
-
+    for (k = 0; k < 8; k++) 
+      if (progenitors[k]->count > 0)
+	cell_split(progenitors[k], s);
 
     /* Link the COM tasks. */
     for (k = 0; k < 8; k++)
@@ -666,14 +659,9 @@ static inline void iact_pair_pc(struct cell *ci, struct cell *cj) {
   struct part *parts = ci->parts;
 
   /* Early abort? */
-  if (count == 0 || cj->count == 0) return;
+  if (count == 0 || cj->count == 0)
+    error( "Empty cell!" );
 
-  /* message( "ci=[%.3e,%.3e,%.3e], cj=[%.3e,%.3e,%.3e], h=%.3e/%.3e.",
-      ci->loc[0], ci->loc[1], ci->loc[2],
-      cj->loc[0], cj->loc[1], cj->loc[2],
-      ci->h, cj->h ); */
-
-#if ICHECK >= 0
 
   /* Sanity check. */
   if (cj->new.mass == 0.0) {
@@ -686,11 +674,6 @@ static inline void iact_pair_pc(struct cell *ci, struct cell *cj) {
     error("com does not seem to have been set.");
   }
 
-  /* Correctness check */
-  if (cj->new.mass != cj->legacy.mass)
-    error("Calculation of the CoM is wrong! m_new=%e m_legacy=%e", cj->new.mass,
-          cj->legacy.mass);
-#endif
 
   /* Init the com's data. */
   for (k = 0; k < 3; k++) com[k] = cj->new.com[k];
@@ -739,55 +722,55 @@ static inline void iact_pair_direct_unsorted(struct cell *ci, struct cell *cj) {
   float dx[3], ai[3], mi, mj, r2,  w, ir;
 
 
-    /* Loop over all particles in ci... */
-    for (i = 0; i < count_i; i++) {
+  /* Loop over all particles in ci... */
+  for (i = 0; i < count_i; i++) {
 
-      /* Init the ith particle's data. */
-      for (k = 0; k < 3; k++) {
-        xi[k] = parts_i[i].x[k];
-        ai[k] = 0.0f;
+    /* Init the ith particle's data. */
+    for (k = 0; k < 3; k++) {
+      xi[k] = parts_i[i].x[k];
+      ai[k] = 0.0f;
+    }
+    mi = parts_i[i].mass;
+
+    /* Loop over every following particle. */
+    for (j = 0; j < count_j; j++) {
+      
+      /* Compute the pairwise distance. */
+      for (r2 = 0.0, k = 0; k < 3; k++) {
+	dx[k] = xi[k] - parts_j[j].x[k];
+	r2 += dx[k] * dx[k];
       }
-      mi = parts_i[i].mass;
 
-      /* Loop over every following particle. */
-      for (j = 0; j < count_j; j++) {
-
-        /* Compute the pairwise distance. */
-        for (r2 = 0.0, k = 0; k < 3; k++) {
-          dx[k] = xi[k] - parts_j[j].x[k];
-          r2 += dx[k] * dx[k];
-        }
-
-        /* Apply the gravitational acceleration. */
-        ir = 1.0f / sqrtf(r2);
-        w = const_G * ir * ir * ir;
-        mj = parts_j[j].mass;
-        for (k = 0; k < 3; k++) {
-          float wdx = w * dx[k];
-          parts_j[j].a[k] += wdx * mi;
-          ai[k] -= wdx * mj;
-        }
-
+      /* Apply the gravitational acceleration. */
+      ir = 1.0f / sqrtf(r2);
+      w = const_G * ir * ir * ir;
+      mj = parts_j[j].mass;
+      for (k = 0; k < 3; k++) {
+	float wdx = w * dx[k];
+	parts_j[j].a[k] += wdx * mi;
+	ai[k] -= wdx * mj;
+      }
+      
 #if ICHECK >= 0
-        if (parts_i[i].id == ICHECK)
-          printf("[NEW] Interaction with particle id= %d (pair i)\n",
-                 parts_j[j].id);
-
-        if (parts_j[j].id == ICHECK)
-          printf("[NEW] Interaction with particle id= %d (pair j) h_i= %f h_j= "
-                 "%f ci= %p cj= %p count_i= %d count_j= %d d_i= %d d_j= %d\n",
-                 parts_i[i].id, ci->h, cj->h, ci, cj, count_i, count_j, ci->res,
-                 cj->res);
+      if (parts_i[i].id == ICHECK)
+	printf("[NEW] Interaction with particle id= %d (pair i)\n",
+	       parts_j[j].id);
+      
+      if (parts_j[j].id == ICHECK)
+	printf("[NEW] Interaction with particle id= %d (pair j) h_i= %f h_j= "
+	       "%f ci= %p cj= %p count_i= %d count_j= %d d_i= %d d_j= %d\n",
+	       parts_i[i].id, ci->h, cj->h, ci, cj, count_i, count_j, ci->res,
+	       cj->res);
 #endif
 
-      } /* loop over every other particle. */
-
+    } /* loop over every other particle. */
+    
       /* Store the accumulated acceleration on the ith part. */
-      for (k = 0; k < 3; k++) parts_i[i].a[k] += ai[k];
+    for (k = 0; k < 3; k++) parts_i[i].a[k] += ai[k];
+    
+  } /* loop over all particles. */
 
-    } /* loop over all particles. */
-
-
+  
 }
 
 
@@ -810,142 +793,142 @@ static inline void iact_pair_direct_sorted(struct cell *ci, struct cell *cj) {
   float dx[3], ai[3], mi, mj, r2,  w, ir;
 
 
-    /* Get the sorted indices and stuff. */
-    struct index *ind_i, *ind_j;
-    float corr;
-    double com[3] = {0.0, 0.0, 0.0};
-    float com_mass = 0.0;
-    get_axis(&ci, &cj, &ind_i, &ind_j, &corr);
-    count_i = ci->count;
-    parts_i = ci->parts;
-    cih = ci->h;
-    count_j = cj->count;
-    parts_j = cj->parts;
-    cjh = cj->h;
-
-    /* Distance along the axis as of which we will use a multipole. */
-    float d_max = cjh / dist_min / corr;
-
-    /* Loop over all particles in ci... */
-    for (i = count_i - 1; i >= 0; i--) {
-
-      /* Get the sorted index. */
-      int pid = ind_i[i].ind;
-      float di = ind_i[i].d;
-
-      /* Init the ith particle's data. */
-      for (k = 0; k < 3; k++) {
-        xi[k] = parts_i[pid].x[k];
-        ai[k] = 0.0;
-      }
-      mi = parts_i[pid].mass;
-
-      /* Loop over every following particle within d_max along the axis. */
-      for (j = 0; j < count_j && (ind_j[j].d - di) < d_max; j++) {
-
-        /* Get the sorted index. */
-        int pjd = ind_j[j].ind;
-
-        /* Compute the pairwise distance. */
-        for (r2 = 0.0, k = 0; k < 3; k++) {
-          dx[k] = xi[k] - parts_j[pjd].x[k];
-          r2 += dx[k] * dx[k];
-        }
-
-        /* Apply the gravitational acceleration. */
-        ir = 1.0f / sqrtf(r2);
-        w = const_G * ir * ir * ir;
-        mj = parts_j[pjd].mass;
-        for (k = 0; k < 3; k++) {
-          float wdx = w * dx[k];
-          parts_j[pjd].a[k] += wdx * mi;
-          ai[k] -= wdx * mj;
-        }
-
-#if ICHECK >= 0
-        if (parts_i[pid].id == ICHECK)
-          printf("[NEW] Interaction with particle id= %d (pair i)\n",
-                 parts_j[pjd].id);
-
-        if (parts_j[j].id == ICHECK)
-          printf("[NEW] Interaction with particle id= %d (pair j) h_i= %f h_j= "
-                 "%f ci= %p cj= %p count_i= %d count_j= %d d_i= %d d_j= %d\n",
-                 parts_i[pid].id, cih, cjh, ci, cj, count_i, count_j, ci->res,
-                 cj->res);
-#endif
-
-      } /* loop over every other particle. */
-
-      /* Add any remaining particles to the COM. */
-      for (int jj = j; jj < count_j; jj++) {
-        int pjd = ind_j[jj].ind;
-        mj = parts_j[pjd].mass;
-        com[0] += mj * parts_j[pjd].x[0];
-        com[1] += mj * parts_j[pjd].x[1];
-        com[2] += mj * parts_j[pjd].x[2];
-        com_mass += mj;
-      }
-
-      /* Shrink count_j to the latest valid particle. */
-      count_j = j;
-
-      /* Interact part_i with the center of mass. */
-      if (com_mass > 0.0) {
-        float icom_mass = 1.0f / com_mass;
-        for (r2 = 0.0, k = 0; k < 3; k++) {
-          dx[k] = xi[k] - com[k] * icom_mass;
-          r2 += dx[k] * dx[k];
-        }
-        ir = 1.0f / sqrtf(r2);
-        w = const_G * ir * ir * ir;
-        for (k = 0; k < 3; k++) ai[k] -= w * dx[k] * com_mass;
-      }
-
-      /* Store the accumulated acceleration on the ith part. */
-      for (k = 0; k < 3; k++) parts_i[pid].a[k] += ai[k];
-
-    } /* loop over all particles in ci. */
-
-    /* Loop over the particles in cj, catch the COM interactions. */
-    count_j = cj->count;
-    int last_i = 0;
-    com[0] = 0.0;
-    com[1] = 0.0;
-    com[2] = 0.0;
-    com_mass = 0.0f;
-    d_max = cih / dist_min / corr;
-    for (j = 0; j < count_j; j++) {
-
+  /* Get the sorted indices and stuff. */
+  struct index *ind_i, *ind_j;
+  float corr;
+  double com[3] = {0.0, 0.0, 0.0};
+  float com_mass = 0.0;
+  get_axis(&ci, &cj, &ind_i, &ind_j, &corr);
+  count_i = ci->count;
+  parts_i = ci->parts;
+  cih = ci->h;
+  count_j = cj->count;
+  parts_j = cj->parts;
+  cjh = cj->h;
+  
+  /* Distance along the axis as of which we will use a multipole. */
+  float d_max = cjh / dist_min / corr;
+  
+  /* Loop over all particles in ci... */
+  for (i = count_i - 1; i >= 0; i--) {
+    
+    /* Get the sorted index. */
+    int pid = ind_i[i].ind;
+    float di = ind_i[i].d;
+    
+    /* Init the ith particle's data. */
+    for (k = 0; k < 3; k++) {
+      xi[k] = parts_i[pid].x[k];
+      ai[k] = 0.0;
+    }
+    mi = parts_i[pid].mass;
+    
+    /* Loop over every following particle within d_max along the axis. */
+    for (j = 0; j < count_j && (ind_j[j].d - di) < d_max; j++) {
+      
       /* Get the sorted index. */
       int pjd = ind_j[j].ind;
-      float dj = ind_j[j].d;
-
-      /* Fill the COM with any new particles. */
-      for (i = last_i; i < count_i && (dj - ind_i[i].d) > d_max; i++) {
-        int pid = ind_i[i].ind;
-        mi = parts_i[pid].mass;
-        com[0] += parts_i[pid].x[0] * mi;
-        com[1] += parts_i[pid].x[1] * mi;
-        com[2] += parts_i[pid].x[2] * mi;
-        com_mass += mi;
+      
+      /* Compute the pairwise distance. */
+      for (r2 = 0.0, k = 0; k < 3; k++) {
+	dx[k] = xi[k] - parts_j[pjd].x[k];
+	r2 += dx[k] * dx[k];
       }
-
-      /* Set the new last_i to the last particle checked. */
-      last_i = i;
-
-      /* Interact part_j with the COM. */
-      if (com_mass > 0.0) {
-        float icom_mass = 1.0f / com_mass;
-        for (r2 = 0.0, k = 0; k < 3; k++) {
-          dx[k] = com[k] * icom_mass - parts_j[pjd].x[k];
-          r2 += dx[k] * dx[k];
-        }
-        ir = 1.0f / sqrtf(r2);
-        w = const_G * ir * ir * ir;
-        for (k = 0; k < 3; k++) parts_j[pjd].a[k] += w * dx[k] * com_mass;
+      
+      /* Apply the gravitational acceleration. */
+      ir = 1.0f / sqrtf(r2);
+      w = const_G * ir * ir * ir;
+      mj = parts_j[pjd].mass;
+      for (k = 0; k < 3; k++) {
+	float wdx = w * dx[k];
+	parts_j[pjd].a[k] += wdx * mi;
+	ai[k] -= wdx * mj;
       }
+      
+#if ICHECK >= 0
+      if (parts_i[pid].id == ICHECK)
+	printf("[NEW] Interaction with particle id= %d (pair i)\n",
+	       parts_j[pjd].id);
+      
+      if (parts_j[j].id == ICHECK)
+	printf("[NEW] Interaction with particle id= %d (pair j) h_i= %f h_j= "
+	       "%f ci= %p cj= %p count_i= %d count_j= %d d_i= %d d_j= %d\n",
+	       parts_i[pid].id, cih, cjh, ci, cj, count_i, count_j, ci->res,
+	       cj->res);
+#endif
+
+    } /* loop over every other particle. */
+    
+      /* Add any remaining particles to the COM. */
+    for (int jj = j; jj < count_j; jj++) {
+      int pjd = ind_j[jj].ind;
+      mj = parts_j[pjd].mass;
+      com[0] += mj * parts_j[pjd].x[0];
+      com[1] += mj * parts_j[pjd].x[1];
+      com[2] += mj * parts_j[pjd].x[2];
+      com_mass += mj;
     }
-
+    
+    /* Shrink count_j to the latest valid particle. */
+    count_j = j;
+    
+    /* Interact part_i with the center of mass. */
+    if (com_mass > 0.0) {
+      float icom_mass = 1.0f / com_mass;
+      for (r2 = 0.0, k = 0; k < 3; k++) {
+	dx[k] = xi[k] - com[k] * icom_mass;
+	r2 += dx[k] * dx[k];
+      }
+      ir = 1.0f / sqrtf(r2);
+      w = const_G * ir * ir * ir;
+      for (k = 0; k < 3; k++) ai[k] -= w * dx[k] * com_mass;
+    }
+    
+    /* Store the accumulated acceleration on the ith part. */
+    for (k = 0; k < 3; k++) parts_i[pid].a[k] += ai[k];
+    
+  } /* loop over all particles in ci. */
+  
+    /* Loop over the particles in cj, catch the COM interactions. */
+  count_j = cj->count;
+  int last_i = 0;
+  com[0] = 0.0;
+  com[1] = 0.0;
+  com[2] = 0.0;
+  com_mass = 0.0f;
+  d_max = cih / dist_min / corr;
+  for (j = 0; j < count_j; j++) {
+    
+    /* Get the sorted index. */
+    int pjd = ind_j[j].ind;
+    float dj = ind_j[j].d;
+    
+    /* Fill the COM with any new particles. */
+    for (i = last_i; i < count_i && (dj - ind_i[i].d) > d_max; i++) {
+      int pid = ind_i[i].ind;
+      mi = parts_i[pid].mass;
+      com[0] += parts_i[pid].x[0] * mi;
+      com[1] += parts_i[pid].x[1] * mi;
+      com[2] += parts_i[pid].x[2] * mi;
+      com_mass += mi;
+    }
+    
+    /* Set the new last_i to the last particle checked. */
+    last_i = i;
+    
+    /* Interact part_j with the COM. */
+    if (com_mass > 0.0) {
+      float icom_mass = 1.0f / com_mass;
+      for (r2 = 0.0, k = 0; k < 3; k++) {
+	dx[k] = com[k] * icom_mass - parts_j[pjd].x[k];
+	r2 += dx[k] * dx[k];
+      }
+      ir = 1.0f / sqrtf(r2);
+      w = const_G * ir * ir * ir;
+      for (k = 0; k < 3; k++) parts_j[pjd].a[k] += w * dx[k] * com_mass;
+    }
+  }
+  
 }
 
 
@@ -961,28 +944,25 @@ void iact_pair(struct cell *ci, struct cell *cj) {
 
   int k;
   int count_i = ci->count, count_j = cj->count;
-  double center_i[3], center_j[3], dx[3];
+  double center_i, center_j, dx[3];
   double min_dist, cih = ci->h, cjh = cj->h;
   struct cell *cp;
 
   /* Early abort? */
-  if (count_i == 0 || count_j == 0) {
-    //    message( "Empty cell !" );
-    return;
-  }
+  if (count_i == 0 || count_j == 0)
+    error( "Empty cell !" );
+
 
   /* Sanity check */
   if (ci == cj)
-    error("The impossible has happened: pair interaction between a cell and "
-          "itself.");  // debug
-
-  /* Cell centers */
-  for (k = 0; k < 3; k++) center_i[k] = ci->loc[k] + 0.5 * cih;
-  for (k = 0; k < 3; k++) center_j[k] = cj->loc[k] + 0.5 * cjh;
+    error( "The impossible has happened: pair interaction between a cell and "
+           "itself." );
 
   /* Distance between the cell centers */
   for (k = 0; k < 3; k++) {
-    dx[k] = fabs(center_i[k] - center_j[k]);
+    center_i = ci->loc[k] + 0.5 * cih;
+    center_j = cj->loc[k] + 0.5 * cjh;
+    dx[k] = fabs(center_i - center_j);
   }
  
   min_dist = cih + cjh;
@@ -1036,10 +1016,9 @@ void iact_self(struct cell *c) {
   struct cell *cp, *cps;
 
   /* Early abort? */
-  if (count == 0) return;
+  if (count == 0) 
+    error( "Empty cell !" );
 
-  /* message( "cell=[%.3e,%.3e,%.3e], h=%.3e.",
-      c->loc[0], c->loc[1], c->loc[2], c->h ); */
 
   /* If the cell is split, interact each progeny with itself, and with
      each of its siblings. */
@@ -1116,12 +1095,13 @@ void create_tasks(struct qsched *s, struct cell *ci, struct cell *cj) {
 
   int k;
   qsched_task_t tid;
-  double center_i[3], center_j[3], dx[3];
+  double center_i, center_j, dx[3];
   double min_dist, cih, cjh;
   struct cell *data[2], *cp, *cps;
 
   /* If either cell is empty, stop. */
-  if (ci->count == 0 || (cj != NULL && cj->count == 0)) return;
+  if (ci->count == 0 || (cj != NULL && cj->count == 0)) 
+    error( "Empty cell !" );
 
   /* Single cell? */
   if (cj == NULL) {
@@ -1166,13 +1146,11 @@ void create_tasks(struct qsched *s, struct cell *ci, struct cell *cj) {
     cih = ci->h;
     cjh = cj->h;
 
-    /* Cell centers */
-    for (k = 0; k < 3; k++) center_i[k] = ci->loc[k] + 0.5 * cih;
-    for (k = 0; k < 3; k++) center_j[k] = cj->loc[k] + 0.5 * cjh;
-
     /* Distance between the cell centers */
     for (k = 0; k < 3; k++) {
-      dx[k] = fabs(center_i[k] - center_j[k]);
+      center_i = ci->loc[k] + 0.5 * cih;
+      center_j = cj->loc[k] + 0.5 * cjh;
+      dx[k] = fabs(center_i - center_j);
     }
  
     min_dist = cih + cjh;
