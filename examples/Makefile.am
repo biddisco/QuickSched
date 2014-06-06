@@ -28,8 +28,8 @@ AM_CFLAGS = -g -O3 -Wall -Werror -I../src -ffast-math -fstrict-aliasing \
 AM_LDFLAGS = -lm # -fsanitize=address
 
 # Set-up the library
-bin_PROGRAMS = test test_qr test_bh test_bh_2 test_bh_3 test_bh_sorted
-
+bin_PROGRAMS = test test_bh test_bh_2 test_bh_3 test_bh_sorted
+#test_qr
 # Sources for test
 test_SOURCES = test.c
 test_CFLAGS = $(AM_CFLAGS)

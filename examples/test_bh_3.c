@@ -1103,7 +1103,7 @@ void test_bh(int N, int nr_threads, int runs, char *fileName) {
   /* Do a N^2 interactions calculation */
 
   tic_exact = getticks();
-  interact_exact( N , parts , ICHECK );
+  //interact_exact( N , parts , ICHECK );
   toc_exact = getticks();
 
   printf("Exact calculation (1 thread) took %lli (= %e) ticks\n",
@@ -1203,7 +1203,7 @@ void test_bh(int N, int nr_threads, int runs, char *fileName) {
   printf("] ticks.\n");
 
   /* Dump the particles to a file */
-  file = fopen("particle_dump.dat", "w");
+  /*file = fopen("particle_dump.dat", "w");
   fprintf(file, "# x y z a_exact.x   a_exact.y    a_exact.z    a_legacy.x    "
                 "a_legacy.y    a_legacy.z    a_new.x     a_new.y    a_new.z\n");
   for (k = 0; k < N; ++k)
@@ -1212,7 +1212,7 @@ void test_bh(int N, int nr_threads, int runs, char *fileName) {
             parts[k].a_exact[1], parts[k].a_exact[2], parts[k].a_legacy[0],
             parts[k].a_legacy[1], parts[k].a_legacy[2], parts[k].a[0],
             parts[k].a[1], parts[k].a[2]);
-  fclose(file);
+  fclose(file);*/
 
   /* Clean up. */
   qsched_free(&s);

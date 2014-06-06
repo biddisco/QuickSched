@@ -795,10 +795,78 @@ struct task *qsched_gettask ( struct qsched *s , int qid ) {
  * @param min Lowest index.
  * @param max highest index.
  *
+ * This function calls qsched_quicksort.
+ */
+ 
+void qsched_sort ( int *restrict data, int *restrict ind, int N, int min, int max ) {
+    int *new_data;
+    int *new_ind;
+    int i;
+    if(N <= 0)
+        return;
+    new_data = (int*)malloc(sizeof(int) * N);
+    if(new_data == NULL)
+        error("Failed to allocate new_data");
+    new_ind = (int*)malloc(sizeof(int) * N);
+    if(new_ind == NULL)
+        error("Failed to allocate new_ind");
+
+    /*Create buckets of size ? - Ideally <16 elements per bucket. Use max-min / N * 10 ? Should give average of 10 elements per bucket */
+    int bucketsize = 1;
+
+    /* To find bucket do ind-min / b and it goes in that bucket.*/
+    int num_buckets = (max-min) / bucketsize +1;
+    int *bucket_inds = (int*) malloc(sizeof(int) * num_buckets);
+    if(bucket_inds == NULL)
+        error("Failed to allocate bucket_inds");
+    memset(bucket_inds,0, sizeof(int)*num_buckets);
+    for(i = 0; i < N; i++)
+    {
+        bucket_inds[(ind[i]-min)]++;
+    }
+    for(i = 1; i < num_buckets; i++ )
+    {
+        bucket_inds[i] = bucket_inds[i] + bucket_inds[i-1];
+    }
+    /* bucket_inds[i] contains the starting position for the i+1th bucket*/
+    for(i = num_buckets-1; i >0; i--)
+    {
+        bucket_inds[i] = bucket_inds[i-1];
+    }
+    bucket_inds[0] = 0;
+
+    for(i = 0; i < N; i++)
+    {
+        int z = (ind[i]-min);
+        new_data[bucket_inds[z]] = data[i];
+        new_ind[bucket_inds[z]++] = ind[i];
+    }
+
+    /* Copy data back to data and ind and deallocate everything!*/
+    memcpy(data, new_data, N*sizeof(int));
+    memcpy(ind, new_ind, N*sizeof(int));
+    free(new_data);
+    free(new_ind);
+    free(bucket_inds);
+
+}
+
+
+
+
+/**
+ * @brief Sort the data according to the given indices.
+ *
+ * @param data The data to be sorted
+ * @param ind The indices with respect to which the data are sorted.
+ * @param N The number of entries
+ * @param min Lowest index.
+ * @param max highest index.
+ *
  * This function calls itself recursively.
  */
  
-void qsched_sort ( int *restrict data , int *restrict ind , int N , int min , int max ) {
+void qsched_quicksort ( int *restrict data , int *restrict ind , int N , int min , int max ) {
 
     int pivot = (min + max) / 2;
     int i = 0, j = N-1;
@@ -842,13 +910,13 @@ void qsched_sort ( int *restrict data , int *restrict ind , int N , int min , in
             /* Recurse on the left? */
             if ( j > 0  && pivot > min ) {
                 #pragma omp task untied
-                qsched_sort( data , ind , j+1 , min , pivot );
+                qsched_quicksort( data , ind , j+1 , min , pivot );
                 }
 
             /* Recurse on the right? */
             if ( i < N && pivot+1 < max ) {
                 #pragma omp task untied
-                qsched_sort( &data[i], &ind[i], N-i , pivot+1 , max );
+                qsched_quicksort( &data[i], &ind[i], N-i , pivot+1 , max );
                 }
 
             }
@@ -856,11 +924,11 @@ void qsched_sort ( int *restrict data , int *restrict ind , int N , int min , in
             
             /* Recurse on the left? */
             if ( j > 0  && pivot > min )
-                qsched_sort( data , ind , j+1 , min , pivot );
+                qsched_quicksort( data , ind , j+1 , min , pivot );
 
             /* Recurse on the right? */
             if ( i < N && pivot+1 < max )
-                qsched_sort( &data[i], &ind[i], N-i , pivot+1 , max );
+                qsched_quicksort( &data[i], &ind[i], N-i , pivot+1 , max );
             
             }
             
@@ -888,7 +956,7 @@ void qsched_prepare ( struct qsched *s ) {
     /* Get a pointer to the tasks, set the count. */
     tasks = s->tasks;
     count = s->count;
-    
+    ticks __temp_ticks = getticks();
     /* If the sched is dirty... */
     if ( s->flags & qsched_flag_dirty ) {
     
@@ -909,7 +977,7 @@ void qsched_prepare ( struct qsched *s ) {
             qsched_sort( s->uses , s->uses_key , s->count_uses , 0 , count - 1 );
             
         }
-        
+        printf("Time taken for sorting is %lli\n", getticks()-__temp_ticks);
         /* Run throught the tasks and link the locks and unlocks. */
         tasks[0].unlocks = s->deps;
         tasks[0].locks = s->locks;
