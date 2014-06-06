@@ -794,8 +794,6 @@ struct task *qsched_gettask ( struct qsched *s , int qid ) {
  * @param N The number of entries
  * @param min Lowest index.
  * @param max highest index.
- *
- * This function calls qsched_quicksort.
  */
  
 void qsched_sort ( int *restrict data, int *restrict ind, int N, int min, int max ) {
@@ -956,7 +954,6 @@ void qsched_prepare ( struct qsched *s ) {
     /* Get a pointer to the tasks, set the count. */
     tasks = s->tasks;
     count = s->count;
-    ticks __temp_ticks = getticks();
     /* If the sched is dirty... */
     if ( s->flags & qsched_flag_dirty ) {
     
@@ -977,7 +974,6 @@ void qsched_prepare ( struct qsched *s ) {
             qsched_sort( s->uses , s->uses_key , s->count_uses , 0 , count - 1 );
             
         }
-        printf("Time taken for sorting is %lli\n", getticks()-__temp_ticks);
         /* Run throught the tasks and link the locks and unlocks. */
         tasks[0].unlocks = s->deps;
         tasks[0].locks = s->locks;
