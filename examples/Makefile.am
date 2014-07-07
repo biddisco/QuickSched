@@ -23,23 +23,22 @@ AUTOMAKE_OPTIONS=gnu
 AM_CFLAGS = -g -O3 -Wall -Werror -I../src -ffast-math -fstrict-aliasing \
     -ftree-vectorize -funroll-loops $(SIMD_FLAGS) $(OPENMP_CFLAGS) \
     -DCPU_TPS=2.67e9 -DTIMERS \
-    #-fsanitize=address -fno-omit-frame-pointer
+    # -fsanitize=address -fno-omit-frame-pointer
 
 AM_LDFLAGS = -lm # -fsanitize=address
 
 # Set-up the library
-bin_PROGRAMS = test test_bh test_bh_2 test_bh_3 test_bh_sorted test_qr
-#test_qr
+bin_PROGRAMS = test test_qr test_bh test_bh_2 test_bh_3 test_bh_sorted
+
 # Sources for test
 test_SOURCES = test.c
 test_CFLAGS = $(AM_CFLAGS)
 test_LDADD =  ../src/.libs/libquicksched.a
 
 # Sources for test_qr
-#-L/usr/bin64/atlas/ /home/aidan/lapack-3.5.0/liblapacke.a /home/aidan/lapack-3.5.0/liblapack.a
-test_qr_SOURCES = test_qr.c /usr/lib64/atlas/libcblas.a /usr/lib64/atlas/libptcblas.a
-test_qr_CFLAGS = $(AM_CFLAGS) -I/home/aidan/ATLAS/ATLAS_linux/include #-I/home/aidan/lapack-3.5.0/lapacke/include
-test_qr_LDADD =  ../src/.libs/libquicksched.a  -lf77blas -lcblas -latlas -lm  -L/home/aidan/ATLAS/ATLAS_linux/lib/ 
+test_qr_SOURCES = test_qr.c
+test_qr_CFLAGS = $(AM_CFLAGS)
+test_qr_LDADD =  ../src/.libs/libquicksched.a -llapacke -llapacke -lblas
 
 # Sources for test_bh
 test_bh_SOURCES = test_bh.c
