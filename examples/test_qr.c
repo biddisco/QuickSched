@@ -28,202 +28,472 @@
 #include <unistd.h>
 #include <math.h>
 #include <omp.h>
+#include <pthread.h>
 
-/* LAPACKE header. */
-#include <lapacke.h>
+
+
+
 #include <cblas.h>
 
 
 /* Local includes. */
 #include "quicksched.h"
 
-
-/*
- * Sam's routines for the tiled QR decomposition.
+/**
+ * Takes a column major matrix, NOT tile major. size is length of a side of the matrix. Only works for square matrices.
+ * This function is simply for validation and is implemented naively as we know of no implementation to retrieve Q from the tiled QR.
  */
-
-/*
-  \brief Computes 2-norm of a vector \f$x\f$
-  
-  Computes the 2-norm by computing the following: \f[\textrm{2-norm}=\sqrt_0^lx(i)^2\f]
- */
-double do2norm(double* x, int l)
+double* computeQ(double* HR, int size, int tilesize, double* tau, int tauNum)
 {
-	double sum = 0, norm;
-	int i;
+    double* Q = malloc(sizeof(double)*size*size);
+    double* Qtemp = malloc(sizeof(double)*size*size);
+    double* w = malloc(sizeof(double)*size);
+    double* ww = malloc(sizeof(double)*size*size);
+    double* temp = malloc(sizeof(double)*size*size);
+    int i, k, l, j, n;
+    bzero(Q, sizeof(double)*size*size);
+    bzero(Qtemp, sizeof(double)*size*size);
+    bzero(ww, sizeof(double)*size*size);
+    for(i = 0; i < size; i++)
+    {
+        Q[i*size + i] = 1.0;
+    }
+    int numcoltile = size / tilesize;
+    int numrowtile = size / tilesize;
+    for(k = 0; k < numrowtile; k++)
+    {
+        for(l = 0; l < tilesize; l++)
+        {
+            bzero(Qtemp, sizeof(double)*size*size);
+            for(i = 0; i < size; i++)
+            {
+                Qtemp[i*size + i] = 1.0;
+            }
 
-	for(i = 0; i < l; i++)
-		sum += x[i] * x[i];
 
-	norm = sqrt(sum);
+            for(i = k; i < numcoltile; i++)
+            {
+                bzero(w, sizeof(double)*size);
+                
+                for(j = 0 ; j < tilesize; j++)
+                {
+                    w[i*tilesize + j] = HR[(k*tilesize+l)*size + i*tilesize+j];
+                }
+                    w[k*tilesize+l] = 1.0;
+                if(k*tilesize+l > i*tilesize)
+                {
+                    for(j = 0; j < k*tilesize+l; j++)
+                        w[j] = 0.0;
+                }
 
-	return norm;
+
+                /* Compute (I - tau*w*w')' */
+                for(j = 0; j < size; j++)
+                {
+                    for(n = 0; n < size; n++)
+                    {
+                        if(j != n)
+                            ww[n*size + j] = -tau[(k*tilesize+l)*tauNum+ i] * w[j] * w[n];
+                        else
+                            ww[n*size + j] = 1.0 - tau[(k*tilesize+l)*tauNum+ i] * w[j] * w[n];
+                    }
+                }
+
+                /* Qtemp = Qtemp * (I-tau*w*w')' */
+                cblas_dgemm(CblasColMajor, CblasNoTrans, CblasNoTrans, size, size,  size, 1.0, Qtemp, size, ww, size, 0.0, temp, size);
+                double *b = Qtemp;
+                Qtemp = temp;
+                temp = b;
+            }   
+            cblas_dgemm(CblasColMajor, CblasNoTrans, CblasNoTrans, size, size, size, 1.0, Q, size, Qtemp, size, 0.0, temp, size);
+            double *b = Q;
+            Q = temp;
+            temp = b;         
+        }
+    }
+    
+    free(Qtemp);
+    free(w);
+    free(ww);
+    free(temp);
+    return Q;
+}
+
+double* getR(double*HR, int size)
+{
+    double* R = malloc(sizeof(double) * size * size);
+    int i, j;
+    bzero(R, sizeof(double) * size * size);
+    for(i = 0; i< size; i++)
+    {
+        for(j = 0; j <= i; j++)
+        {
+            R[i*size + j] = HR[i*size + j];
+        }
+    }
+    return R;
+}
+
+void printMatrix(double* Matrix, int m, int n, int tilesize)
+{
+    int i, j;
+    
+    for(i=0; i < m*tilesize; i++)
+    {
+        for(j = 0; j < n*tilesize; j++)
+        {
+            printf(" %.3f ", Matrix[j*m*tilesize +i]);
+
+        }
+        printf("\n");
+    }
+
+}
+
+double* columnToTile( double* columnMatrix, int size , int m , int n , int tilesize)
+{
+    double* TileMatrix;
+    TileMatrix = malloc(sizeof(double) * size );
+    if(TileMatrix == NULL)
+        error("failed to allocate TileMatrix");
+    int i,j,k,l;
+
+    for( i = 0; i < n ; i++ )
+    {
+        for( j = 0; j < m; j++ )
+        {
+            double *tileStart = &columnMatrix[i*m*tilesize*tilesize + j*tilesize];
+            double *tilePos = &TileMatrix[i*m*tilesize*tilesize + j*tilesize*tilesize];
+            for(k = 0; k < tilesize; k++)
+            {
+                tileStart = &columnMatrix[i*m*tilesize*tilesize+k*m*tilesize + j*tilesize];
+                for( l = 0; l < tilesize; l++ )
+                {
+                    tilePos[k*tilesize + l] = tileStart[l];
+                }
+            }
+        }
+    }
+
+    return TileMatrix;
+
+}
+
+double* tileToColumn( double* tileMatrix, int size, int m , int n , int tilesize)
+{
+    double* ColumnMatrix;
+    ColumnMatrix = (double*) malloc(sizeof(double) * size );
+    if(ColumnMatrix == NULL)
+        error("failed to allocate ColumnMatrix");
+    int i,j,k,l;
+    for( i = 0; i < n ; i++ )
+    {
+        for(j = 0; j < m ; j++ )
+        {
+            /* Tile on ith column is at i*m*32*32.*/
+            /* Tile on jth is at j*32*32 */
+            double *tile = &tileMatrix[i*m*tilesize*tilesize + j*tilesize*tilesize];
+            /* Column starts at same position as tile. */
+            /* Row j*32.*/
+            double *tilePos = &ColumnMatrix[i*m*tilesize*tilesize + j*tilesize];
+            for( k = 0; k < tilesize; k++ )
+            {
+                for(l=0; l < tilesize; l++)
+                {
+                    tilePos[l] = tile[l];
+                }
+                /* Next 32 elements are the position of the tile in the next column.*/
+                tile = &tile[tilesize];
+                /* Move to the j*32th position in the next column. */                
+                tilePos = &tilePos[tilesize*m];
+
+            }
+        }   
+    }
+    return ColumnMatrix;
+}
+
+/* Routines for the tiled QR decomposition.*/
+
+/**
+ *
+ * @brief Computes the QR decomposition of a tile.
+ *
+ * @param cornerTile A pointer to the tile for which the decomposition is computed.
+ * @param tilesize The number of elements on a row/column of the tile.
+ * @param tauMatrix A pointer to the tau Matrix.
+ * @param k The value of k for the QR decomposition
+ * @param tauNum The number of tau values stored for each row of the matrix (this is equal to the number of tiles on each column).
+ *
+ *
+ */
+void DGEQRF(double* restrict cornerTile, int tileSize, double* restrict tauMatrix, int k, int tauNum, double* w)
+{
+    int i, j, n;
+    double norm=0.0, sign, u1, tau, z;
+
+
+    /*Find the householder vector for each row. */
+    for(i = 0; i < tileSize; i++)
+    {
+        norm = 0.0;
+        /*Fill w with the vector.*/
+        for(j=i; j < tileSize; j++)
+        {
+            /* ith row is i*tileSize, only want elements on diagonal or below.*/
+            w[ j ] = cornerTile[ i*tileSize +j ];
+            /*Find the norm as well */
+            norm = norm + w[j]*w[j];
+        }
+        if(w[i] >= 0.0)
+            sign = -1;
+        else
+            sign = 1;
+
+        norm = sqrt(norm);
+
+        u1 = w[i] - sign*norm;
+
+        if(u1 != 0.0)
+        {
+            for(j=i+1; j < tileSize; j++)
+                w[j] = w[j] / u1;
+        }
+        else
+        {
+            for(j=i+1; j < tileSize; j++)
+                w[j] = 0.0;
+        }
+
+        if(norm != 0.0)
+            tau = -sign*u1/norm;
+        else
+            tau = 0.0;
+
+        /*Store the below diagonal vector */
+        
+        for(j = i+1; j < tileSize; j++)
+        {
+            cornerTile[ i*tileSize +j ] = w[j];
+        }
+        cornerTile[ i*tileSize + i ] = sign*norm;
+        w[i] = 1.0;
+        /* Apply the householder transformation to the rest of the tile, for everything to the right of the diagonal. */
+        for(j = i+1; j < tileSize; j++)
+        {
+            /*Compute w'*A_j*/
+            z = cornerTile[ j*tileSize+i];
+            for(n = i+1; n < tileSize; n++)
+            {
+                z = z + cornerTile[j*tileSize+n] * w[n];
+            }
+            /* Tile(m,n) = Tile(m,n) - tau*w[n]* w'A_j */
+            for(n=i; n < tileSize; n++)
+            {
+                cornerTile[j*tileSize+n] = cornerTile[j*tileSize+n] - tau*w[n]*z;
+            }
+
+        }
+        /* Store tau. We're on k*tileSize+ith row. kth column.*/
+        tauMatrix[(k*tileSize+i)*tauNum+k] = tau;
+
+    }
+
+}
+
+
+/**
+ *
+ * @brief Applies the householder factorisation of the corner to the row tile.
+ *
+ * @param cornerTile A pointer to the tile for which the householder is stored.
+ * @param rowTiles The tile to which the householder is applied.
+ * @param tilesize The number of elements on a row/column of the tile.
+ * @param tauMatrix A pointer to the tau Matrix.
+ * @param jj The value of j for the QR decomposition.
+ * @param kk The value of k for the QR decomposition.
+ * @param tauNum The number of tau values stored for each row of the matrix (this is equal to the number of tiles on each column).
+ *
+ *
+ */
+void DLARFT(double* restrict cornerTile, double* restrict rowTile, int tileSize, int jj, int kk, double* restrict tauMatrix, int tauNum, double* w)
+{
+    int i, j, n;
+    double z=0.0;
+
+
+    /* For each row in the corner Tile*/
+    for(i = 0; i < tileSize; i++)
+    {
+        /*Get w for row i */
+        for(j = i; j < tileSize; j++)
+        {
+            w[j] = cornerTile[i*tileSize + j];
+        }
+        w[i] = 1.0;
+        
+        /* Apply to the row Tile */
+        for(j = 0; j < tileSize; j++)
+        {
+            z=0.0;
+            /* Below Diagonal!*/
+            /*Compute w'*A_j*/
+            for(n = i; n < tileSize; n++)
+            {
+                z = z + w[n] * rowTile[j*tileSize+n];
+            }
+            for(n = i; n < tileSize; n++)
+            {
+                rowTile[j*tileSize+n] = rowTile[j*tileSize+n] - tauMatrix[(kk*tileSize+i)*tauNum+kk]*w[n]*z;
+            }
+        }
+
+        
+    }
+
+
 }
 
 /**
- * \brief Computes a Householder reflector from a pair of vectors from coupled blocks
  *
- * Calculates the Householder vector of the vector formed by a column in a pair of coupled blocks.
- * There is a single non-zero element, in the first row, of the top vector. This is passed as topDiag
+ * @brief Applies the householder factorisation of the corner to the row tile.
  *
- * \param topDiag The only non-zero element of the incoming vector in the top block
- * \param ma The number of elements in the top vector
- * \param xb Pointer to the lower vector
- * \param l The number of elements in the whole vector
- * \param vk A pointer to a pre-allocated array to store the householder vector of size l
+ * @param cornerTile The corner tile for this value of k.
+ * @param columnTile The tile for which householders are computed.
+ * @param tilesize The number of elements on a row/column of the tile.
+ * @param tauMatrix A pointer to the tau Matrix.
+ * @param ii The value of i for the QR decomposition.
+ * @param kk The value of k for the QR decomposition.
+ * @param tauNum The number of tau values stored for each row of the matrix (this is equal to the number of tiles on each column).
  *
- * \returns void
+ *
  */
-void calcvkDouble	(double topDiag,
-			int ma,
-			double* xb,
-			int l,
-			double* vk)
+void DTSQRF( double* restrict cornerTile, double* restrict columnTile, int tilesize, int ii, int kk, double* restrict tauMatrix, int tauNum, double* w )
 {
-	int sign, i;
-	double norm, div;
-	//same non-standard normalisation as for single blocks above, but organised without a temporary beta veriable
+    int i, j, n;
+    double norm=0.0, sign, u1, tau, z;
 
-	sign = topDiag >= 0.0 ? 1 : -1;
-	vk[0] = topDiag;
-	//use vk[0] as beta
-	for(i = 1; i < ma; i++)
-		vk[i] = 0;
+    /* For each column compute the householder vector. */
+    for(i = 0; i < tilesize; i++)
+    {
+        norm = 0.0;
+        w[i] = cornerTile[ i*tilesize+i ];
+        norm = norm + w[i]*w[i];
+        for(j = i+1; j < tilesize; j++)
+        {   
+            w[j] = 0.0;
+        }
+        for(j = 0; j < tilesize; j++)
+        {
+            w[tilesize+j] = columnTile[ i*tilesize+j ];
+            norm = norm + w[tilesize+j]*w[tilesize+j];
+        }
+        
+        norm = sqrt(norm);
+        if(w[i] >= 0.0)
+            sign = -1;
+        else
+            sign = 1;
+        
 
-	for(; i < l; i++)
-		vk[i] = xb[i - ma];
+        u1 = w[i] - sign*norm;
+        if(u1 != 0.0)
+        {
+            for(j = i+1; j < 2*tilesize; j++){
+                w[j] = w[j]/u1;
+            }
+        }else
+        {
+            for(j = i+1; j < 2*tilesize; j++)
+                w[j] = 0.0;
+        }
 
-	norm = do2norm(vk, l);
-	vk[0] += norm * sign;
+        if(norm != 0)
+            tau = -sign*u1/norm;
+        else
+            tau = 0.0;
 
-	if(norm != 0.0)
-	{
-		div = 1/vk[0];
-	
-		for(i = 1; i < l; i++)
-			vk[i] *= div;
-	}
+        /* Apply to each row to the right.*/
+        for(j = i; j < tilesize; j++)
+        {
+            /* Find w'*A_j, w is 0s except for first value with upper tile.*/
+            z = 1.0 * cornerTile[ j*tilesize+i ];            
+            for(n = 0; n < tilesize; n++)
+            {
+                z = z + w[ tilesize+n ]*columnTile[ j*tilesize+n ];
+            }
+            /* Apply to upper tile.*/
+            cornerTile[j*tilesize+i] = cornerTile[j*tilesize+i ] - tau*1.0*z;
+            for(n = i+1; n < tilesize; n++)
+            {
+                cornerTile[j*tilesize+n] = cornerTile[j*tilesize+n ] - tau*w[n]*z;
+            }
+            /* Apply to lower tile.*/
+            for(n = 0; n < tilesize; n++)
+            {
+                columnTile[ j*tilesize+n] = columnTile[ j*tilesize+n ] - tau*w[tilesize+n]*z;
+            }
+            
+        }
+        /* Store w*/
+        for(j = 0; j < tilesize; j++){
+            columnTile[ i*tilesize+j ] = w[tilesize+j];
+        }
+        tauMatrix[(kk*tilesize+i)*tauNum+ ii] = tau;
+    }
 }
 
-
-void updateDoubleQ_WY	(double* blockA,
-			double* blockB,
-			double* blockTau,
-			int k, int ma, int mb, int n,
-			int ldm,
-			double* hhVector)//bottom, essential part.
+/**
+ *
+ * @brief Applies the householder factorisation of the corner to the row tile.
+ *
+ * @param cornerTile A pointer to the tile to have the householder applied.
+ * @param columnTile The tile in which the householders are stored.
+ * @param rowTile The upper tile to have the householders applied.
+ * @param tilesize The number of elements on a row/column of the tile.
+ * @param tauMatrix A pointer to the tau Matrix.
+ * @param ii The value of i for the QR decomposition.
+ * @param jj The value of j for the QR decomposition.
+ * @param kk The value of k for the QR decomposition.
+ * @param tauNum The number of tau values stored for each row of the matrix (this is equal to the number of tiles on each column).
+ *
+ *
+ */
+void DSSRFT( double* restrict cornerTile, double* restrict columnTile, double* restrict rowTile, int tilesize, int ii, int jj, int kk, double* restrict tauMatrix, int tauNum , double* w)
 {
-	int i, j;
+    int i, j, n;
+    double z;
 
-	double tau = 1.0, beta;
+    
+    for(i = 0; i < tilesize; i++)
+    {
+        for(j = 0; j < i; j++)
+            w[j] = 0.0;
+        w[i] = 1.0;
+        for(j = i+1; j < tilesize; j++)
+            w[j] = 0.0;
+        for(j = 0; j < tilesize; j++)
+            w[j+tilesize] = columnTile[i*tilesize +j];
+        
+        /* Apply householder vector (w) to the tiles.*/
+        for(j = 0; j < tilesize; j++)
+        {
+            z = 0.0;
+            /* Compute w' * A_j */
+            for(n = 0; n < tilesize; n++)
+            {
+                z += w[n] * rowTile[j*tilesize+n];
+                z += w[n + tilesize] * cornerTile[j*tilesize+n];
+            }
+            for(n = 0; n < tilesize; n++)
+            {
+                rowTile[j*tilesize + n] = rowTile[j*tilesize + n] - tauMatrix[(kk*tilesize+i)*tauNum+ii]*w[n]*z;
+                cornerTile[j*tilesize+n] = cornerTile[j*tilesize+n]- tauMatrix[(kk*tilesize+i)*tauNum+ii]*w[tilesize+n]*z;
+            }
+        }
+    }
 
-	/* Compute tau = 2/v'v */
-	for(i = 0; i < mb; i ++)
-		tau += hhVector[i] * hhVector[i];
-
-	tau = 2/tau;
-
-	for(j = k; j < n; j ++)
-	{
-		/* Compute v'*b_j */
-		beta = blockA[(j*ldm) + k];
-
-		/* Then for lower half */
-		for(i = 0; i < mb; i ++)
-			beta += blockB[(j*ldm) + i] * hhVector[i];
-
-		beta *= tau;
-
-		/* Compute b_j = b_j - beta*v_k */
-		blockA[(j*ldm) + k] -= beta;
-		
-		for(i = 0; i < mb; i ++)
-			blockB[(j*ldm) + i] -= beta * hhVector[i];
-	}
-
-	/* Insert vector below diagonal. */
-	for(i = 0; i < mb; i ++)
-		blockB[(k*ldm) + i] = hhVector[i];
-
-	blockTau[k] = tau;
-}
-
-void DTSQRF	(double* blockA,
-		double* blockB,
-		double* blockTau,
-		int ma,
-		int mb,
-		int n,
-		int ldm,
-		double* hhVector)
-{
-	int k;
-	double* xVectA, *xVectB;
-	
-	xVectA = blockA;
-	xVectB = blockB;
-
-	for(k = 0; k < n; k++)
-	{
-		//vk = sign(x[1])||x||_2e1 + x
-		//vk = vk/vk[0]
-		calcvkDouble(xVectA[0], ma - k, xVectB, (ma + mb) - k, hhVector);//returns essential
-
-		//matA(k:ma,k:na) = matA(k:ma,k:na) - (2/(vk.T*vk))*vk*(vk.T*matA(k:ma,k:na)
-		//update both blocks, preserving the vectors already stored below the diagonal in the top block and treating them as if they were zeros.
-		updateDoubleQ_WY	(blockA, blockB,
-					blockTau,
-					k, ma, mb, n,
-					ldm,
-					hhVector + ma - k);
-
-		xVectA += ldm + 1;
-		xVectB += ldm;
-	}
-}
-
-void DSSRFT	(double* blockV,
-		double* blockA, double* blockB,
-		double* blockTau,
-		int b, int n, int ldm)
-{
-	int i, j, k;
-
-	double tau, beta;
-
-	/* Compute b_j = b_j - tau*v*v'*b_j for each column j of blocks A & B,
-	   and for each householder vector v of blockV */
-
-	/* For each column of B */
-	for(j = 0; j < n; j ++)
-	{
-		/* For each householder vector. */
-		for(k = 0; k < n; k ++)
-		{
-			/* tau = 2/v'v, computed earlier, stored in T(k,k). */
-			tau = blockTau[k];
-
-			/* Compute beta = v_k'b_j. */
-			/* v_k is >0 (=1) only at position k in top half. */
-			beta = blockA[(j*ldm) + k];
-
-			/* For lower portion of v_k, aligning with the lower block */
-			for(i = 0; i < b; i ++)
-				beta += blockB[(j*ldm) + i] * blockV[(k*ldm) + i];
-
-			beta *= tau;
-			
-			/* Compute b_j = b_j - beta * v */
-			/* v_k = 1 at (k) in top half again */
-			blockA[(j*ldm) + k] -= beta;
-
-			/* Apply to bottom block. */
-			for(i = 0; i < b; i ++)
-				blockB[(j*ldm) + i] -= beta * blockV[(k*ldm) + i];
-		}
-	}
-}
-			
+}		
 			
 /**
  * @brief Computed a tiled QR factorization using QuickSched.
@@ -233,7 +503,7 @@ void DSSRFT	(double* blockV,
  * @param nr_threads Number of threads to use.
  */
  
-void test_qr ( int m , int n , int K , int nr_threads , int runs ) {
+void test_qr ( int m , int n , int K , int nr_threads , int runs, double *matrix ) {
 
     int k, j, i;
     double *A, *A_orig, *tau;
@@ -252,26 +522,21 @@ void test_qr ( int m , int n , int K , int nr_threads , int runs ) {
         /* Decode the task data. */
         int *idata = (int *)data;
         int i = idata[0], j = idata[1], k = idata[2];
-        double buff[ 2*K*K ];
+        double ww[ 2*K ];
         
         /* Decode and execute the task. */
         switch ( type ) {
             case task_DGEQRF:
-                LAPACKE_dgeqrf_work( LAPACK_COL_MAJOR , K, K ,
-                                &A[ j*m*K*K + i*K ] , m*K , &tau[ j*m*K + i*K ] ,
-                                buff , 2*K*K );
+                DGEQRF( &A[ (k*m+k)*K*K], K, tau, k, m, ww);
                 break;
             case task_DLARFT:
-                LAPACKE_dlarft_work( LAPACK_COL_MAJOR , 'F' , 'C' ,
-                                K , K , &A[ i*m*K*K + i*K ] ,
-                                m*K , &tau[ i*m*K + i*K ] , &A[ j*m*K*K + i*K ] ,
-                                m*K );
+                DLARFT( &A[ (k*m+k)*K*K ],&A[(j*m+k)*K*K], K, j, k, tau, m, ww);
                 break;
             case task_DTSQRF:
-                DTSQRF( &A[ j*m*K*K + j*K ] , &A[ j*m*K*K + i*K ] , &tau[ j*m*K + i*K ] , K , K , K , K*m , buff );
+                DTSQRF( &A[(k*m+k)*K*K], &A[(k*m+i)*K*K], K, i, k, tau, m , ww);
                 break;
             case task_DSSRFT:
-                DSSRFT(	&A[ k*m*K + i*K ] , &A[ j*m*K*K + k*K ] , &A[ j*m*K*K + i*K ] , &tau[ k*m*K + i*K ] , K , K , K*m );
+                DSSRFT(&A[(j*m+i)*K*K], &A[(k*m+i)*K*K], &A[(j*m+k)*K*K], K, i, j, k, tau, m , ww);
                 break;
             default:
                 error( "Unknown task type." );
@@ -286,7 +551,12 @@ void test_qr ( int m , int n , int K , int nr_threads , int runs ) {
          ( A_orig = (double *)malloc( sizeof(double) * m * n * K * K ) ) == NULL )
         error( "Failed to allocate matrices." );
     for ( k = 0 ; k < m * n * K * K ; k++ )
-        A_orig[k] = 2*((double)rand()) / RAND_MAX - 1.0;
+    {
+        if(matrix == NULL)
+            A_orig[k] = 2*((double)rand()) / RAND_MAX - 1.0;
+        else
+            A_orig[k] = matrix[k];
+    }
     memcpy( A , A_orig , sizeof(double) * m * n * K * K );
     bzero( tau , sizeof(double) * m * n * K );
     
@@ -356,9 +626,10 @@ void test_qr ( int m , int n , int K , int nr_threads , int runs ) {
                 qsched_adduse( &s , tid_new , rid[ k*m + i ] );
                 qsched_adduse( &s , tid_new , rid[ j*m + k ] );
                 qsched_addunlock( &s , tid[ k*m + i ] , tid_new );
-                qsched_addunlock( &s , tid[ j*m + k ] , tid_new );
+                qsched_addunlock( &s, tid[j*m+i-1], tid_new);
                 if ( tid[ j*m + i ] != -1 )
                     qsched_addunlock( &s , tid[ j*m + i ] , tid_new );
+
                 tid[ j*m + i ] = tid_new;
                 }
         
@@ -420,10 +691,58 @@ void test_qr ( int m , int n , int K , int nr_threads , int runs ) {
     for ( k = 0 ; k < qsched_timer_count ; k++ )
         message( "timer %s is %lli ticks." , qsched_timer_names[k] , s.timers[k]/runs );
     
+    if(matrix != NULL)
+    {
+        for(k = 0; k < m*n*K*K; k++)
+            matrix[k] = A[k];
+    }
+
+ 
+    /* Test if the decomposition was correct.*/
+   /*double *tempMatrix = tileToColumn(A, m*n*K*K, m, n, K);
+    double *Q = computeQ(tempMatrix, m*K, K, tau, m);
+    double *R = getR(tempMatrix, m*K);
+    cblas_dgemm(CblasColMajor, CblasNoTrans, CblasNoTrans, m*K, m*K, m*K, 1.0, Q, m*K, R, m*K, 0.0, tempMatrix, m*K);
+        free(Q);
+        Q = tileToColumn(A_orig, m*n*K*K, m, n, K);
+    for(i = 0; i < m * n * K * K; i++)
+    {
+        if(Q[i] != 0 && (Q[i] / tempMatrix[i] > 1.005 || Q[i] / tempMatrix[i] < 0.995))
+            printf("Not correct at value %i %.3f %.3e %.3e\n", i, A[i], Q[i], tempMatrix[i]);
+    }
+    free(tempMatrix);
+    free(Q);
+    free(R);*/
+
     /* Clean up. */
+    free(A);
+    free(A_orig);
+    free(tau);
+    free(tid);
+    free(rid);
     qsched_free( &s );
         
     }
+
+
+/* Generates a random matrix. */
+double* generateColumnMatrix(int size)
+{
+    double* matrix = malloc(sizeof(double)*size*size);
+    if(matrix == NULL)
+        error("Failed to allocate matrix");
+
+    unsigned long int m_z = 35532;
+    int i;
+    for(i = 0 ; i < size*size; i++)
+    {
+        m_z = (1664525*m_z + 1013904223) % 4294967296;
+        matrix[i] = m_z % 100;
+        if(matrix[i] < 0)
+            matrix[i] += 100;
+    }
+    return matrix;
+}
 
 
 /**
@@ -477,7 +796,7 @@ int main ( int argc , char *argv[] ) {
     message( "Computing the tiled QR decomposition of a %ix%i matrix using %i threads (%i runs)." ,
         32*M , 32*N , nr_threads , runs );
         
-    test_qr( M , N , K , nr_threads , runs );
+    test_qr( M , N , K , nr_threads , runs , NULL);
     
     }
     
