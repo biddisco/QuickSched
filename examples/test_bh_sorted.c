@@ -40,19 +40,19 @@
 #define cell_maxparts 16
 #define task_limit 5000
 #define const_G 6.6738e-8
-#define dist_min 0.5  /* Used fpr legacy walk only */
-#define iact_pair_direct iact_pair_direct_unsorted
+#define dist_min 0.5 /* Used fpr legacy walk only */
+#define iact_pair_direct iact_pair_direct_sorted
 
 #define ICHECK -1
 
 /** Data structure for the particles. */
 struct part {
   double x[3];
-  //union { 
-    float a[3];
-    float a_legacy[3];
-    float a_exact[3];
-  //}; 
+  // union {
+  float a[3];
+  float a_legacy[3];
+  float a_exact[3];
+  //};
   float mass;
   int id;
 } __attribute__((aligned(32)));
@@ -260,23 +260,37 @@ void cell_sort(struct cell *c, float *axis, int aid) {
   if (c->split) {
 
     /* Heap of pointers to the progeny's indices. */
-    struct index *pindex[8];
+    struct {
+      struct index *index;
+      int offset;
+      } temp, pindex[8];
     int k = 0;
 
     /* First, make sure all the progeny have been sorted, and get the pointers
        to their first entries. */
     for (struct cell *cp = c->firstchild; cp != c->sibling; cp = cp->sibling) {
       if (!(cp->sorted & (1 << aid))) cell_sort(cp, axis, aid);
-      pindex[k++] = &cp->indices[(cp->count + 1) * aid];
+      pindex[k].index = &cp->indices[(cp->count + 1) * aid];
+      pindex[k].offset = cp->parts - c->parts;
+      k++;
     }
+    
+    /* Fill any remaining gaps with the sentinel. */
+    c->indices[(c->count + 1) * aid + c->count].d = FLT_MAX;
+    for (; k < 8; k++)
+      pindex[k].index = &c->indices[(c->count + 1) * aid + c->count];
 
     /* Heapify the pindices. */
-    for (k = 7; k > 0; k--) {
-      for (int j = k; j > 0; j = j / 2) {
-        if (pindex[j]->d < pindex[j / 2]->d) {
-          struct index *temp = pindex[j];
-          pindex[j] = pindex[j / 2];
-          pindex[j / 2] = temp;
+    for (k = 3; k >= 0; k--) {
+      int j = k;
+      while (j < 4) {
+        int jj = 2*j + 1;
+        if (jj + 1 < 8 && pindex[jj + 1].index->d < pindex[jj].index->d) jj = jj + 1;
+        if (pindex[jj].index->d < pindex[j].index->d) {
+          temp = pindex[jj];
+          pindex[jj] = pindex[j];
+          pindex[j] = temp;
+          j = jj;
         } else
           break;
       }
@@ -287,20 +301,20 @@ void cell_sort(struct cell *c, float *axis, int aid) {
     for (int k = 0; k < c->count; k++) {
 
       /* Copy the top of the heap to the destination. */
-      *dest = *pindex[0];
+      *dest = *pindex[0].index;
+      dest->ind += pindex[0].offset;
 
       /* Increase the pointers. */
       dest++;
-      pindex[0]++;
+      pindex[0].index++;
 
       /* Fix the heap. */
       int j = 0;
-      while (1) {
-        int jj = j + j;
-        if (jj >= 8) break;
-        if (jj + 1 < 8 && pindex[jj + 1]->d < pindex[jj]->d) jj = jj + 1;
-        if (pindex[jj]->d < pindex[j]->d) {
-          struct index *temp = pindex[jj];
+      while (j < 4) {
+        int jj = 2*j + 1;
+        if (jj + 1 < 8 && pindex[jj + 1].index->d < pindex[jj].index->d) jj = jj + 1;
+        if (pindex[jj].index->d < pindex[j].index->d) {
+          temp = pindex[jj];
           pindex[jj] = pindex[j];
           pindex[j] = temp;
           j = jj;
@@ -334,6 +348,12 @@ void cell_sort(struct cell *c, float *axis, int aid) {
 
   /* Mark this cell as sorted in the given direction. */
   c->sorted |= (1 << aid);
+  
+  /* Verify the sort. */
+  /* int offset = (c->count + 1) * aid;
+  for (int k = 0; k < c->count; k++)
+    if (c->indices[offset + k].d > c->indices[offset + k + 1].d)
+      error( "Sorting failed." ); */
 }
 
 /**
@@ -374,7 +394,7 @@ void get_axis(struct cell **ci, struct cell **cj, struct index **ind_i,
   /* Make sure the cells are sorted. */
   if (!((*ci)->sorted & (1 << aid))) cell_sort(*ci, axis, aid);
   if (!((*cj)->sorted & (1 << aid))) cell_sort(*cj, axis, aid);
-  
+
   /* Set the indices. */
   *ind_i = &(*ci)->indices[aid * ((*ci)->count + 1)];
   *ind_j = &(*cj)->indices[aid * ((*cj)->count + 1)];
@@ -428,8 +448,6 @@ struct cell *cell_get() {
   /* Return the cell. */
   return res;
 }
-
-
 
 /**
  * @brief Sort the parts into eight bins along the given pivots and
@@ -549,14 +567,14 @@ void cell_split(struct cell *c, struct qsched *s) {
     }
 
     /* Find the first non-empty progenitor */
-    for ( k = 0; k < 8 ; k++ )
-      if ( progenitors[k]->count > 0)
-    	{
-    	  c->firstchild = progenitors[k];
-	  //message( "first child= %d", k);
-    	  break;
-    	}
-    if ( c->firstchild == NULL ) error( "Cell has been split but all progenitors have 0 particles" );
+    for (k = 0; k < 8; k++)
+      if (progenitors[k]->count > 0) {
+        c->firstchild = progenitors[k];
+        // message( "first child= %d", k);
+        break;
+      }
+    if (c->firstchild == NULL)
+      error("Cell has been split but all progenitors have 0 particles");
 
     /* Prepare the pointers. */
     for (k = 0; k < 8; k++) {
@@ -574,9 +592,8 @@ void cell_split(struct cell *c, struct qsched *s) {
     }
 
     /* Recurse. */
-    for (k = 0; k < 8; k++) 
-      if (progenitors[k]->count > 0)
-	cell_split(progenitors[k], s);
+    for (k = 0; k < 8; k++)
+      if (progenitors[k]->count > 0) cell_split(progenitors[k], s);
 
     /* Link the COM tasks. */
     for (k = 0; k < 8; k++)
@@ -659,9 +676,7 @@ static inline void iact_pair_pc(struct cell *ci, struct cell *cj) {
   struct part *parts = ci->parts;
 
   /* Early abort? */
-  if (count == 0 || cj->count == 0)
-    error( "Empty cell!" );
-
+  if (count == 0 || cj->count == 0) error("Empty cell!");
 
   /* Sanity check. */
   if (cj->new.mass == 0.0) {
@@ -673,7 +688,6 @@ static inline void iact_pair_pc(struct cell *ci, struct cell *cj) {
 
     error("com does not seem to have been set.");
   }
-
 
   /* Init the com's data. */
   for (k = 0; k < 3; k++) com[k] = cj->new.com[k];
@@ -702,10 +716,6 @@ static inline void iact_pair_pc(struct cell *ci, struct cell *cj) {
   } /* loop over every particle. */
 }
 
-
-
-
-
 /**
  * @brief Compute the interactions between all particles in a cell
  *        and all particles in the other cell (N^2 algorithm)
@@ -719,8 +729,7 @@ static inline void iact_pair_direct_unsorted(struct cell *ci, struct cell *cj) {
   int count_i = ci->count, count_j = cj->count;
   struct part *parts_i = ci->parts, *parts_j = cj->parts;
   double xi[3];
-  float dx[3], ai[3], mi, mj, r2,  w, ir;
-
+  float dx[3], ai[3], mi, mj, r2, w, ir;
 
   /* Loop over all particles in ci... */
   for (i = 0; i < count_i; i++) {
@@ -734,11 +743,11 @@ static inline void iact_pair_direct_unsorted(struct cell *ci, struct cell *cj) {
 
     /* Loop over every following particle. */
     for (j = 0; j < count_j; j++) {
-      
+
       /* Compute the pairwise distance. */
       for (r2 = 0.0, k = 0; k < 3; k++) {
-	dx[k] = xi[k] - parts_j[j].x[k];
-	r2 += dx[k] * dx[k];
+        dx[k] = xi[k] - parts_j[j].x[k];
+        r2 += dx[k] * dx[k];
       }
 
       /* Apply the gravitational acceleration. */
@@ -746,35 +755,30 @@ static inline void iact_pair_direct_unsorted(struct cell *ci, struct cell *cj) {
       w = const_G * ir * ir * ir;
       mj = parts_j[j].mass;
       for (k = 0; k < 3; k++) {
-	float wdx = w * dx[k];
-	parts_j[j].a[k] += wdx * mi;
-	ai[k] -= wdx * mj;
+        float wdx = w * dx[k];
+        parts_j[j].a[k] += wdx * mi;
+        ai[k] -= wdx * mj;
       }
-      
+
 #if ICHECK >= 0
       if (parts_i[i].id == ICHECK)
-	printf("[NEW] Interaction with particle id= %d (pair i)\n",
-	       parts_j[j].id);
-      
+        printf("[NEW] Interaction with particle id= %d (pair i)\n",
+               parts_j[j].id);
+
       if (parts_j[j].id == ICHECK)
-	printf("[NEW] Interaction with particle id= %d (pair j) h_i= %f h_j= "
-	       "%f ci= %p cj= %p count_i= %d count_j= %d d_i= %d d_j= %d\n",
-	       parts_i[i].id, ci->h, cj->h, ci, cj, count_i, count_j, ci->res,
-	       cj->res);
+        printf("[NEW] Interaction with particle id= %d (pair j) h_i= %f h_j= "
+               "%f ci= %p cj= %p count_i= %d count_j= %d d_i= %d d_j= %d\n",
+               parts_i[i].id, ci->h, cj->h, ci, cj, count_i, count_j, ci->res,
+               cj->res);
 #endif
 
     } /* loop over every other particle. */
-    
-      /* Store the accumulated acceleration on the ith part. */
+
+    /* Store the accumulated acceleration on the ith part. */
     for (k = 0; k < 3; k++) parts_i[i].a[k] += ai[k];
-    
+
   } /* loop over all particles. */
-
-  
 }
-
-
-
 
 /**
  * @brief Compute the interactions between all particles in a cell
@@ -786,12 +790,11 @@ static inline void iact_pair_direct_unsorted(struct cell *ci, struct cell *cj) {
 static inline void iact_pair_direct_sorted(struct cell *ci, struct cell *cj) {
 
   int i, j, k;
-  int count_i = ci->count, count_j = cj->count;
-  struct part *parts_i = ci->parts, *parts_j = cj->parts;
+  int count_i, count_j;
+  struct part *parts_i, *parts_j;
   double cih = ci->h, cjh = cj->h;
   double xi[3];
-  float dx[3], ai[3], mi, mj, r2,  w, ir;
-
+  float dx[3], ai[3], mi, mj, r2, w, ir;
 
   /* Get the sorted indices and stuff. */
   struct index *ind_i, *ind_j;
@@ -805,61 +808,61 @@ static inline void iact_pair_direct_sorted(struct cell *ci, struct cell *cj) {
   count_j = cj->count;
   parts_j = cj->parts;
   cjh = cj->h;
-  
+
   /* Distance along the axis as of which we will use a multipole. */
   float d_max = cjh / dist_min / corr;
-  
+
   /* Loop over all particles in ci... */
   for (i = count_i - 1; i >= 0; i--) {
-    
+
     /* Get the sorted index. */
     int pid = ind_i[i].ind;
     float di = ind_i[i].d;
-    
+
     /* Init the ith particle's data. */
     for (k = 0; k < 3; k++) {
       xi[k] = parts_i[pid].x[k];
       ai[k] = 0.0;
     }
     mi = parts_i[pid].mass;
-    
+
     /* Loop over every following particle within d_max along the axis. */
     for (j = 0; j < count_j && (ind_j[j].d - di) < d_max; j++) {
-      
+
       /* Get the sorted index. */
       int pjd = ind_j[j].ind;
-      
+
       /* Compute the pairwise distance. */
       for (r2 = 0.0, k = 0; k < 3; k++) {
-	dx[k] = xi[k] - parts_j[pjd].x[k];
-	r2 += dx[k] * dx[k];
+        dx[k] = xi[k] - parts_j[pjd].x[k];
+        r2 += dx[k] * dx[k];
       }
-      
+
       /* Apply the gravitational acceleration. */
       ir = 1.0f / sqrtf(r2);
       w = const_G * ir * ir * ir;
       mj = parts_j[pjd].mass;
       for (k = 0; k < 3; k++) {
-	float wdx = w * dx[k];
-	parts_j[pjd].a[k] += wdx * mi;
-	ai[k] -= wdx * mj;
+        float wdx = w * dx[k];
+        parts_j[pjd].a[k] += wdx * mi;
+        ai[k] -= wdx * mj;
       }
-      
+
 #if ICHECK >= 0
       if (parts_i[pid].id == ICHECK)
-	printf("[NEW] Interaction with particle id= %d (pair i)\n",
-	       parts_j[pjd].id);
-      
+        printf("[NEW] Interaction with particle id= %d (pair i)\n",
+               parts_j[pjd].id);
+
       if (parts_j[j].id == ICHECK)
-	printf("[NEW] Interaction with particle id= %d (pair j) h_i= %f h_j= "
-	       "%f ci= %p cj= %p count_i= %d count_j= %d d_i= %d d_j= %d\n",
-	       parts_i[pid].id, cih, cjh, ci, cj, count_i, count_j, ci->res,
-	       cj->res);
+        printf("[NEW] Interaction with particle id= %d (pair j) h_i= %f h_j= "
+               "%f ci= %p cj= %p count_i= %d count_j= %d d_i= %d d_j= %d\n",
+               parts_i[pid].id, cih, cjh, ci, cj, count_i, count_j, ci->res,
+               cj->res);
 #endif
 
     } /* loop over every other particle. */
-    
-      /* Add any remaining particles to the COM. */
+
+    /* Add any remaining particles to the COM. */
     for (int jj = j; jj < count_j; jj++) {
       int pjd = ind_j[jj].ind;
       mj = parts_j[pjd].mass;
@@ -868,28 +871,28 @@ static inline void iact_pair_direct_sorted(struct cell *ci, struct cell *cj) {
       com[2] += mj * parts_j[pjd].x[2];
       com_mass += mj;
     }
-    
+
     /* Shrink count_j to the latest valid particle. */
     count_j = j;
-    
+
     /* Interact part_i with the center of mass. */
     if (com_mass > 0.0) {
       float icom_mass = 1.0f / com_mass;
       for (r2 = 0.0, k = 0; k < 3; k++) {
-	dx[k] = xi[k] - com[k] * icom_mass;
-	r2 += dx[k] * dx[k];
+        dx[k] = xi[k] - com[k] * icom_mass;
+        r2 += dx[k] * dx[k];
       }
       ir = 1.0f / sqrtf(r2);
       w = const_G * ir * ir * ir;
       for (k = 0; k < 3; k++) ai[k] -= w * dx[k] * com_mass;
     }
-    
+
     /* Store the accumulated acceleration on the ith part. */
     for (k = 0; k < 3; k++) parts_i[pid].a[k] += ai[k];
-    
+
   } /* loop over all particles in ci. */
-  
-    /* Loop over the particles in cj, catch the COM interactions. */
+
+  /* Loop over the particles in cj, catch the COM interactions. */
   count_j = cj->count;
   int last_i = 0;
   com[0] = 0.0;
@@ -898,11 +901,11 @@ static inline void iact_pair_direct_sorted(struct cell *ci, struct cell *cj) {
   com_mass = 0.0f;
   d_max = cih / dist_min / corr;
   for (j = 0; j < count_j; j++) {
-    
+
     /* Get the sorted index. */
     int pjd = ind_j[j].ind;
     float dj = ind_j[j].d;
-    
+
     /* Fill the COM with any new particles. */
     for (i = last_i; i < count_i && (dj - ind_i[i].d) > d_max; i++) {
       int pid = ind_i[i].ind;
@@ -912,30 +915,27 @@ static inline void iact_pair_direct_sorted(struct cell *ci, struct cell *cj) {
       com[2] += parts_i[pid].x[2] * mi;
       com_mass += mi;
     }
-    
+
     /* Set the new last_i to the last particle checked. */
     last_i = i;
-    
+
     /* Interact part_j with the COM. */
     if (com_mass > 0.0) {
       float icom_mass = 1.0f / com_mass;
       for (r2 = 0.0, k = 0; k < 3; k++) {
-	dx[k] = com[k] * icom_mass - parts_j[pjd].x[k];
-	r2 += dx[k] * dx[k];
+        dx[k] = com[k] * icom_mass - parts_j[pjd].x[k];
+        r2 += dx[k] * dx[k];
       }
       ir = 1.0f / sqrtf(r2);
       w = const_G * ir * ir * ir;
       for (k = 0; k < 3; k++) parts_j[pjd].a[k] += w * dx[k] * com_mass;
     }
   }
-  
 }
 
-
-
-
 /**
- * @brief Decides whether two cells use the direct summation interaction or the multipole interactions
+ * @brief Decides whether two cells use the direct summation interaction or the
+* multipole interactions
  *
  * @param ci The #cell.
  * @param cj The other #cell.
@@ -949,14 +949,12 @@ void iact_pair(struct cell *ci, struct cell *cj) {
   struct cell *cp;
 
   /* Early abort? */
-  if (count_i == 0 || count_j == 0)
-    error( "Empty cell !" );
-
+  if (count_i == 0 || count_j == 0) error("Empty cell !");
 
   /* Sanity check */
   if (ci == cj)
-    error( "The impossible has happened: pair interaction between a cell and "
-           "itself." );
+    error("The impossible has happened: pair interaction between a cell and "
+          "itself.");
 
   /* Distance between the cell centers */
   for (k = 0; k < 3; k++) {
@@ -964,44 +962,34 @@ void iact_pair(struct cell *ci, struct cell *cj) {
     center_j = cj->loc[k] + 0.5 * cjh;
     dx[k] = fabs(center_i - center_j);
   }
- 
+
   min_dist = cih + cjh;
 
   /* Are the cells NOT neighbours ? */
-  if( ( dx[0] > min_dist ) || ( dx[1] > min_dist ) || ( dx[2] > min_dist ) ) {
+  if ((dx[0] > min_dist) || (dx[1] > min_dist) || (dx[2] > min_dist)) {
 
     iact_pair_pc(ci, cj);
     iact_pair_pc(cj, ci);
 
-  }
-  else {     /* Cells are direct neighbours */
+  } else {/* Cells are direct neighbours */
 
     /* Are both cells split ? */
-    if ( ci->split && cj->split ) {
+    if (ci->split && cj->split) {
 
       /* We can split one of the two cells. Let's try the biggest one.*/
       if (cih > cjh) {
-	for (cp = ci->firstchild; cp != ci->sibling; cp = cp->sibling)
-	    iact_pair(cp, cj);
+        for (cp = ci->firstchild; cp != ci->sibling; cp = cp->sibling)
+          iact_pair(cp, cj);
       } else {
-	  for (cp = cj->firstchild; cp != cj->sibling; cp = cp->sibling)
-	    iact_pair(ci, cp);
+        for (cp = cj->firstchild; cp != cj->sibling; cp = cp->sibling)
+          iact_pair(ci, cp);
       }
-    }
+    } else {/* Ok one of the cells is not split */
 
-    else { /* Ok one of the cells is not split */
-
-      iact_pair_direct( ci, cj );
-
+      iact_pair_direct(ci, cj);
     }
   }
 }
-
-
-
-
-
-
 
 /**
  * @brief Compute the interactions between all particles in a cell.
@@ -1010,15 +998,13 @@ void iact_pair(struct cell *ci, struct cell *cj) {
  */
 void iact_self(struct cell *c) {
   int i, j, k, count = c->count;
-  double xi[3];
-  float ai[3], mi, mj, dx[3], r2, ir, w;
+  double xi[3] = {0.0, 0.0, 0.0};
+  float ai[3] = {0.0, 0.0, 0.0}, mi, mj, dx[3] = {0.0, 0.0, 0.0}, r2, ir, w;
   struct part *parts = c->parts;
   struct cell *cp, *cps;
 
   /* Early abort? */
-  if (count == 0) 
-    error( "Empty cell !" );
-
+  if (count == 0) error("Empty cell !");
 
   /* If the cell is split, interact each progeny with itself, and with
      each of its siblings. */
@@ -1081,9 +1067,6 @@ void iact_self(struct cell *c) {
   } /* otherwise, compute interactions directly. */
 }
 
-
-
-
 /**
  * @brief Create the tasks for the cell pair/self.
  *
@@ -1100,8 +1083,7 @@ void create_tasks(struct qsched *s, struct cell *ci, struct cell *cj) {
   struct cell *data[2], *cp, *cps;
 
   /* If either cell is empty, stop. */
-  if (ci->count == 0 || (cj != NULL && cj->count == 0)) 
-    error( "Empty cell !" );
+  if (ci->count == 0 || (cj != NULL && cj->count == 0)) error("Empty cell !");
 
   /* Single cell? */
   if (cj == NULL) {
@@ -1152,11 +1134,11 @@ void create_tasks(struct qsched *s, struct cell *ci, struct cell *cj) {
       center_j = cj->loc[k] + 0.5 * cjh;
       dx[k] = fabs(center_i - center_j);
     }
- 
+
     min_dist = cih + cjh;
 
     /* Are the cells NOT neighbours ? */
-    if( ( dx[0] > min_dist ) || ( dx[1] > min_dist ) || ( dx[2] > min_dist ) ) {
+    if ((dx[0] > min_dist) || (dx[1] > min_dist) || (dx[2] > min_dist)) {
 
       data[0] = ci;
       data[1] = cj;
@@ -1172,93 +1154,86 @@ void create_tasks(struct qsched *s, struct cell *ci, struct cell *cj) {
       qsched_addlock(s, tid, cj->res);
       qsched_addunlock(s, ci->com_tid, tid);
 
-    }
-    else {     /* Cells are direct neighbours */
+    } else {/* Cells are direct neighbours */
 
       /* Are both cells split ? */
-      if ( ci->split && cj->split ) {
+      if (ci->split && cj->split) {
 
-      	if ( ci->count > task_limit && cj->count > task_limit )
-      	  {
+        if (ci->count > task_limit && cj->count > task_limit) {
 
-      	    /* We can split one of the two cells. Let's try the biggest one.*/
-      	    if (cih > cjh) {
-      	      for (cp = ci->firstchild; cp != ci->sibling; cp = cp->sibling)
-      		create_tasks(s, cp, cj);
-      	    } else {
-      	      for (cp = cj->firstchild; cp != cj->sibling; cp = cp->sibling)
-      		create_tasks(s, ci, cp);
-      	    }
-      	  }
-      	else
-      	  {
+          /* We can split one of the two cells. Let's try the biggest one.*/
+          if (cih > cjh) {
+            for (cp = ci->firstchild; cp != ci->sibling; cp = cp->sibling)
+              create_tasks(s, cp, cj);
+          } else {
+            for (cp = cj->firstchild; cp != cj->sibling; cp = cp->sibling)
+              create_tasks(s, ci, cp);
+          }
+        } else {
 
-      	    if (cih > cjh) {
-      	      for (cp = ci->firstchild; cp != ci->sibling; cp = cp->sibling) {
+          if (cih > cjh) {
+            for (cp = ci->firstchild; cp != ci->sibling; cp = cp->sibling) {
 
-      		/* Set the data. */
-      		data[0] = cp;
-      		data[1] = cj;
-		
-      		/* Create the task. */
-      		tid = qsched_addtask(s, task_type_pair, task_flag_none, data,
-      				     sizeof(struct cell *) * 2, cp->count * cj->count);
+              /* Set the data. */
+              data[0] = cp;
+              data[1] = cj;
 
-      		/* Add the resources. */
-      		qsched_addlock(s, tid, cp->res);
-      		qsched_addlock(s, tid, cj->res);
+              /* Create the task. */
+              tid = qsched_addtask(s, task_type_pair, task_flag_none, data,
+                                   sizeof(struct cell *) * 2,
+                                   cp->count * cj->count);
 
-      		/* Depend on the COMs in case this task recurses. */
-      		if (cp->split || cj->split) {
-      		  qsched_addunlock(s, cp->com_tid, tid);
-      		  qsched_addunlock(s, cj->com_tid, tid);
-      		}
-      	      }
-      	    } else {
-      	      for (cp = cj->firstchild; cp != cj->sibling; cp = cp->sibling) {
+              /* Add the resources. */
+              qsched_addlock(s, tid, cp->res);
+              qsched_addlock(s, tid, cj->res);
 
-      		/* Set the data. */
-      		data[0] = ci;
-      		data[1] = cp;
-		
-      		/* Create the task. */
-      		tid = qsched_addtask(s, task_type_pair, task_flag_none, data,
-      				     sizeof(struct cell *) * 2, ci->count * cp->count);
+              /* Depend on the COMs in case this task recurses. */
+              if (cp->split || cj->split) {
+                qsched_addunlock(s, cp->com_tid, tid);
+                qsched_addunlock(s, cj->com_tid, tid);
+              }
+            }
+          } else {
+            for (cp = cj->firstchild; cp != cj->sibling; cp = cp->sibling) {
 
-      		/* Add the resources. */
-      		qsched_addlock(s, tid, ci->res);
-      		qsched_addlock(s, tid, cp->res);
+              /* Set the data. */
+              data[0] = ci;
+              data[1] = cp;
 
-      		/* Depend on the COMs in case this task recurses. */
-      		if (ci->split || cp->split) {
-      		  qsched_addunlock(s, ci->com_tid, tid);
-      		  qsched_addunlock(s, cp->com_tid, tid);
-      		}
-      	      }
-      	    }
-      	  }
+              /* Create the task. */
+              tid = qsched_addtask(s, task_type_pair, task_flag_none, data,
+                                   sizeof(struct cell *) * 2,
+                                   ci->count * cp->count);
+
+              /* Add the resources. */
+              qsched_addlock(s, tid, ci->res);
+              qsched_addlock(s, tid, cp->res);
+
+              /* Depend on the COMs in case this task recurses. */
+              if (ci->split || cp->split) {
+                qsched_addunlock(s, ci->com_tid, tid);
+                qsched_addunlock(s, cp->com_tid, tid);
+              }
+            }
+          }
+        }
+      } else {/* Ok one of the cells is not split */
+
+        /* Set the data. */
+        data[0] = ci;
+        data[1] = cj;
+
+        /* Create the task. */
+        tid = qsched_addtask(s, task_type_pair_direct, task_flag_none, data,
+                             sizeof(struct cell *) * 2, ci->count * cj->count);
+
+        /* Add the resources. */
+        qsched_addlock(s, tid, ci->res);
+        qsched_addlock(s, tid, cj->res);
       }
-      else { /* Ok one of the cells is not split */
-
-
-	/* Set the data. */
-	data[0] = ci;
-	data[1] = cj;
-
-	/* Create the task. */
-	tid = qsched_addtask(s, task_type_pair_direct, task_flag_none, data,
-			     sizeof(struct cell *) * 2, ci->count * cj->count);
-	
-	/* Add the resources. */
-	qsched_addlock(s, tid, ci->res);
-	qsched_addlock(s, tid, cj->res);
-
-      }
-    }   /* Cells are direct neighbours */
-  } /* Otherwise it's a pair */
+    } /* Cells are direct neighbours */
+  }   /* Otherwise it's a pair */
 }
-
-
 
 /* -------------------------------------------------------------------------- */
 /* Legacy tree walk */
@@ -1518,7 +1493,7 @@ void test_bh(int N, int nr_threads, int runs, char *fileName) {
   struct part *parts;
   FILE *file;
   struct qsched s;
-  ticks tic, toc_run, tot_setup = 0, tot_run = 0, tic_exact, toc_exact;
+  ticks tic, toc_run, tot_setup = 0, tot_run = 0;
   int countMultipoles, countPairs, countCoMs;
 
   /* Runner function. */
@@ -1604,18 +1579,20 @@ void test_bh(int N, int nr_threads, int runs, char *fileName) {
   root->parts = parts;
   cell_split(root, &s);
 
+#if ICHECK > 0
   printf("----------------------------------------------------------\n");
 
   /* Do a N^2 interactions calculation */
 
-  tic_exact = getticks();
+  ticks tic_exact = getticks();
   interact_exact(N, parts, ICHECK);
-  toc_exact = getticks();
+  ticks toc_exact = getticks();
 
   printf("Exact calculation (1 thread) took %lli (= %e) ticks\n",
          toc_exact - tic_exact, (float)(toc_exact - tic_exact));
 
   printf("----------------------------------------------------------\n");
+#endif
 
   /* Create the tasks. */
   tic = getticks();
@@ -1663,9 +1640,10 @@ void test_bh(int N, int nr_threads, int runs, char *fileName) {
           root->parts[ICHECK].a[0], root->parts[ICHECK].a[1],
           root->parts[ICHECK].a[2]);
 #endif
-  printf("task counts: [ %8s %8s %8s %8s %8s ]\n", "self", "pair", "m-poles", "direct",
-         "CoMs");
-  printf("task counts: [ %8i %8i %8i %8i %8i ] (legacy).\n", 0, 0, countMultipoles, countPairs, countCoMs);
+  printf("task counts: [ %8s %8s %8s %8s %8s ]\n", "self", "pair", "m-poles",
+         "direct", "CoMs");
+  printf("task counts: [ %8i %8i %8i %8i %8i ] (legacy).\n", 0, 0,
+         countMultipoles, countPairs, countCoMs);
   printf("task counts: [ ");
   for (k = 0; k < task_type_count; k++) printf("%8i ", counts[k]);
   printf("] (new).\n");
