@@ -354,7 +354,7 @@ void cell_sort(struct cell *c, float *axis, int aid) {
   for (int k = 0; k < c->count; k++)
     if (c->indices[offset + k].d > c->indices[offset + k + 1].d)
       error( "Sorting failed." ); */
-}
+} /*  */
 
 /**
  * @brief Get all the data needed for computing a sorted pair.
@@ -731,6 +731,10 @@ static inline void iact_pair_direct_unsorted(struct cell *ci, struct cell *cj) {
   double xi[3];
   float dx[3], ai[3], mi, mj, r2, w, ir;
 
+  /* Bad stuff will happen if cell sizes are different */
+   if ( ci->h != cj->h )
+     error("Non matching cell sizes !! h_i=%f h_j=%f\n", ci->h, cj->h);
+
   /* Loop over all particles in ci... */
   for (i = 0; i < count_i; i++) {
 
@@ -796,6 +800,10 @@ static inline void iact_pair_direct_sorted(struct cell *ci, struct cell *cj) {
   double xi[3];
   float dx[3], ai[3], mi, mj, r2, w, ir;
 
+   /* Bad stuff will happen if cell sizes are different */
+   if ( ci->h != cj->h )
+     error("Non matching cell sizes !! h_i=%f h_j=%f\n", ci->h, cj->h);
+
   /* Get the sorted indices and stuff. */
   struct index *ind_i, *ind_j;
   float corr;
@@ -810,7 +818,7 @@ static inline void iact_pair_direct_sorted(struct cell *ci, struct cell *cj) {
   cjh = cj->h;
 
   /* Distance along the axis as of which we will use a multipole. */
-  float d_max = cjh / dist_min / corr;
+  float d_max =  cjh / dist_min / corr;
 
   /* Loop over all particles in ci... */
   for (i = count_i - 1; i >= 0; i--) {
@@ -946,10 +954,14 @@ void iact_pair(struct cell *ci, struct cell *cj) {
   int count_i = ci->count, count_j = cj->count;
   double center_i, center_j, dx[3];
   double min_dist, cih = ci->h, cjh = cj->h;
-  struct cell *cp;
+  struct cell *cp, *cps;
 
   /* Early abort? */
   if (count_i == 0 || count_j == 0) error("Empty cell !");
+
+   /* Bad stuff will happen if cell sizes are different */
+   if ( ci->h != cj->h )
+     error("Non matching cell sizes !! h_i=%f h_j=%f\n", ci->h, cj->h);
 
   /* Sanity check */
   if (ci == cj)
@@ -976,14 +988,11 @@ void iact_pair(struct cell *ci, struct cell *cj) {
     /* Are both cells split ? */
     if (ci->split && cj->split) {
 
-      /* We can split one of the two cells. Let's try the biggest one.*/
-      if (cih > cjh) {
-        for (cp = ci->firstchild; cp != ci->sibling; cp = cp->sibling)
-          iact_pair(cp, cj);
-      } else {
-        for (cp = cj->firstchild; cp != cj->sibling; cp = cp->sibling)
-          iact_pair(ci, cp);
-      }
+      /* Let's split both cells and build all possible pairs */
+      for (cp = ci->firstchild; cp != ci->sibling; cp = cp->sibling)
+	for (cps = cj->firstchild; cps != cj->sibling; cps = cps->sibling)
+	  iact_pair(cp, cps);
+
     } else {/* Ok one of the cells is not split */
 
       iact_pair_direct(ci, cj);
@@ -1161,61 +1170,37 @@ void create_tasks(struct qsched *s, struct cell *ci, struct cell *cj) {
 
         if (ci->count > task_limit && cj->count > task_limit) {
 
-          /* We can split one of the two cells. Let's try the biggest one.*/
-          if (cih > cjh) {
-            for (cp = ci->firstchild; cp != ci->sibling; cp = cp->sibling)
-              create_tasks(s, cp, cj);
-          } else {
-            for (cp = cj->firstchild; cp != cj->sibling; cp = cp->sibling)
-              create_tasks(s, ci, cp);
-          }
+	  /* Let's split both cells and build all possible pairs */
+	  for (cp = ci->firstchild; cp != ci->sibling; cp = cp->sibling)
+	    for (cps = cj->firstchild; cps != cj->sibling; cps = cps->sibling)
+	      create_tasks(s, cp, cps);
+
         } else {
 
-          if (cih > cjh) {
-            for (cp = ci->firstchild; cp != ci->sibling; cp = cp->sibling) {
-
-              /* Set the data. */
-              data[0] = cp;
-              data[1] = cj;
-
-              /* Create the task. */
-              tid = qsched_addtask(s, task_type_pair, task_flag_none, data,
-                                   sizeof(struct cell *) * 2,
-                                   cp->count * cj->count);
-
-              /* Add the resources. */
-              qsched_addlock(s, tid, cp->res);
-              qsched_addlock(s, tid, cj->res);
-
-              /* Depend on the COMs in case this task recurses. */
-              if (cp->split || cj->split) {
-                qsched_addunlock(s, cp->com_tid, tid);
-                qsched_addunlock(s, cj->com_tid, tid);
-              }
-            }
-          } else {
-            for (cp = cj->firstchild; cp != cj->sibling; cp = cp->sibling) {
-
-              /* Set the data. */
-              data[0] = ci;
-              data[1] = cp;
+	  /* Let's split both cells and build all possible pairs */
+	  for (cp = ci->firstchild; cp != ci->sibling; cp = cp->sibling) {
+	    for (cps = cj->firstchild; cps != cj->sibling; cps = cps->sibling) {
+	
+	      /* Set the data */
+	      data[0] = cp;
+	      data[1] = cps;
 
               /* Create the task. */
               tid = qsched_addtask(s, task_type_pair, task_flag_none, data,
                                    sizeof(struct cell *) * 2,
-                                   ci->count * cp->count);
+                                   cp->count * cps->count);
 
               /* Add the resources. */
-              qsched_addlock(s, tid, ci->res);
               qsched_addlock(s, tid, cp->res);
+              qsched_addlock(s, tid, cps->res);
 
               /* Depend on the COMs in case this task recurses. */
-              if (ci->split || cp->split) {
-                qsched_addunlock(s, ci->com_tid, tid);
+              if (cp->split || cps->split) {
                 qsched_addunlock(s, cp->com_tid, tid);
-              }
-            }
-          }
+                qsched_addunlock(s, cps->com_tid, tid);
+	      }
+	    }
+	  }
         }
       } else {/* Ok one of the cells is not split */
 
