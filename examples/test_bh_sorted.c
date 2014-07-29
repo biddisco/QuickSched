@@ -37,8 +37,8 @@
 
 /* Some local constants. */
 #define cell_pool_grow 1000
-#define cell_maxparts 32
-#define task_limit 5000
+#define cell_maxparts 100
+#define task_limit 1.0e9
 #define const_G 6.6738e-8
 #define dist_min 0.5 /* Used fpr legacy walk only */
 #define iact_pair_direct iact_pair_direct_sorted
@@ -263,7 +263,7 @@ void cell_sort(struct cell *c, float *axis, int aid) {
     struct {
       struct index *index;
       int offset;
-      } temp, pindex[8];
+    } temp, pindex[8];
     int k = 0;
 
     /* First, make sure all the progeny have been sorted, and get the pointers
@@ -274,7 +274,7 @@ void cell_sort(struct cell *c, float *axis, int aid) {
       pindex[k].offset = cp->parts - c->parts;
       k++;
     }
-    
+
     /* Fill any remaining gaps with the sentinel. */
     c->indices[(c->count + 1) * aid + c->count].d = FLT_MAX;
     for (; k < 8; k++)
@@ -284,8 +284,9 @@ void cell_sort(struct cell *c, float *axis, int aid) {
     for (k = 3; k >= 0; k--) {
       int j = k;
       while (j < 4) {
-        int jj = 2*j + 1;
-        if (jj + 1 < 8 && pindex[jj + 1].index->d < pindex[jj].index->d) jj = jj + 1;
+        int jj = 2 * j + 1;
+        if (jj + 1 < 8 && pindex[jj + 1].index->d < pindex[jj].index->d)
+          jj = jj + 1;
         if (pindex[jj].index->d < pindex[j].index->d) {
           temp = pindex[jj];
           pindex[jj] = pindex[j];
@@ -311,8 +312,9 @@ void cell_sort(struct cell *c, float *axis, int aid) {
       /* Fix the heap. */
       int j = 0;
       while (j < 4) {
-        int jj = 2*j + 1;
-        if (jj + 1 < 8 && pindex[jj + 1].index->d < pindex[jj].index->d) jj = jj + 1;
+        int jj = 2 * j + 1;
+        if (jj + 1 < 8 && pindex[jj + 1].index->d < pindex[jj].index->d)
+          jj = jj + 1;
         if (pindex[jj].index->d < pindex[j].index->d) {
           temp = pindex[jj];
           pindex[jj] = pindex[j];
@@ -348,7 +350,7 @@ void cell_sort(struct cell *c, float *axis, int aid) {
 
   /* Mark this cell as sorted in the given direction. */
   c->sorted |= (1 << aid);
-  
+
   /* Verify the sort. */
   /* int offset = (c->count + 1) * aid;
   for (int k = 0; k < c->count; k++)
@@ -732,8 +734,8 @@ static inline void iact_pair_direct_unsorted(struct cell *ci, struct cell *cj) {
   float dx[3], ai[3], mi, mj, r2, w, ir;
 
   /* Bad stuff will happen if cell sizes are different */
-   if ( ci->h != cj->h )
-     error("Non matching cell sizes !! h_i=%f h_j=%f\n", ci->h, cj->h);
+  if (ci->h != cj->h)
+    error("Non matching cell sizes !! h_i=%f h_j=%f\n", ci->h, cj->h);
 
   /* Loop over all particles in ci... */
   for (i = 0; i < count_i; i++) {
@@ -800,9 +802,9 @@ static inline void iact_pair_direct_sorted(struct cell *ci, struct cell *cj) {
   double xi[3];
   float dx[3], ai[3], mi, mj, r2, w, ir;
 
-   /* Bad stuff will happen if cell sizes are different */
-   if ( ci->h != cj->h )
-     error("Non matching cell sizes !! h_i=%f h_j=%f\n", ci->h, cj->h);
+  /* Bad stuff will happen if cell sizes are different */
+  if (ci->h != cj->h)
+    error("Non matching cell sizes !! h_i=%f h_j=%f\n", ci->h, cj->h);
 
   /* Get the sorted indices and stuff. */
   struct index *ind_i, *ind_j;
@@ -818,7 +820,7 @@ static inline void iact_pair_direct_sorted(struct cell *ci, struct cell *cj) {
   cjh = cj->h;
 
   /* Distance along the axis as of which we will use a multipole. */
-  float d_max =  cjh / dist_min / corr;
+  float d_max = cjh / dist_min / corr;
 
   /* Loop over all particles in ci... */
   for (i = count_i - 1; i >= 0; i--) {
@@ -959,9 +961,9 @@ void iact_pair(struct cell *ci, struct cell *cj) {
   /* Early abort? */
   if (count_i == 0 || count_j == 0) error("Empty cell !");
 
-   /* Bad stuff will happen if cell sizes are different */
-   if ( ci->h != cj->h )
-     error("Non matching cell sizes !! h_i=%f h_j=%f\n", ci->h, cj->h);
+  /* Bad stuff will happen if cell sizes are different */
+  if (ci->h != cj->h)
+    error("Non matching cell sizes !! h_i=%f h_j=%f\n", ci->h, cj->h);
 
   /* Sanity check */
   if (ci == cj)
@@ -990,39 +992,38 @@ void iact_pair(struct cell *ci, struct cell *cj) {
 
       /* Let's split both cells and build all possible pairs */
       for (cp = ci->firstchild; cp != ci->sibling; cp = cp->sibling) {
-	for (cps = cj->firstchild; cps != cj->sibling; cps = cps->sibling) {
-	  
-	  /* Check the distance between the two children */
-	  for (k = 0; k < 3; k++) {
-	    center_i = cp->loc[k] + 0.5 * cp->h;
-	    center_j = cps->loc[k] + 0.5 * cps->h;
-	    dx[k] = fabs(center_i - center_j);
-	  }
+        for (cps = cj->firstchild; cps != cj->sibling; cps = cps->sibling) {
 
-	  min_dist = cp->h + cps->h;
+          /* Check the distance between the two children */
+          for (k = 0; k < 3; k++) {
+            center_i = cp->loc[k] + 0.5 * cp->h;
+            center_j = cps->loc[k] + 0.5 * cps->h;
+            dx[k] = fabs(center_i - center_j);
+          }
 
-	  /* Are the cells NOT neighbours ? */
-	  if ((dx[0] > min_dist) || (dx[1] > min_dist) || (dx[2] > min_dist)) {
-	    
-	    iact_pair_pc(cp, cps);
-	    iact_pair_pc(cps, cp);
+          min_dist = cp->h + cps->h;
 
-	  } else {
+          /* Are the cells NOT neighbours ? */
+          if ((dx[0] > min_dist) || (dx[1] > min_dist) || (dx[2] > min_dist)) {
 
-	    /* Are both children split ? */
-	    if (cp->split && cps->split) {
+            iact_pair_pc(cp, cps);
+            iact_pair_pc(cps, cp);
 
-	      /* Recurse */
-	      iact_pair(cp, cps);
-	      
-	    } else {
+          } else {
 
-	      /* Use direct summation */
-	      iact_pair_direct(cp, cps);
-      
-	    }
-	  }
-	}
+            /* Are both children split ? */
+            if (cp->split && cps->split) {
+
+              /* Recurse */
+              iact_pair(cp, cps);
+
+            } else {
+
+              /* Use direct summation */
+              iact_pair_direct(cp, cps);
+            }
+          }
+        }
       }
     } else {/* Ok one of the cells is not split */
 
@@ -1130,7 +1131,7 @@ void create_tasks(struct qsched *s, struct cell *ci, struct cell *cj) {
   if (cj == NULL) {
 
     /* Is this cell split and above the task limit ? */
-    if (ci->split && ci->count > task_limit) {
+    if (ci->split && ci->count > task_limit / ci->count) {
 
       /* Loop over each of this cell's progeny. */
       for (cp = ci->firstchild; cp != ci->sibling; cp = cp->sibling) {
@@ -1197,94 +1198,93 @@ void create_tasks(struct qsched *s, struct cell *ci, struct cell *cj) {
       qsched_addlock(s, tid, cj->res);
       qsched_addunlock(s, ci->com_tid, tid);
 
-
     } else {/* Cells are direct neighbours */
-
 
       /* Are both cells split ? */
       if (ci->split && cj->split) {
 
-	/* Let's split both cells and build all possible pairs */
-	for (cp = ci->firstchild; cp != ci->sibling; cp = cp->sibling) {
-	  for (cps = cj->firstchild; cps != cj->sibling; cps = cps->sibling) {
+        /* Let's split both cells and build all possible pairs */
+        for (cp = ci->firstchild; cp != ci->sibling; cp = cp->sibling) {
+          for (cps = cj->firstchild; cps != cj->sibling; cps = cps->sibling) {
 
-	    /* Are the cells still big enough ? */
-	    if (cp->count > task_limit && cps->count > task_limit) {
-	      
-	      /* Recurse */
-	      create_tasks(s, cp, cps);
+            /* Are the cells still big enough ? */
+            if (cps->count > task_limit / cp->count) {
 
-	    } else { /* Cells are two small to recurse, let's build individual tasks */
+              /* Recurse */
+              create_tasks(s, cp, cps);
 
-	      /* Distance between the children centers */
-	      for (k = 0; k < 3; k++) {
-		center_i = cp->loc[k] + 0.5 * cp->h;
-		center_j = cps->loc[k] + 0.5 * cps->h;
-		dx[k] = fabs(center_i - center_j);
-	      }
+            } else {/* Cells are two small to recurse, let's build individual
+                       tasks */
 
-	      min_dist = cp->h + cps->h;
+              /* Distance between the children centers */
+              for (k = 0; k < 3; k++) {
+                center_i = cp->loc[k] + 0.5 * cp->h;
+                center_j = cps->loc[k] + 0.5 * cps->h;
+                dx[k] = fabs(center_i - center_j);
+              }
 
-	      /* Are the children NOT neighbours ? */
-	      if ((dx[0] > min_dist) || (dx[1] > min_dist) || (dx[2] > min_dist)) {
+              min_dist = cp->h + cps->h;
 
-		/* Create first cell-monopole task */
-		data[0] = cp;
-		data[1] = cps;
-		tid = qsched_addtask(s, task_type_pair_pc, task_flag_none, data,
-				     sizeof(struct cell *) * 2, cp->count);
-		qsched_addlock(s, tid, cp->res);
-		qsched_addunlock(s, cps->com_tid, tid);
-		
-		/* Create second cell-monopole task */
-		data[0] = cps;
-		data[1] = cp;
-		tid = qsched_addtask(s, task_type_pair_pc, task_flag_none, data,
-				     sizeof(struct cell *) * 2, cps->count);
-		qsched_addlock(s, tid, cps->res);
-		qsched_addunlock(s, cp->com_tid, tid);
+              /* Are the children NOT neighbours ? */
+              if ((dx[0] > min_dist) || (dx[1] > min_dist) ||
+                  (dx[2] > min_dist)) {
 
-		
-	      } else {
+                /* Create first cell-monopole task */
+                data[0] = cp;
+                data[1] = cps;
+                tid = qsched_addtask(s, task_type_pair_pc, task_flag_none, data,
+                                     sizeof(struct cell *) * 2, cp->count);
+                qsched_addlock(s, tid, cp->res);
+                qsched_addunlock(s, cps->com_tid, tid);
 
-		/* Are both children split ? */
-		if (cp->split && cps->split) {
+                /* Create second cell-monopole task */
+                data[0] = cps;
+                data[1] = cp;
+                tid = qsched_addtask(s, task_type_pair_pc, task_flag_none, data,
+                                     sizeof(struct cell *) * 2, cps->count);
+                qsched_addlock(s, tid, cps->res);
+                qsched_addunlock(s, cp->com_tid, tid);
 
-		  /* Set the data */
-		  data[0] = cp;
-		  data[1] = cps;
+              } else {
 
-		  /* Create the task. */
-		  tid = qsched_addtask(s, task_type_pair, task_flag_none, data,
-				       sizeof(struct cell *) * 2,
-				       cp->count * cps->count);
+                /* Are both children split ? */
+                if (cp->split && cps->split) {
 
-		  /* Add the resources. */
-		  qsched_addlock(s, tid, cp->res);
-		  qsched_addlock(s, tid, cps->res);
-		  qsched_addunlock(s, cp->com_tid, tid);
-		  qsched_addunlock(s, cps->com_tid, tid);
-		
-		} else { /* Can't split the children -> make a direct summation */
+                  /* Set the data */
+                  data[0] = cp;
+                  data[1] = cps;
 
-		  /* Set the data */
-		  data[0] = cp;
-		  data[1] = cps;
+                  /* Create the task. */
+                  tid = qsched_addtask(s, task_type_pair, task_flag_none, data,
+                                       sizeof(struct cell *) * 2,
+                                       cp->count * cps->count);
 
-		  /* Create the task. */
-		  tid = qsched_addtask(s, task_type_pair_direct, task_flag_none, data,
-				       sizeof(struct cell *) * 2,
-				       cp->count * cps->count);
+                  /* Add the resources. */
+                  qsched_addlock(s, tid, cp->res);
+                  qsched_addlock(s, tid, cps->res);
+                  qsched_addunlock(s, cp->com_tid, tid);
+                  qsched_addunlock(s, cps->com_tid, tid);
 
-		  /* Add the resources. */
-		  qsched_addlock(s, tid, cp->res);
-		  qsched_addlock(s, tid, cps->res);
+                } else {/* Can't split the children -> make a direct summation
+                           */
 
-		}
-	      }
-	    }
-	  }
-	}
+                  /* Set the data */
+                  data[0] = cp;
+                  data[1] = cps;
+
+                  /* Create the task. */
+                  tid = qsched_addtask(s, task_type_pair_direct, task_flag_none,
+                                       data, sizeof(struct cell *) * 2,
+                                       cp->count * cps->count);
+
+                  /* Add the resources. */
+                  qsched_addlock(s, tid, cp->res);
+                  qsched_addlock(s, tid, cps->res);
+                }
+              }
+            }
+          }
+        }
       } else {/* Ok one of the cells is not split */
 
         /* Set the data. */
@@ -1647,13 +1647,27 @@ void test_bh(int N, int nr_threads, int runs, char *fileName) {
   root->parts = parts;
   cell_split(root, &s);
 
+  /* Iterate over the cells and get the average number of particles
+     per leaf. */
+  struct cell *c = root;
+  int nr_leaves = 0;
+  while (c != NULL) {
+    if (!c->split) {
+      nr_leaves++;
+      c = c->sibling;
+    } else {
+      c = c->firstchild;
+    }
+  }
+  message("Average number of parts per leaf is %f.", ((double)N) / nr_leaves);
+
   //#if ICHECK > 0
   printf("----------------------------------------------------------\n");
 
   /* Do a N^2 interactions calculation */
 
   ticks tic_exact = getticks();
-  //interact_exact(N, parts, ICHECK);
+  // interact_exact(N, parts, ICHECK);
   ticks toc_exact = getticks();
 
   printf("Exact calculation (1 thread) took %lli (= %e) ticks\n",
@@ -1682,7 +1696,7 @@ void test_bh(int N, int nr_threads, int runs, char *fileName) {
   FILE *fileTime = fopen(buffer, "w");
 
   /* Loop over the number of runs. */
-  for (k = 0; k < runs; k++) {
+  for (k = 0; k < 0 * runs; k++) {
 
     countMultipoles = 0;
     countPairs = 0;
@@ -1695,7 +1709,7 @@ void test_bh(int N, int nr_threads, int runs, char *fileName) {
     toc_run = getticks();
 
     /* Dump some timings. */
-    message("%ith run took %lli (= %e) ticks...", k, toc_run - tic,
+    message("%ith legacy run took %lli (= %e) ticks...", k, toc_run - tic,
             (float)(toc_run - tic));
     tot_run += toc_run - tic;
     fprintf(fileTime, "%lli %e\n", toc_run - tic, (float)(toc_run - tic));
