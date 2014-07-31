@@ -1562,7 +1562,7 @@ void test_bh(int N, int nr_threads, int runs, char *fileName) {
   FILE *file;
   struct qsched s;
   ticks tic, toc_run, tot_setup = 0, tot_run = 0;
-  int countMultipoles, countPairs, countCoMs;
+  int countMultipoles=0, countPairs=0, countCoMs=0;
 
   /* Runner function. */
   void runner(int type, void * data) {
