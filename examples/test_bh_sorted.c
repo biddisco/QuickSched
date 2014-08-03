@@ -48,11 +48,11 @@
 /** Data structure for the particles. */
 struct part {
   double x[3];
-  // union {
-  float a[3];
-  float a_legacy[3];
-  float a_exact[3];
-  //};
+  union {
+    float a[3];
+    float a_legacy[3];
+    float a_exact[3];
+  };
   float mass;
   int id;
 } __attribute__((aligned(32)));
@@ -629,7 +629,7 @@ void comp_com(struct cell *c) {
 
   int k, count = c->count;
   struct cell *cp;
-  struct part *p, *parts = c->parts;
+  struct part *parts = c->parts;
   double com[3] = {0.0, 0.0, 0.0}, mass = 0.0;
 
   if (c->split) {
@@ -647,11 +647,10 @@ void comp_com(struct cell *c) {
   } else {
 
     for (k = 0; k < count; k++) {
-      p = &parts[k];
-      float p_mass = p->mass;
-      com[0] += p->x[0] * p_mass;
-      com[1] += p->x[1] * p_mass;
-      com[2] += p->x[2] * p_mass;
+      float p_mass = parts[k].mass;
+      com[0] += parts[k].x[0] * p_mass;
+      com[1] += parts[k].x[1] * p_mass;
+      com[2] += parts[k].x[2] * p_mass;
       mass += p_mass;
     }
   }
@@ -680,8 +679,8 @@ void comp_com(struct cell *c) {
  */
 static inline void iact_pair_pc(struct cell *ci, struct cell *cj) {
   int j, k, count = ci->count;
-  double com[3];
-  float mcom, dx[3], r2, ir, w;
+  double com[3] = { 0.0 , 0.0 , 0.0 };
+  float mcom, dx[3] = { 0.0 , 0.0 , 0.0 }, r2, ir, w;
   struct part *parts = ci->parts;
   struct cell *last = cj->sibling;
   double loci[3] = {ci->loc[0], ci->loc[1], ci->loc[2]};
@@ -1030,7 +1029,7 @@ void iact_pair(struct cell *ci, struct cell *cj) {
   min_dist = cih + cjh;
 
   /* Are the cells direct neighbours? */
-  if ((dx[0] <= min_dist) && (dx[1] <= min_dist) && (dx[2] > min_dist)) {
+  if ((dx[0] <= min_dist) && (dx[1] <= min_dist) && (dx[2] <= min_dist)) {
 
     /* Are both cells split ? */
     if (ci->split && cj->split) {
