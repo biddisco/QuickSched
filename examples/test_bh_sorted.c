@@ -49,9 +49,9 @@
 struct part {
   double x[3];
   // union {
-    float a[3];
-    float a_legacy[3];
-    float a_exact[3];
+  float a[3];
+  float a_legacy[3];
+  float a_exact[3];
   // };
   float mass;
   int id;
@@ -679,14 +679,23 @@ void comp_com(struct cell *c) {
  */
 static inline void iact_pair_pc(struct cell *ci, struct cell *cj) {
   int j, k, count = ci->count;
-  double com[3] = { 0.0 , 0.0 , 0.0 };
-  float mcom, dx[3] = { 0.0 , 0.0 , 0.0 }, r2, ir, w;
+  double com[3] = {0.0, 0.0, 0.0};
+  float mcom, dx[3] = {0.0, 0.0, 0.0}, r2, ir, w;
   struct part *parts = ci->parts;
   struct cell *last = cj->sibling;
   double loci[3] = {ci->loc[0], ci->loc[1], ci->loc[2]};
   double hi = ci->h;
 
   if (count == 0) error("Empty cell!");
+
+#if ICHECK >= 0
+  int be_verbose = 0;
+  for (k = 0; k < count; k++)
+    if (parts[k].id == ICHECK) {
+      be_verbose = 1;
+      break;
+    }
+#endif
 
   /* Walk down the tree. */
   while (cj != last) {
@@ -700,19 +709,41 @@ static inline void iact_pair_pc(struct cell *ci, struct cell *cj) {
                loci[0] < cj->loc[0] + cj->h && loci[1] >= cj->loc[1] &&
                loci[1] < cj->loc[1] + cj->h && loci[2] >= cj->loc[2] &&
                loci[2] < cj->loc[2] + cj->h) {
+#if ICHECK >= 0
+      if (be_verbose)
+        message("[DEBUG] ci is under cj with loc=[%f,%f,%f], h=%f\n",
+                cj->loc[0], cj->loc[1], cj->loc[2], cj->h);
+#endif
       cj = cj->firstchild;
 
       /* If ci and cj are touching... */
-    } else if (fabs(loci[0] + 0.5*hi - cj->loc[0] - 0.5*cj->h) <= (hi + cj->h) &&
-               fabs(loci[1] + 0.5*hi - cj->loc[1] - 0.5*cj->h) <= (hi + cj->h) &&
-               fabs(loci[2] + 0.5*hi - cj->loc[2] - 0.5*cj->h) <= (hi + cj->h)) {
+    } else if (fabs(loci[0] + 0.5 * hi - cj->loc[0] - 0.5 * cj->h) <=
+                   0.5 * (hi + cj->h) &&
+               fabs(loci[1] + 0.5 * hi - cj->loc[1] - 0.5 * cj->h) <=
+                   0.5 * (hi + cj->h) &&
+               fabs(loci[2] + 0.5 * hi - cj->loc[2] - 0.5 * cj->h) <=
+                   0.5 * (hi + cj->h)) {
+
+#if ICHECK >= 0
+      if (be_verbose)
+        message("[DEBUG] ci is touching cj with loc=[%f,%f,%f], h=%f\n",
+                cj->loc[0], cj->loc[1], cj->loc[2], cj->h);
+#endif
 
       /* If cj is larger than ci, recurse. */
       if (cj->split && cj->h > hi) {
+#if ICHECK >= 0
+        if (be_verbose)
+          message("[DEBUG] cj is split and larger than ci, recursing.");
+#endif
         cj = cj->firstchild;
 
         /* Otherwise, this would be a particle-particle interaction, so skip. */
       } else {
+#if ICHECK >= 0
+        if (be_verbose)
+          message("[DEBUG] skipping would-be particle-particle interaction.");
+#endif
         cj = cj->sibling;
       }
 
@@ -753,14 +784,14 @@ static inline void iact_pair_pc(struct cell *ci, struct cell *cj) {
 
 #if ICHECK >= 0
         if (parts[j].id == ICHECK)
-          printf(
-              "[NEW] cell [%f,%f,%f] interacting with cj->loc=[%f,%f,%f] m=%f h=%f\n",
-              loci[0], loci[1], loci[2],
-              cj->loc[0], cj->loc[1], cj->loc[2], mcom, cj->h);
+          printf("[DEBUG] cell [%f,%f,%f] interacting with cj->loc=[%f,%f,%f] "
+                 "m=%f h=%f\n",
+                 loci[0], loci[1], loci[2], cj->loc[0], cj->loc[1], cj->loc[2],
+                 mcom, cj->h);
 #endif
 
       } /* loop over every particle. */
-      
+
       /* Next cell. */
       cj = cj->sibling;
     }
@@ -868,6 +899,19 @@ static inline void iact_pair_direct_sorted(struct cell *ci, struct cell *cj) {
   count_j = cj->count;
   parts_j = cj->parts;
   cjh = cj->h;
+
+  for (k = 0; k < count_i; k++)
+    if (parts_i[k].id == ICHECK)
+      message("[DEBUG] interacting cells loc=[%f,%f,%f], h=%f and "
+              "loc=[%f,%f,%f], h=%f.",
+              ci->loc[0], ci->loc[1], ci->loc[2], ci->h, cj->loc[0], cj->loc[1],
+              cj->loc[2], cj->h);
+  for (k = 0; k < count_j; k++)
+    if (parts_j[k].id == ICHECK)
+      message("[DEBUG] interacting cells loc=[%f,%f,%f], h=%f and "
+              "loc=[%f,%f,%f], h=%f.",
+              ci->loc[0], ci->loc[1], ci->loc[2], ci->h, cj->loc[0], cj->loc[1],
+              cj->loc[2], cj->h);
 
   /* Distance along the axis as of which we will use a multipole. */
   float d_max = cjh / dist_min / corr;
@@ -1027,7 +1071,7 @@ void iact_pair(struct cell *ci, struct cell *cj) {
     dx[k] = fabs(center_i - center_j);
   }
 
-  min_dist = cih + cjh;
+  min_dist = 0.5 * (cih + cjh);
 
   /* Are the cells direct neighbours? */
   if ((dx[0] <= min_dist) && (dx[1] <= min_dist) && (dx[2] <= min_dist)) {
@@ -1045,11 +1089,11 @@ void iact_pair(struct cell *ci, struct cell *cj) {
             center_j = cps->loc[k] + 0.5 * cps->h;
             dx[k] = fabs(center_i - center_j);
           }
-          min_dist = cp->h + cps->h;
+          min_dist = 0.5 * (cp->h + cps->h);
 
-          /* If the cells neighbours, recurse. */
+          /* If the cells are neighbours, recurse. */
           if ((dx[0] <= min_dist) && (dx[1] <= min_dist) &&
-              (dx[2] < min_dist)) {
+              (dx[2] <= min_dist)) {
             iact_pair(cp, cps);
           }
         }
@@ -1204,7 +1248,7 @@ void create_tasks(struct qsched *s, struct cell *ci, struct cell *cj) {
       dx[k] = fabs(center_i - center_j);
     }
 
-    min_dist = cih + cjh;
+    min_dist = 0.5 * (cih + cjh);
 
     /* Are the cells NOT neighbours ? */
     if ((dx[0] > min_dist) || (dx[1] > min_dist) || (dx[2] > min_dist)) {
@@ -1617,7 +1661,7 @@ void test_bh(int N, int nr_threads, int runs, char *fileName) {
   }
   message("Average number of parts per leaf is %f.", ((double)N) / nr_leaves);
 
-  #if ICHECK > 0
+#if ICHECK > 0
   printf("----------------------------------------------------------\n");
 
   /* Do a N^2 interactions calculation */
@@ -1630,7 +1674,7 @@ void test_bh(int N, int nr_threads, int runs, char *fileName) {
          toc_exact - tic_exact, (float)(toc_exact - tic_exact));
 
   printf("----------------------------------------------------------\n");
-  #endif
+#endif
 
   /* Create the tasks. */
   tic = getticks();
@@ -1661,7 +1705,7 @@ void test_bh(int N, int nr_threads, int runs, char *fileName) {
     /* Execute the legacy walk. */
     tic = getticks();
     legacy_tree_walk(N, parts, root, ICHECK, &countMultipoles, &countPairs,
-                     &countCoMs); 
+                     &countCoMs);
     toc_run = getticks();
 
     /* Dump some timings. */
@@ -1671,7 +1715,7 @@ void test_bh(int N, int nr_threads, int runs, char *fileName) {
     // fprintf(fileTime, "%lli %e\n", toc_run - tic, (float)(toc_run - tic));
   }
 
-  // fclose(fileTime);
+// fclose(fileTime);
 
 #if ICHECK >= 0
   message("[check] accel of part %i is [%.3e,%.3e,%.3e]", ICHECK,
@@ -1684,7 +1728,7 @@ void test_bh(int N, int nr_threads, int runs, char *fileName) {
          countMultipoles, countPairs, countCoMs); */
   printf("task counts: [ ");
   for (k = 0; k < task_type_count; k++) printf("%8i ", counts[k]);
-  printf("] (new).\n"); 
+  printf("] (new).\n");
 
   /* Loop over the number of runs. */
   for (k = 0; k < runs; k++) {
@@ -1716,7 +1760,8 @@ void test_bh(int N, int nr_threads, int runs, char *fileName) {
 
   /* Dump the tasks. */
   /* for ( k = 0 ; k < s.count ; k++ )
-      printf( " %i %i %lli %lli\n" , s.tasks[k].type , s.tasks[k].qid , s.tasks[k].tic , s.tasks[k].toc ); */
+      printf( " %i %i %lli %lli\n" , s.tasks[k].type , s.tasks[k].qid ,
+     s.tasks[k].tic , s.tasks[k].toc ); */
 
   /* Dump the costs. */
   message("costs: setup=%lli ticks, run=%lli ticks.", tot_setup,
