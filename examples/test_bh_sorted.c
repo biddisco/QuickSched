@@ -43,16 +43,16 @@
 #define dist_min 0.5 /* Used fpr legacy walk only */
 #define iact_pair_direct iact_pair_direct_sorted
 
-#define ICHECK -1
+#define ICHECK 1
 
 /** Data structure for the particles. */
 struct part {
   double x[3];
-  union {
+  // union {
     float a[3];
     float a_legacy[3];
     float a_exact[3];
-  };
+  // };
   float mass;
   int id;
 } __attribute__((aligned(32)));
@@ -703,12 +703,12 @@ static inline void iact_pair_pc(struct cell *ci, struct cell *cj) {
       cj = cj->firstchild;
 
       /* If ci and cj are touching... */
-    } else if (fabs(loci[0] + hi - cj->loc[0] - cj->h) < 0.5 * (hi + cj->h) ||
-               fabs(loci[1] + hi - cj->loc[1] - cj->h) < 0.5 * (hi + cj->h) ||
-               fabs(loci[2] + hi - cj->loc[2] - cj->h) < 0.5 * (hi + cj->h)) {
+    } else if (fabs(loci[0] + 0.5*hi - cj->loc[0] - 0.5*cj->h) < (hi + cj->h) ||
+               fabs(loci[1] + 0.5*hi - cj->loc[1] - 0.5*cj->h) < (hi + cj->h) ||
+               fabs(loci[2] + 0.5*hi - cj->loc[2] - 0.5*cj->h) < (hi + cj->h)) {
 
       /* If cj is hierarchically above ci, recurse. */
-      if (cj->h > hi) {
+      if (cj->split && cj->h > hi) {
         cj = cj->firstchild;
 
         /* Otherwise, this would be a particle-particle interaction, so skip. */
@@ -1622,7 +1622,7 @@ void test_bh(int N, int nr_threads, int runs, char *fileName) {
   /* Do a N^2 interactions calculation */
 
   ticks tic_exact = getticks();
-  // interact_exact(N, parts, ICHECK);
+  interact_exact(N, parts, ICHECK);
   ticks toc_exact = getticks();
 
   printf("Exact calculation (1 thread) took %lli (= %e) ticks\n",
@@ -1646,12 +1646,12 @@ void test_bh(int N, int nr_threads, int runs, char *fileName) {
   for (k = 0; k < task_type_count; k++) counts[k] = 0;
   for (k = 0; k < s.count; k++) counts[s.tasks[k].type] += 1;
 
-  char buffer[200];
-  sprintf(buffer, "timings_legacy_%d_%d.dat", cell_maxparts, nr_threads);
-  FILE *fileTime = fopen(buffer, "w");
+  // char buffer[200];
+  // sprintf(buffer, "timings_legacy_%d_%d.dat", cell_maxparts, nr_threads);
+  // FILE *fileTime = fopen(buffer, "w");
 
   /* Loop over the number of runs. */
-  for (k = 0; k < 0 * runs; k++) {
+  for (k = 0; k < runs; k++) {
 
     countMultipoles = 0;
     countPairs = 0;
@@ -1660,17 +1660,17 @@ void test_bh(int N, int nr_threads, int runs, char *fileName) {
     /* Execute the legacy walk. */
     tic = getticks();
     legacy_tree_walk(N, parts, root, ICHECK, &countMultipoles, &countPairs,
-                     &countCoMs);
+                     &countCoMs); 
     toc_run = getticks();
 
     /* Dump some timings. */
     message("%ith legacy run took %lli (= %e) ticks...", k, toc_run - tic,
             (float)(toc_run - tic));
     tot_run += toc_run - tic;
-    fprintf(fileTime, "%lli %e\n", toc_run - tic, (float)(toc_run - tic));
+    // fprintf(fileTime, "%lli %e\n", toc_run - tic, (float)(toc_run - tic));
   }
 
-  fclose(fileTime);
+  // fclose(fileTime);
 
 #if ICHECK >= 0
   message("[check] accel of part %i is [%.3e,%.3e,%.3e]", ICHECK,
@@ -1679,11 +1679,11 @@ void test_bh(int N, int nr_threads, int runs, char *fileName) {
 #endif
   printf("task counts: [ %8s %8s %8s %8s %8s ]\n", "self", "pair", "m-poles",
          "direct", "CoMs");
-  printf("task counts: [ %8i %8i %8i %8i %8i ] (legacy).\n", 0, 0,
-         countMultipoles, countPairs, countCoMs);
+  /* printf("task counts: [ %8i %8i %8i %8i %8i ] (legacy).\n", 0, 0,
+         countMultipoles, countPairs, countCoMs); */
   printf("task counts: [ ");
   for (k = 0; k < task_type_count; k++) printf("%8i ", counts[k]);
-  printf("] (new).\n");
+  printf("] (new).\n"); 
 
   /* Loop over the number of runs. */
   for (k = 0; k < runs; k++) {
@@ -1714,9 +1714,8 @@ void test_bh(int N, int nr_threads, int runs, char *fileName) {
 #endif
 
   /* Dump the tasks. */
-  /* for ( k = 0 ; k < s.count ; k++ ) */
-  /*     printf( " %i %i %lli %lli\n" , s.tasks[k].type , s.tasks[k].qid ,
-   * s.tasks[k].tic , s.tasks[k].toc ); */
+  /* for ( k = 0 ; k < s.count ; k++ )
+      printf( " %i %i %lli %lli\n" , s.tasks[k].type , s.tasks[k].qid , s.tasks[k].tic , s.tasks[k].toc ); */
 
   /* Dump the costs. */
   message("costs: setup=%lli ticks, run=%lli ticks.", tot_setup,
