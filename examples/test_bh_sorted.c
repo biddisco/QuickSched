@@ -703,11 +703,11 @@ static inline void iact_pair_pc(struct cell *ci, struct cell *cj) {
       cj = cj->firstchild;
 
       /* If ci and cj are touching... */
-    } else if (fabs(loci[0] + 0.5*hi - cj->loc[0] - 0.5*cj->h) < (hi + cj->h) ||
-               fabs(loci[1] + 0.5*hi - cj->loc[1] - 0.5*cj->h) < (hi + cj->h) ||
-               fabs(loci[2] + 0.5*hi - cj->loc[2] - 0.5*cj->h) < (hi + cj->h)) {
+    } else if (fabs(loci[0] + 0.5*hi - cj->loc[0] - 0.5*cj->h) <= (hi + cj->h) &&
+               fabs(loci[1] + 0.5*hi - cj->loc[1] - 0.5*cj->h) <= (hi + cj->h) &&
+               fabs(loci[2] + 0.5*hi - cj->loc[2] - 0.5*cj->h) <= (hi + cj->h)) {
 
-      /* If cj is hierarchically above ci, recurse. */
+      /* If cj is larger than ci, recurse. */
       if (cj->split && cj->h > hi) {
         cj = cj->firstchild;
 
@@ -754,8 +754,9 @@ static inline void iact_pair_pc(struct cell *ci, struct cell *cj) {
 #if ICHECK >= 0
         if (parts[j].id == ICHECK)
           printf(
-              "[NEW] Can interact with the monopole. x= %f %f %f m= %f h= %f\n",
-              com[0], com[1], com[2], mcom, cj->h);
+              "[NEW] cell [%f,%f,%f] interacting with cj->loc=[%f,%f,%f] m=%f h=%f\n",
+              loci[0], loci[1], loci[2],
+              cj->loc[0], cj->loc[1], cj->loc[2], mcom, cj->h);
 #endif
 
       } /* loop over every particle. */
@@ -1444,7 +1445,7 @@ void legacy_tree_walk(int N, struct part *parts, struct cell *root, int monitor,
     legacy_interact(parts, i, root, monitor, countMultipoles, countPairs);
 
     if (parts[i].id == monitor)
-      message("\n[LEGACY] acceleration for particle %d a= %.3e %.3e %.3e",
+      message("[check] legacy acceleration for particle %d a= %.3e %.3e %.3e",
               parts[i].id, parts[i].a_legacy[0], parts[i].a_legacy[1],
               parts[i].a_legacy[2]);
   }
@@ -1495,7 +1496,7 @@ void interact_exact(int N, struct part *parts, int monitor) {
 
   for (i = 0; i < N; ++i)
     if (parts[i].id == monitor)
-      message("[EXACT ] acceleration for particle %d a= %.3e %.3e %.3e\n",
+      message("[check] exact acceleration for particle %d a= %.3e %.3e %.3e\n",
               parts[i].id, parts[i].a_exact[0], parts[i].a_exact[1],
               parts[i].a_exact[2]);
 }
@@ -1616,7 +1617,7 @@ void test_bh(int N, int nr_threads, int runs, char *fileName) {
   }
   message("Average number of parts per leaf is %f.", ((double)N) / nr_leaves);
 
-  //#if ICHECK > 0
+  #if ICHECK > 0
   printf("----------------------------------------------------------\n");
 
   /* Do a N^2 interactions calculation */
@@ -1629,7 +1630,7 @@ void test_bh(int N, int nr_threads, int runs, char *fileName) {
          toc_exact - tic_exact, (float)(toc_exact - tic_exact));
 
   printf("----------------------------------------------------------\n");
-  //#endif
+  #endif
 
   /* Create the tasks. */
   tic = getticks();
