@@ -37,14 +37,13 @@
 
 /* Some local constants. */
 #define cell_pool_grow 1000
-#define cell_maxparts 256
-#define task_limit 1.0e8
+#define cell_maxparts 20
+#define task_limit 1.0e20
 #define const_G 6.6738e-8
 #define dist_min 0.5 /* Used fpr legacy walk only */
-#define iact_pair_direct iact_pair_direct_sorted
+#define iact_pair_direct iact_pair_direct_unsorted
 
-#define ICHECK 1
-
+#define ICHECK -1
 /** Data structure for the particles. */
 struct part {
   double x[3];
@@ -55,7 +54,7 @@ struct part {
   // };
   float mass;
   int id;
-} __attribute__((aligned(32)));
+};// __attribute__((aligned(64)));
 
 /** Data structure for the sorted particle positions. */
 struct index {
@@ -101,7 +100,7 @@ struct cell {
 enum task_type {
   task_type_self = 0,
   task_type_pair,
-  task_type_pair_pc,
+  task_type_self_pc, 
   task_type_pair_direct,
   task_type_com,
   task_type_count
@@ -604,11 +603,11 @@ void cell_split(struct cell *c, struct qsched *s) {
 
     /* Otherwise, we're at a leaf, so create the cell's particle-cell task. */
   } else {
-    struct cell *data[2] = {c, root};
-    int tid = qsched_addtask(s, task_type_pair_pc, task_flag_none, data,
+    struct cell *data[2] = {root, c};
+    int tid = qsched_addtask(s, task_type_self_pc, task_flag_none, data,
                              2 * sizeof(struct cell *), 1);
     qsched_addlock(s, tid, c->res);
-    qsched_addunlock(s, root->com_tid, tid);
+    qsched_addunlock(s, root->com_tid, tid); 
   } /* does the cell need to be split? */
 
   /* Set this cell's resources ownership. */
@@ -670,134 +669,209 @@ void comp_com(struct cell *c) {
   }
 }
 
+
 /**
- * @brief Compute the interactions between all particles in a cell
- *        and the center of mass of another cell.
+ * @brief Interacts all particles in ci with the monopole in cj
+ */
+static inline void make_interact_pc(struct cell* ci, struct cell* cj) {
+
+  int j, k;
+  double com[3] = {0.0, 0.0, 0.0};
+  //double loc_leaf[3] = {leaf->loc[0], leaf->loc[1], leaf->loc[2]};
+  float mcom, dx[3] = {0.0, 0.0, 0.0}, r2, ir, w;
+
+
+  if (cj->count == 0) error("Empty cell!");
+  
+  /* Sanity check. */
+  if (cj->new.mass == 0.0) {
+    message("%e %e %e %d %p %d %p", cj->new.com[0], cj->new.com[1],
+	    cj->new.com[2], cj->count, cj, cj->split, cj->sibling);
+    
+    for (j = 0; j < cj->count; ++j)
+      message("part %d mass=%e id=%d", j, cj->parts[j].mass,
+	      cj->parts[j].id);
+    
+    error("com does not seem to have been set.");
+  }
+  
+  /* Init the com's data. */
+  for (k = 0; k < 3; k++) com[k] = cj->new.com[k];
+  mcom = cj->new.mass;
+  
+  /* Loop over every particle in ci. */
+  for (j = 0; j < ci->count; j++) {
+    
+    /* Compute the pairwise distance. */
+    for (r2 = 0.0, k = 0; k < 3; k++) {
+      dx[k] = com[k] - ci->parts[j].x[k];
+      r2 += dx[k] * dx[k];
+    }
+    
+    /* Apply the gravitational acceleration. */
+    ir = 1.0f / sqrtf(r2);
+    w = mcom * const_G * ir * ir * ir;
+    for (k = 0; k < 3; k++) ci->parts[j].a[k] += w * dx[k];
+
+
+#if ICHECK >= 0
+    if (ci->parts[j].id == ICHECK)
+      printf("[DEBUG] cell [%f,%f,%f] interacting with cj->loc=[%f,%f,%f] "
+	     "m=%f h=%f\n",
+	     ci->loc[0], ci->loc[1], ci->loc[2], cj->loc[0], cj->loc[1], cj->loc[2],
+	     mcom, cj->h);
+    
+    if (ci->parts[j].id == ICHECK)
+      printf("[NEW] Interaction with monopole a=( %e %e %e ) h= %f Nj= %d m_j= %f\n", w*dx[0], w*dx[1], w*dx[2], cj->h, cj->count, mcom);
+    if (ci->parts[j].id == ICHECK)
+      for (k = 0; k< cj->count; ++k )
+	printf("[NEW] Interaction with monopole: Monopole contains particle id=%d\n", cj->parts[k].id);
+
+#endif
+
+
+  } /* loop over every particle. */
+  
+}
+
+
+/**
+ * @brief Checks whether the cell leaf is a subvolume of the cell c
+ */
+static inline int is_inside(struct cell* leaf, struct cell* c)
+{
+  if ( leaf->loc[0] >= c->loc[0] && leaf->loc[0] < c->loc[0] + c->h && 
+       leaf->loc[1] >= c->loc[1] && leaf->loc[1] < c->loc[1] + c->h && 
+       leaf->loc[2] >= c->loc[2] && leaf->loc[2] < c->loc[2] + c->h) 
+    return 1;
+  else
+    return 0;
+}
+
+
+/**
+ * @brief Compute the interactions between all particles in a cell leaf
+ *        and the center of mass of all the cells in a part of the tree described by ci and cj
  *
- * @param ci The #cell containing the particles.
+ * @param ci The #cell containing the particle
  * @param cj The #cell containing the center of mass.
  */
-static inline void iact_pair_pc(struct cell *ci, struct cell *cj) {
-  int j, k, count = ci->count;
-  double com[3] = {0.0, 0.0, 0.0};
-  float mcom, dx[3] = {0.0, 0.0, 0.0}, r2, ir, w;
-  struct part *parts = ci->parts;
-  struct cell *last = cj->sibling;
-  double loci[3] = {ci->loc[0], ci->loc[1], ci->loc[2]};
-  double hi = ci->h;
+static inline void iact_pair_pc(struct cell *ci, struct cell *cj, struct cell *leaf) {
 
-  if (count == 0) error("Empty cell!");
+  int k;
+  int count_i = ci->count, count_j = cj->count;
+  double center_i, center_j;
+  double min_dist, cih = ci->h, cjh = cj->h;
+  float dx[3];
+  struct cell *cp, *cps;
 
-#if ICHECK >= 0
-  int be_verbose = 0;
-  for (k = 0; k < count; k++)
-    if (parts[k].id == ICHECK) {
-      be_verbose = 1;
-      break;
-    }
-#endif
+  /* Early abort? */
+  if (count_i == 0 || count_j == 0) error("Empty cell !");
 
-  /* Walk down the tree. */
-  while (cj != last) {
+  /* Sanity check */
+  if (ci == cj)
+    error("The impossible has happened: pair interaction between a cell and "
+          "itself.");
 
-    /* Skip self. */
-    if (ci == cj) {
-      cj = cj->sibling;
+  /* Distance between the cell centers */
+  for (k = 0; k < 3; k++) {
+    center_i = ci->loc[k] + 0.5 * cih;
+    center_j = cj->loc[k] + 0.5 * cjh;
+    dx[k] = fabs(center_i - center_j);
+  }
 
-      /* If ci is under cj, just recurse. */
-    } else if (cj->split && loci[0] >= cj->loc[0] &&
-               loci[0] < cj->loc[0] + cj->h && loci[1] >= cj->loc[1] &&
-               loci[1] < cj->loc[1] + cj->h && loci[2] >= cj->loc[2] &&
-               loci[2] < cj->loc[2] + cj->h) {
-#if ICHECK >= 0
-      if (be_verbose)
-        message("[DEBUG] ci is under cj with loc=[%f,%f,%f], h=%f\n",
-                cj->loc[0], cj->loc[1], cj->loc[2], cj->h);
-#endif
-      cj = cj->firstchild;
+  min_dist = 0.5 * (cih + cjh);
 
-      /* If ci and cj are touching... */
-    } else if (fabs(loci[0] + 0.5 * hi - cj->loc[0] - 0.5 * cj->h) <=
-                   0.5 * (hi + cj->h) &&
-               fabs(loci[1] + 0.5 * hi - cj->loc[1] - 0.5 * cj->h) <=
-                   0.5 * (hi + cj->h) &&
-               fabs(loci[2] + 0.5 * hi - cj->loc[2] - 0.5 * cj->h) <=
-                   0.5 * (hi + cj->h)) {
 
-#if ICHECK >= 0
-      if (be_verbose)
-        message("[DEBUG] ci is touching cj with loc=[%f,%f,%f], h=%f\n",
-                cj->loc[0], cj->loc[1], cj->loc[2], cj->h);
-#endif
+  /* Are the cells NOT direct neighbours? */
+  if ((dx[0] > min_dist) || (dx[1] > min_dist) || (dx[2] > min_dist)) {
 
-      /* If cj is larger than ci, recurse. */
-      if (cj->split && cj->h > hi) {
-#if ICHECK >= 0
-        if (be_verbose)
-          message("[DEBUG] cj is split and larger than ci, recursing.");
-#endif
-        cj = cj->firstchild;
+    /* If the leaf is contained within one of the cells, we interact the leaf with the other one. */
+    if( is_inside(leaf, ci) )
+      make_interact_pc(leaf, cj);
+    else if( is_inside(leaf, cj) )
+      make_interact_pc(leaf, ci);
 
-        /* Otherwise, this would be a particle-particle interaction, so skip. */
-      } else {
-#if ICHECK >= 0
-        if (be_verbose)
-          message("[DEBUG] skipping would-be particle-particle interaction.");
-#endif
-        cj = cj->sibling;
-      }
+  } else {
 
-      /* Otherwise, just interact. */
-    } else {
+    /* Are both cells split ? */
+    if (ci->split && cj->split) {
 
-      if (cj->count == 0) error("Empty cell!");
+      /* Let's split both cells and build all possible pairs */
+      for (cp = ci->firstchild; cp != ci->sibling; cp = cp->sibling) {
 
-      /* Sanity check. */
-      if (cj->new.mass == 0.0) {
-        message("%e %e %e %d %p %d %p", cj->new.com[0], cj->new.com[1],
-                cj->new.com[2], cj->count, cj, cj->split, cj->sibling);
+	int is_in_cp = is_inside(leaf, cp);
+	
+        for (cps = cj->firstchild; cps != cj->sibling; cps = cps->sibling) {
 
-        for (j = 0; j < cj->count; ++j)
-          message("part %d mass=%e id=%d", j, cj->parts[j].mass,
-                  cj->parts[j].id);
+	  int is_in_cps = is_inside(leaf, cps);
 
-        error("com does not seem to have been set.");
-      }
+	  /* Only recurse if one of the cells contains the leaf */
+	  if ( is_in_cp || is_in_cps ) {
+	    iact_pair_pc(cp, cps, leaf);
+	  }
 
-      /* Init the com's data. */
-      for (k = 0; k < 3; k++) com[k] = cj->new.com[k];
-      mcom = cj->new.mass;
-
-      /* Loop over every particle in ci. */
-      for (j = 0; j < count; j++) {
-
-        /* Compute the pairwise distance. */
-        for (r2 = 0.0, k = 0; k < 3; k++) {
-          dx[k] = com[k] - parts[j].x[k];
-          r2 += dx[k] * dx[k];
+	  /* No need to keep going... */
+	  if ( is_in_cps ) break;
         }
-
-        /* Apply the gravitational acceleration. */
-        ir = 1.0f / sqrtf(r2);
-        w = mcom * const_G * ir * ir * ir;
-        for (k = 0; k < 3; k++) parts[j].a[k] += w * dx[k];
-
-#if ICHECK >= 0
-        if (parts[j].id == ICHECK)
-          printf("[DEBUG] cell [%f,%f,%f] interacting with cj->loc=[%f,%f,%f] "
-                 "m=%f h=%f\n",
-                 loci[0], loci[1], loci[2], cj->loc[0], cj->loc[1], cj->loc[2],
-                 mcom, cj->h);
-#endif
-
-      } /* loop over every particle. */
-
-      /* Next cell. */
-      cj = cj->sibling;
-    }
-
-  } /* walk down the tree. */
+      }
+    } 
+  }
 }
+
+
+
+
+static inline void iact_self_pc(struct cell *c, struct cell *leaf) {
+  int count = c->count;
+  struct cell *cp, *cps;
+
+  /* Early abort? */
+  if ( count == 0 ) error( "Empty cell !" );
+
+  /* If the cell is split, interact each progeny with itself, and with
+     each of its siblings. */
+  if ( c->split ) {
+    for ( cp = c->firstchild; cp != c->sibling; cp = cp->sibling ) {
+
+      int is_in_cp = is_inside(leaf, cp);
+
+      /* Only recurse if the leaf is in this part of the tree */
+      if ( is_in_cp ) 
+	  iact_self_pc( cp, leaf );
+           
+      for ( cps = cp->sibling; cps != c->sibling; cps = cps->sibling ) {
+	int is_in_cps = is_inside(leaf, cps);
+
+	/* Only recurse if one of the cells contains the leaf */
+	if ( is_in_cp || is_in_cps )
+	  iact_pair_pc( cp, cps, leaf );
+
+	/* No need to keep going... */
+	if ( is_in_cps ) break;
+      }
+    }
+  }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 /**
  * @brief Compute the interactions between all particles in a cell
@@ -849,14 +923,17 @@ static inline void iact_pair_direct_unsorted(struct cell *ci, struct cell *cj) {
 
 #if ICHECK >= 0
       if (parts_i[i].id == ICHECK)
-        printf("[NEW] Interaction with particle id= %d (pair i)\n",
-               parts_j[j].id);
+        printf("[NEW] Interaction with particle id= %d (pair i) a=( %e %e %e )\n", parts_j[j].id, -mi*w*dx[0], -mi*w*dx[1], -mi*w*dx[2]);
 
       if (parts_j[j].id == ICHECK)
-        printf("[NEW] Interaction with particle id= %d (pair j) h_i= %f h_j= "
-               "%f ci= %p cj= %p count_i= %d count_j= %d d_i= %d d_j= %d\n",
-               parts_i[i].id, ci->h, cj->h, ci, cj, count_i, count_j, ci->res,
-               cj->res);
+        printf("[NEW] Interaction with particle id= %d (pair j) a=( %e %e %e )\n", parts_i[i].id, mj*w*dx[0], mj*w*dx[1], mj*w*dx[2]);
+
+
+      /* if (parts_j[j].id == ICHECK) */
+      /*   printf("[NEW] Interaction with particle id= %d (pair j) h_i= %f h_j= " */
+      /*          "%f ci= %p cj= %p count_i= %d count_j= %d d_i= %d d_j= %d\n", */
+      /*          parts_i[i].id, ci->h, cj->h, ci, cj, count_i, count_j, ci->res, */
+      /*          cj->res); */
 #endif
 
     } /* loop over every other particle. */
@@ -910,8 +987,8 @@ static inline void iact_pair_direct_sorted(struct cell *ci, struct cell *cj) {
     if (parts_j[k].id == ICHECK)
       message("[DEBUG] interacting cells loc=[%f,%f,%f], h=%f and "
               "loc=[%f,%f,%f], h=%f.",
-              ci->loc[0], ci->loc[1], ci->loc[2], ci->h, cj->loc[0], cj->loc[1],
-              cj->loc[2], cj->h);
+              cj->loc[0], cj->loc[1], cj->loc[2], cj->h, ci->loc[0], ci->loc[1],
+              ci->loc[2], ci->h);
 
   /* Distance along the axis as of which we will use a multipole. */
   float d_max = cjh / dist_min / corr;
@@ -1104,12 +1181,14 @@ void iact_pair(struct cell *ci, struct cell *cj) {
   }
 }
 
+
+
 /**
  * @brief Compute the interactions between all particles in a cell.
  *
  * @param c The #cell.
  */
-void iact_self(struct cell *c) {
+void iact_self_direct(struct cell *c) {
   int i, j, k, count = c->count;
   double xi[3] = {0.0, 0.0, 0.0};
   float ai[3] = {0.0, 0.0, 0.0}, mi, mj, dx[3] = {0.0, 0.0, 0.0}, r2, ir, w;
@@ -1123,7 +1202,7 @@ void iact_self(struct cell *c) {
      each of its siblings. */
   if (c->split) {
     for (cp = c->firstchild; cp != c->sibling; cp = cp->sibling) {
-      iact_self(cp);
+      iact_self_direct(cp);
       for (cps = cp->sibling; cps != c->sibling; cps = cps->sibling)
         iact_pair(cp, cps);
     }
@@ -1194,6 +1273,7 @@ void create_tasks(struct qsched *s, struct cell *ci, struct cell *cj) {
   double center_i, center_j, dx[3];
   double min_dist, cih, cjh;
   struct cell *data[2], *cp, *cps;
+
 
   /* If either cell is empty, stop. */
   if (ci->count == 0 || (cj != NULL && cj->count == 0)) error("Empty cell !");
@@ -1396,11 +1476,6 @@ void legacy_interact(struct part *parts, int i, struct cell *root, int monitor,
       for (j = 0; j < cell->count; ++j) {
         if (cell->parts[j].id == pid) continue;
 
-#if ICHECK >= 0
-        if (pid == monitor)
-          message("[BH_] Interaction with particle id= %d", cell->parts[j].id);
-#endif
-
         /* Compute the pairwise distance. */
         for (r2 = 0.0, k = 0; k < 3; k++) {
           dx[k] = cell->parts[j].x[k] - pix[k];
@@ -1413,6 +1488,15 @@ void legacy_interact(struct part *parts, int i, struct cell *root, int monitor,
         for (k = 0; k < 3; k++) a[k] += w * dx[k];
 
         (*countPairs)++;
+
+#if ICHECK >= 0
+        if (pid == monitor)
+          message("[BH_] Interaction with particle id= %d a=( %e %e %e ) h= %f loc=( %e %e %e )\n", 
+		  cell->parts[j].id, 
+		  w*dx[0], w*dx[1], w*dx[2], cell->h,
+		  cell->loc[0], cell->loc[1], cell->loc[2]);
+#endif
+
       }
 
       cell = cell->sibling;
@@ -1575,16 +1659,19 @@ void test_bh(int N, int nr_threads, int runs, char *fileName) {
     /* Decode and execute the task. */
     switch (type) {
       case task_type_self:
-        iact_self(d[0]);
+        iact_self_direct(d[0]);
         break;
       case task_type_pair:
         iact_pair(d[0], d[1]);
         break;
-      case task_type_pair_pc:
-        iact_pair_pc(d[0], d[1]);
-        break;
+      /* case task_type_pair_pc: */
+      /*   iact_pair_pc(d[0], d[1], d[2]); */
+      /*   break; */
       case task_type_pair_direct:
         iact_pair_direct(d[0], d[1]);
+        break;
+      case task_type_self_pc:
+        iact_self_pc(d[0], d[1]);
         break;
       case task_type_com:
         comp_com(d[0]);
@@ -1617,6 +1704,7 @@ void test_bh(int N, int nr_threads, int runs, char *fileName) {
       parts[k].a_legacy[0] = 0.0;
       parts[k].a_legacy[1] = 0.0;
       parts[k].a_legacy[2] = 0.0;
+      /* message("%d %f %f %f", k, parts[k].x[0], parts[k].x[1], parts[k].x[2]); */
     }
 
     /* Otherwise, read them from a file. */
@@ -1636,6 +1724,22 @@ void test_bh(int N, int nr_threads, int runs, char *fileName) {
       fclose(file);
     }
   }
+  /* int j; */
+  /* for ( i=0 ; i < 8; ++i ) */
+  /*   for ( j=0 ; j < 8; ++j ) */
+  /*     for ( k=0 ; k < 8; ++k ) */
+  /* 	{ */
+  /* 	  int n = 64*i + 8*j + k; */
+  /* 	  parts[n].id = n; */
+  /* 	  parts[n].x[0] = 0.0625 + i*0.125; */
+  /* 	  parts[n].x[1] = 0.0625 + j*0.125; */
+  /* 	  parts[n].x[2] = 0.0625 + k*0.125; */
+  /* 	  parts[n].mass = 1.;//((double)rand()) / RAND_MAX; */
+  /* 	  parts[n].a_legacy[0] = 0.0; */
+  /* 	  parts[n].a_legacy[1] = 0.0; */
+  /* 	  parts[n].a_legacy[2] = 0.0; */
+
+  /* 	} */
 
   /* Init the cells. */
   root = cell_get();
@@ -1661,7 +1765,7 @@ void test_bh(int N, int nr_threads, int runs, char *fileName) {
   }
   message("Average number of parts per leaf is %f.", ((double)N) / nr_leaves);
 
-#if ICHECK > 0
+  //#if ICHECK > 0
   printf("----------------------------------------------------------\n");
 
   /* Do a N^2 interactions calculation */
@@ -1674,12 +1778,19 @@ void test_bh(int N, int nr_threads, int runs, char *fileName) {
          toc_exact - tic_exact, (float)(toc_exact - tic_exact));
 
   printf("----------------------------------------------------------\n");
-#endif
+  //#endif
 
   /* Create the tasks. */
   tic = getticks();
   create_tasks(&s, root, NULL);
   tot_setup += getticks() - tic;
+
+  /* struct cell *data[2] = {(struct cell*) root, NULL}; */
+  /* qsched_task_t tid = qsched_addtask(&s, task_type_self_pc, task_flag_none, data, */
+  /* 			   2 * sizeof(struct cell *), 1); */
+  /* qsched_addlock(&s, tid, root->res); */
+  /* qsched_addunlock(&s, root->com_tid, tid); */
+
 
   /* Dump the number of tasks. */
   message("total nr of tasks: %i.", s.count);
@@ -1753,9 +1864,11 @@ void test_bh(int N, int nr_threads, int runs, char *fileName) {
   message("[check] root CoMy= %f %f", root->legacy.com[1], root->new.com[1]);
   message("[check] root CoMz= %f %f", root->legacy.com[2], root->new.com[2]);
 #if ICHECK >= 0
-  message("[check] accel of part %i is [%.3e,%.3e,%.3e]", ICHECK,
-          root->parts[ICHECK].a[0], root->parts[ICHECK].a[1],
-          root->parts[ICHECK].a[2]);
+  for(i = 0; i < N; ++i)
+    if ( root->parts[i].id == ICHECK )
+      message("[check] accel of part %i is [%.3e,%.3e,%.3e]", ICHECK,
+	      root->parts[i].a[0], root->parts[i].a[1],
+	      root->parts[i].a[2]);
 #endif
 
   /* Dump the tasks. */
