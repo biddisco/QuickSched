@@ -34,6 +34,8 @@ rc('font', family='serif')
 import sys
 import os
 
+print "Plotting..."
+
 # Read Quickshed accelerations
 data=loadtxt("particle_dump.dat")
 id = data[:,0]
@@ -142,10 +144,10 @@ grid()
 
 subplot(313, title="Acceleration along Z")
 #plot(id, errz_g , 'gs')
-plot(id, errz_bh , 'rx')
-plot(id, errz_new , 'b.')
-text(id[-1], 0.18, "B-H: $%5.3f\\pm%5.3f$\n QuickShed: $%5.3f\\pm%5.3f$"%(meanz_bh, stdz_bh, meanz_new, stdz_new), backgroundcolor="w", va="top", ha="right" )
-
+plot(id, errz_new , 'b.', label="QuickShed")
+plot(id, errz_bh , 'rx', label="Legacy")
+#text(id[-1], 0.18, "B-H: $%5.3f\\pm%5.3f$\n QuickShed: $%5.3f\\pm%5.3f$"%(meanz_bh, stdz_bh, meanz_new, stdz_new), backgroundcolor="w", va="top", ha="right" )
+legend(loc="upper right")
 
 ylim(-0.2, 0.2)
 xlim(0,id[-1])
@@ -177,6 +179,6 @@ subplot(313, title="Acceleration along Z")
 #hist(errz_g, bins=bins, normed=1, histtype='step', rwidth=0.01, color='g')
 hist(errz_bh, bins=bins, normed=1, histtype='step', rwidth=0.01, color='r')
 hist(errz_new, bins=bins, normed=1, histtype='step', rwidth=0.01, color='b')
-xlim(-0.03, 0.03)
+#xlim(-0.03, 0.03)
 
 savefig("histogram.png")
