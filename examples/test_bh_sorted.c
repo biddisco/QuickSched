@@ -41,7 +41,7 @@
 #define task_limit 1.0e20
 #define const_G 6.6738e-8
 #define dist_min 0.5 /* Used fpr legacy walk only */
-#define iact_pair_direct iact_pair_direct_unsorted
+#define iact_pair_direct iact_pair_direct_sorted
 
 #define ICHECK -1
 /** Data structure for the particles. */
@@ -1785,11 +1785,6 @@ void test_bh(int N, int nr_threads, int runs, char *fileName) {
   create_tasks(&s, root, NULL);
   tot_setup += getticks() - tic;
 
-  /* struct cell *data[2] = {(struct cell*) root, NULL}; */
-  /* qsched_task_t tid = qsched_addtask(&s, task_type_self_pc, task_flag_none, data, */
-  /* 			   2 * sizeof(struct cell *), 1); */
-  /* qsched_addlock(&s, tid, root->res); */
-  /* qsched_addunlock(&s, root->com_tid, tid); */
 
 
   /* Dump the number of tasks. */
