@@ -711,7 +711,6 @@ static inline void make_interact_pc(struct cell* leaf, struct cell* cj) {
     w = mcom * const_G * ir * ir * ir;
     for (k = 0; k < 3; k++) leaf->parts[j].a[k] += w * dx[k];
 
-
 #if ICHECK >= 0
     if (leaf->parts[j].id == ICHECK)
       printf("[DEBUG] cell [%f,%f,%f] interacting with cj->loc=[%f,%f,%f] "
@@ -727,8 +726,7 @@ static inline void make_interact_pc(struct cell* leaf, struct cell* cj) {
 
 #endif
 
-  } /* loop over every particle. */
-  
+  } /* loop over every particle. */ 
 }
 
 
@@ -790,40 +788,34 @@ static inline void iact_pair_pc(struct cell *ci, struct cell *cj, struct cell *l
 
   /* Sanity check */
   if (ci == cj)
-    error("The impossible has happened: pair interaction between a cell and "
-          "itself.");
+    error( "The impossible has happened: pair interaction between a cell and "
+           "itself." );
+
+  /* Sanity check */
+  if ( ! is_inside( leaf , ci ) )
+    error( "The impossible has happened: The leaf is not within ci" );
 
   /* Are the cells NOT direct neighbours? */
   if ( ! are_neighbours( ci, cj ) ) {
 
-    /* If the leaf is contained within one of the cells, we interact the leaf with the other one. */
-    if( is_inside(leaf, ci) )
-      make_interact_pc(leaf, cj);
-    else if( is_inside(leaf, cj) )
-      make_interact_pc(leaf, ci);
+    /* Go for multiple interaction */
+    make_interact_pc(leaf, cj);
 
   } else {
 
     /* Are both cells split ? */
     if (ci->split && cj->split) {
 
-      /* Let's split both cells and build all possible pairs */
+      /* Let's find in which subcell of ci the leaf is */
       for (cp = ci->firstchild; cp != ci->sibling; cp = cp->sibling) {
 
-	int is_in_cp = is_inside(leaf, cp);
-	
-        for (cps = cj->firstchild; cps != cj->sibling; cps = cps->sibling) {
+	if ( is_inside(leaf, cp) )     
+	  break;
+      }
 
-	  int is_in_cps = is_inside(leaf, cps);
-
-	  /* Only recurse if one of the cells contains the leaf */
-	  if ( is_in_cp || is_in_cps ) {
-	    iact_pair_pc(cp, cps, leaf);
-	  }
-
-	  /* No need to keep going... */
-	  if ( is_in_cps ) break;
-        }
+      /* Now interact this subcell with all subcells of cj */
+      for (cps = cj->firstchild; cps != cj->sibling; cps = cps->sibling) {
+	iact_pair_pc( cp, cps, leaf );	    
       }
     } 
   }
@@ -833,32 +825,32 @@ static inline void iact_pair_pc(struct cell *ci, struct cell *cj, struct cell *l
 
 
 static inline void iact_self_pc(struct cell *c, struct cell *leaf) {
-  int count = c->count;
+
   struct cell *cp, *cps;
 
   /* Early abort? */
-  if ( count == 0 ) error( "Empty cell !" );
-
-  /* If the cell is split, interact each progeny with itself, and with
-     each of its siblings. */
+  if ( c->count == 0 ) error( "Empty cell !" );
+  
   if ( c->split ) {
+    
+    /* Find in which subcell of c the leaf is */
     for ( cp = c->firstchild; cp != c->sibling; cp = cp->sibling ) {
-
-      int is_in_cp = is_inside(leaf, cp);
-
+      
       /* Only recurse if the leaf is in this part of the tree */
-      if ( is_in_cp ) 
-	  iact_self_pc( cp, leaf );
-           
-      for ( cps = cp->sibling; cps != c->sibling; cps = cps->sibling ) {
-	int is_in_cps = is_inside(leaf, cps);
+      if ( is_inside(leaf, cp) )           
+	break;
+    }
 
-	/* Only recurse if one of the cells contains the leaf */
-	if ( is_in_cp || is_in_cps )
+    if ( cp->split ) {
+
+      /* Recurse */
+      iact_self_pc( cp, leaf );
+    
+      /* Now, interact with every other subcell */
+      for ( cps = c->firstchild; cps != c->sibling; cps = cps->sibling ) {
+      
+	if ( cp != cps && cps->split )
 	  iact_pair_pc( cp, cps, leaf );
-
-	/* No need to keep going... */
-	if ( is_in_cps ) break;
       }
     }
   }
@@ -1137,14 +1129,15 @@ void iact_pair(struct cell *ci, struct cell *cj) {
   struct cell *cp, *cps;
 
   /* Early abort? */
-  if (count_i == 0 || count_j == 0) error("Empty cell !");
+  if (count_i == 0 || count_j == 0) 
+    error("Empty cell !");
 
   /* Bad stuff will happen if cell sizes are different */
-  if (ci->h != cj->h)
+  if (ci->h != cj->h) 
     error("Non matching cell sizes !! h_i=%f h_j=%f\n", ci->h, cj->h);
 
   /* Sanity check */
-  if (ci == cj)
+  if (ci == cj) 
     error("The impossible has happened: pair interaction between a cell and "
           "itself.");
 
