@@ -62,6 +62,11 @@ struct index {
   float d;
 };
 
+struct multipole {
+  double com[3];
+  float mass;
+}; 
+
 /** Data structure for the BH tree cell. */
 struct cell {
   double loc[3];
@@ -79,16 +84,10 @@ struct cell {
   union {
 
     /* Information for the legacy walk */
-    struct {
-      double com[3];
-      float mass;
-    } legacy;
+    struct multipole legacy;
 
     /* Information for the QuickShed walk */
-    struct {
-      double com[3];
-      float mass;
-    } new;
+    struct multipole new;
   };
 
   int res, com_tid;
@@ -673,15 +672,14 @@ void comp_com(struct cell *c) {
 /**
  * @brief Interacts all particles in ci with the monopole in cj
  */
-static inline void make_interact_pc(struct cell* ci, struct cell* cj) {
+static inline void make_interact_pc(struct cell* leaf, struct cell* cj) {
 
   int j, k;
   double com[3] = {0.0, 0.0, 0.0};
-  //double loc_leaf[3] = {leaf->loc[0], leaf->loc[1], leaf->loc[2]};
   float mcom, dx[3] = {0.0, 0.0, 0.0}, r2, ir, w;
 
-
-  if (cj->count == 0) error("Empty cell!");
+  /* Sanity checks */
+  if (leaf->count == 0) error("Empty cell!");
   
   /* Sanity check. */
   if (cj->new.mass == 0.0) {
@@ -699,36 +697,35 @@ static inline void make_interact_pc(struct cell* ci, struct cell* cj) {
   for (k = 0; k < 3; k++) com[k] = cj->new.com[k];
   mcom = cj->new.mass;
   
-  /* Loop over every particle in ci. */
-  for (j = 0; j < ci->count; j++) {
+  /* Loop over every particle in leaf. */
+  for (j = 0; j < leaf->count; j++) {
     
     /* Compute the pairwise distance. */
     for (r2 = 0.0, k = 0; k < 3; k++) {
-      dx[k] = com[k] - ci->parts[j].x[k];
+      dx[k] = com[k] - leaf->parts[j].x[k];
       r2 += dx[k] * dx[k];
     }
     
     /* Apply the gravitational acceleration. */
     ir = 1.0f / sqrtf(r2);
     w = mcom * const_G * ir * ir * ir;
-    for (k = 0; k < 3; k++) ci->parts[j].a[k] += w * dx[k];
+    for (k = 0; k < 3; k++) leaf->parts[j].a[k] += w * dx[k];
 
 
 #if ICHECK >= 0
-    if (ci->parts[j].id == ICHECK)
+    if (leaf->parts[j].id == ICHECK)
       printf("[DEBUG] cell [%f,%f,%f] interacting with cj->loc=[%f,%f,%f] "
 	     "m=%f h=%f\n",
-	     ci->loc[0], ci->loc[1], ci->loc[2], cj->loc[0], cj->loc[1], cj->loc[2],
+	     leaf->loc[0], leaf->loc[1], leaf->loc[2], cj->loc[0], cj->loc[1], cj->loc[2],
 	     mcom, cj->h);
     
-    if (ci->parts[j].id == ICHECK)
+    if (leaf->parts[j].id == ICHECK)
       printf("[NEW] Interaction with monopole a=( %e %e %e ) h= %f Nj= %d m_j= %f\n", w*dx[0], w*dx[1], w*dx[2], cj->h, cj->count, mcom);
-    if (ci->parts[j].id == ICHECK)
+    if (leaf->parts[j].id == ICHECK)
       for (k = 0; k< cj->count; ++k )
 	printf("[NEW] Interaction with monopole: Monopole contains particle id=%d\n", cj->parts[k].id);
 
 #endif
-
 
   } /* loop over every particle. */
   
