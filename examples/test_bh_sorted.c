@@ -44,6 +44,8 @@
 #define iact_pair_direct iact_pair_direct_unsorted
 
 #define ICHECK -1
+#define SANITY_CHECKS
+
 /** Data structure for the particles. */
 struct part {
   double x[3];
@@ -570,11 +572,13 @@ void cell_split(struct cell *c, struct qsched *s) {
     for (k = 0; k < 8; k++)
       if (progenitors[k]->count > 0) {
         c->firstchild = progenitors[k];
-        // message( "first child= %d", k);
         break;
       }
+
+#ifdef SANITY_CHECKS
     if (c->firstchild == NULL)
       error("Cell has been split but all progenitors have 0 particles");
+#endif
 
     /* Prepare the pointers. */
     for (k = 0; k < 8; k++) {
@@ -682,6 +686,8 @@ static inline void make_interact_pc(struct cell* leaf, struct cell* cj) {
   double com[3] = {0.0, 0.0, 0.0};
   float mcom, dx[3] = {0.0, 0.0, 0.0}, r2, ir, w;
 
+#ifdef SANITY_CHECKS
+
   /* Sanity checks */
   if (leaf->count == 0) error("Empty cell!");
   
@@ -697,6 +703,8 @@ static inline void make_interact_pc(struct cell* leaf, struct cell* cj) {
     error("com does not seem to have been set.");
   }
   
+#endif
+
   /* Init the com's data. */
   for (k = 0; k < 3; k++) com[k] = cj->new.com[k];
   mcom = cj->new.mass;
@@ -780,11 +788,12 @@ static inline int are_neighbours(struct cell* ci, struct cell* cj){
  */
 static inline void iact_pair_pc(struct cell *ci, struct cell *cj, struct cell *leaf) {
 
-  int count_i = ci->count, count_j = cj->count;
   struct cell *cp, *cps;
 
+#ifdef SANITY_CHECKS
+
   /* Early abort? */
-  if (count_i == 0 || count_j == 0) error("Empty cell !");
+  if (ci->count == 0 || cj->count == 0) error("Empty cell !");
 
   /* Sanity check */
   if (ci == cj)
@@ -794,6 +803,8 @@ static inline void iact_pair_pc(struct cell *ci, struct cell *cj, struct cell *l
   /* Sanity check */
   if ( ! is_inside( leaf , ci ) )
     error( "The impossible has happened: The leaf is not within ci" );
+
+#endif
 
   /* Are the cells NOT direct neighbours? */
   if ( ! are_neighbours( ci, cj ) ) {
@@ -822,47 +833,49 @@ static inline void iact_pair_pc(struct cell *ci, struct cell *cj, struct cell *l
 }
 
 
-
-
+/**
+ * @brief Compute the interactions between all particles in a leaf and
+ *        and all the monopoles in the cell c
+ *
+ * @param c The #cell containing the monopoles
+ * @param leaf The #cell containing the particles
+ */
 static inline void iact_self_pc(struct cell *c, struct cell *leaf) {
 
   struct cell *cp, *cps;
 
+#ifdef SANITY_CHECKS
+
   /* Early abort? */
   if ( c->count == 0 ) error( "Empty cell !" );
   
-  if ( c->split ) {
+  if ( ! c->split ) error( "Cell is not split !" );
     
-    /* Find in which subcell of c the leaf is */
-    for ( cp = c->firstchild; cp != c->sibling; cp = cp->sibling ) {
+#endif
+
+  /* Find in which subcell of c the leaf is */
+  for ( cp = c->firstchild; cp != c->sibling; cp = cp->sibling ) {
+    
+    /* Only recurse if the leaf is in this part of the tree */
+    if ( is_inside(leaf, cp) )           
+      break;
+  }
+
+  if ( cp->split ) {
+    
+    /* Recurse if the cell can be split */
+    iact_self_pc( cp, leaf );
+    
+    /* Now, interact with every other subcell */
+    for ( cps = c->firstchild; cps != c->sibling; cps = cps->sibling ) {
       
-      /* Only recurse if the leaf is in this part of the tree */
-      if ( is_inside(leaf, cp) )           
-	break;
-    }
-
-    if ( cp->split ) {
-
-      /* Recurse if the cell can be split */
-      iact_self_pc( cp, leaf );
-    
-      /* Now, interact with every other subcell */
-      for ( cps = c->firstchild; cps != c->sibling; cps = cps->sibling ) {
-
-	/* Since cp and cps will be direct neighbours it is only worth recursing */ 
-	/* if the cells can both be split */
-	if ( cp != cps && cps->split )
-	  iact_pair_pc( cp, cps, leaf );
-      }
+      /* Since cp and cps will be direct neighbours it is only worth recursing */ 
+      /* if the cells can both be split */
+      if ( cp != cps && cps->split )
+	iact_pair_pc( cp, cps, leaf );
     }
   }
 }
-
-
-
-
-
-
 
 
 
@@ -892,9 +905,13 @@ static inline void iact_pair_direct_unsorted(struct cell *ci, struct cell *cj) {
   double xi[3];
   float dx[3], ai[3], mi, mj, r2, w, ir;
 
+#ifdef SANITY_CHECKS
+
   /* Bad stuff will happen if cell sizes are different */
   if (ci->h != cj->h)
     error("Non matching cell sizes !! h_i=%f h_j=%f\n", ci->h, cj->h);
+
+#endif
 
   /* Loop over all particles in ci... */
   for (i = 0; i < count_i; i++) {
@@ -957,9 +974,13 @@ static inline void iact_pair_direct_sorted(struct cell *ci, struct cell *cj) {
   double xi[3];
   float dx[3], ai[3], mi, mj, r2, w, ir;
 
+#ifdef SANITY_CHECKS
+
   /* Bad stuff will happen if cell sizes are different */
   if (ci->h != cj->h)
     error("Non matching cell sizes !! h_i=%f h_j=%f\n", ci->h, cj->h);
+
+#endif
 
   /* Get the sorted indices and stuff. */
   struct index *ind_i, *ind_j;
@@ -1120,11 +1141,12 @@ static inline void iact_pair_direct_sorted(struct cell *ci, struct cell *cj) {
  */
 void iact_pair(struct cell *ci, struct cell *cj) {
 
-  int count_i = ci->count, count_j = cj->count;
   struct cell *cp, *cps;
 
+#ifdef SANITY_CHECKS
+
   /* Early abort? */
-  if (count_i == 0 || count_j == 0) 
+  if (ci->count == 0 || cj->count == 0) 
     error("Empty cell !");
 
   /* Bad stuff will happen if cell sizes are different */
@@ -1135,6 +1157,8 @@ void iact_pair(struct cell *ci, struct cell *cj) {
   if (ci == cj) 
     error("The impossible has happened: pair interaction between a cell and "
           "itself.");
+
+#endif
 
   /* Are the cells direct neighbours? */
   if ( are_neighbours( ci , cj ) ) {
@@ -1174,8 +1198,12 @@ void iact_self_direct(struct cell *c) {
   struct part *parts = c->parts;
   struct cell *cp, *cps;
 
+#ifdef SANITY_CHECKS
+
   /* Early abort? */
   if (count == 0) error("Empty cell !");
+
+#endif
 
   /* If the cell is split, interact each progeny with itself, and with
      each of its siblings. */
@@ -1250,9 +1278,12 @@ void create_tasks(struct qsched *s, struct cell *ci, struct cell *cj) {
   qsched_task_t tid;
   struct cell *data[2], *cp, *cps;
 
+#ifdef SANITY_CHECKS
 
   /* If either cell is empty, stop. */
   if (ci->count == 0 || (cj != NULL && cj->count == 0)) error("Empty cell !");
+
+#endif
 
   /* Single cell? */
   if (cj == NULL) {
@@ -1693,7 +1724,7 @@ void test_bh(int N, int nr_threads, int runs, char *fileName) {
   }
   message("Average number of parts per leaf is %f.", ((double)N) / nr_leaves);
 
-#if ICHECK > 0
+  //#if ICHECK > 0
   printf("----------------------------------------------------------\n");
 
   /* Do a N^2 interactions calculation */
@@ -1706,7 +1737,7 @@ void test_bh(int N, int nr_threads, int runs, char *fileName) {
          toc_exact - tic_exact, (float)(toc_exact - tic_exact));
 
   printf("----------------------------------------------------------\n");
-#endif
+  //#endif
 
   /* Create the tasks. */
   tic = getticks();
