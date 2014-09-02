@@ -41,7 +41,7 @@
 #define task_limit 1.0e20
 #define const_G 6.6738e-8
 #define dist_min 0.5 /* Used fpr legacy walk only */
-#define iact_pair_direct iact_pair_direct_sorted
+#define iact_pair_direct iact_pair_direct_unsorted
 
 #define ICHECK -1
 /** Data structure for the particles. */
@@ -614,6 +614,10 @@ void cell_split(struct cell *c, struct qsched *s) {
                  s->nr_queues * (c->parts - root->parts) / root->count);
 }
 
+
+
+
+
 /* -------------------------------------------------------------------------- */
 /* New tree walk */
 /* -------------------------------------------------------------------------- */
@@ -720,10 +724,6 @@ static inline void make_interact_pc(struct cell* leaf, struct cell* cj) {
     
     if (leaf->parts[j].id == ICHECK)
       printf("[NEW] Interaction with monopole a=( %e %e %e ) h= %f Nj= %d m_j= %f\n", w*dx[0], w*dx[1], w*dx[2], cj->h, cj->count, mcom);
-    if (leaf->parts[j].id == ICHECK)
-      for (k = 0; k< cj->count; ++k )
-	printf("[NEW] Interaction with monopole: Monopole contains particle id=%d\n", cj->parts[k].id);
-
 #endif
 
   } /* loop over every particle. */ 
@@ -798,7 +798,7 @@ static inline void iact_pair_pc(struct cell *ci, struct cell *cj, struct cell *l
   /* Are the cells NOT direct neighbours? */
   if ( ! are_neighbours( ci, cj ) ) {
 
-    /* Go for multiple interaction */
+    /* Go for multipole interaction */
     make_interact_pc(leaf, cj);
 
   } else {
@@ -843,12 +843,14 @@ static inline void iact_self_pc(struct cell *c, struct cell *leaf) {
 
     if ( cp->split ) {
 
-      /* Recurse */
+      /* Recurse if the cell can be split */
       iact_self_pc( cp, leaf );
     
       /* Now, interact with every other subcell */
       for ( cps = c->firstchild; cps != c->sibling; cps = cps->sibling ) {
-      
+
+	/* Since cp and cps will be direct neighbours it is only worth recursing */ 
+	/* if the cells can both be split */
 	if ( cp != cps && cps->split )
 	  iact_pair_pc( cp, cps, leaf );
       }
@@ -929,13 +931,6 @@ static inline void iact_pair_direct_unsorted(struct cell *ci, struct cell *cj) {
 
       if (parts_j[j].id == ICHECK)
         printf("[NEW] Interaction with particle id= %d (pair j) a=( %e %e %e )\n", parts_i[i].id, mj*w*dx[0], mj*w*dx[1], mj*w*dx[2]);
-
-
-      /* if (parts_j[j].id == ICHECK) */
-      /*   printf("[NEW] Interaction with particle id= %d (pair j) h_i= %f h_j= " */
-      /*          "%f ci= %p cj= %p count_i= %d count_j= %d d_i= %d d_j= %d\n", */
-      /*          parts_i[i].id, ci->h, cj->h, ci, cj, count_i, count_j, ci->res, */
-      /*          cj->res); */
 #endif
 
     } /* loop over every other particle. */
@@ -1165,6 +1160,8 @@ void iact_pair(struct cell *ci, struct cell *cj) {
 
 
 
+
+
 /**
  * @brief Compute the interactions between all particles in a cell.
  *
@@ -1299,24 +1296,6 @@ void create_tasks(struct qsched *s, struct cell *ci, struct cell *cj) {
 
     /* Are the cells NOT neighbours ? */
     if ( ! are_neighbours( ci , cj ) ) {
-
-      // No Separate tasks for particle-cell interactions!
-      //
-      // /* Create first cell-monopole task */
-      // data[0] = ci;
-      // data[1] = cj;
-      // tid = qsched_addtask(s, task_type_pair_pc, task_flag_none, data,
-      //                      sizeof(struct cell *) * 2, ci->count);
-      // qsched_addlock(s, tid, ci->res);
-      // qsched_addunlock(s, cj->com_tid, tid);
-      //
-      // /* Create second cell-monopole task */
-      // data[0] = cj;
-      // data[1] = ci;
-      // tid = qsched_addtask(s, task_type_pair_pc, task_flag_none, data,
-      //                      sizeof(struct cell *) * 2, cj->count);
-      // qsched_addlock(s, tid, cj->res);
-      // qsched_addunlock(s, ci->com_tid, tid);
 
     } else {/* Cells are direct neighbours */
 
@@ -1589,11 +1568,13 @@ void interact_exact(int N, struct part *parts, int monitor) {
     }
   }
 
+#if ICHECK >= 0
   for (i = 0; i < N; ++i)
     if (parts[i].id == monitor)
       message("[check] exact acceleration for particle %d a= %.3e %.3e %.3e\n",
               parts[i].id, parts[i].a_exact[0], parts[i].a_exact[1],
               parts[i].a_exact[2]);
+#endif
 }
 
 /**
@@ -1631,9 +1612,6 @@ void test_bh(int N, int nr_threads, int runs, char *fileName) {
       case task_type_pair:
         iact_pair(d[0], d[1]);
         break;
-      /* case task_type_pair_pc: */
-      /*   iact_pair_pc(d[0], d[1], d[2]); */
-      /*   break; */
       case task_type_pair_direct:
         iact_pair_direct(d[0], d[1]);
         break;
@@ -1671,7 +1649,6 @@ void test_bh(int N, int nr_threads, int runs, char *fileName) {
       parts[k].a_legacy[0] = 0.0;
       parts[k].a_legacy[1] = 0.0;
       parts[k].a_legacy[2] = 0.0;
-      /* message("%d %f %f %f", k, parts[k].x[0], parts[k].x[1], parts[k].x[2]); */
     }
 
     /* Otherwise, read them from a file. */
@@ -1691,22 +1668,6 @@ void test_bh(int N, int nr_threads, int runs, char *fileName) {
       fclose(file);
     }
   }
-  /* int j; */
-  /* for ( i=0 ; i < 8; ++i ) */
-  /*   for ( j=0 ; j < 8; ++j ) */
-  /*     for ( k=0 ; k < 8; ++k ) */
-  /* 	{ */
-  /* 	  int n = 64*i + 8*j + k; */
-  /* 	  parts[n].id = n; */
-  /* 	  parts[n].x[0] = 0.0625 + i*0.125; */
-  /* 	  parts[n].x[1] = 0.0625 + j*0.125; */
-  /* 	  parts[n].x[2] = 0.0625 + k*0.125; */
-  /* 	  parts[n].mass = 1.;//((double)rand()) / RAND_MAX; */
-  /* 	  parts[n].a_legacy[0] = 0.0; */
-  /* 	  parts[n].a_legacy[1] = 0.0; */
-  /* 	  parts[n].a_legacy[2] = 0.0; */
-
-  /* 	} */
 
   /* Init the cells. */
   root = cell_get();
@@ -1732,7 +1693,7 @@ void test_bh(int N, int nr_threads, int runs, char *fileName) {
   }
   message("Average number of parts per leaf is %f.", ((double)N) / nr_leaves);
 
-  //#if ICHECK > 0
+#if ICHECK > 0
   printf("----------------------------------------------------------\n");
 
   /* Do a N^2 interactions calculation */
@@ -1745,7 +1706,7 @@ void test_bh(int N, int nr_threads, int runs, char *fileName) {
          toc_exact - tic_exact, (float)(toc_exact - tic_exact));
 
   printf("----------------------------------------------------------\n");
-  //#endif
+#endif
 
   /* Create the tasks. */
   tic = getticks();
@@ -1797,8 +1758,8 @@ void test_bh(int N, int nr_threads, int runs, char *fileName) {
 #endif
   printf("task counts: [ %8s %8s %8s %8s %8s ]\n", "self", "pair", "m-poles",
          "direct", "CoMs");
-  /* printf("task counts: [ %8i %8i %8i %8i %8i ] (legacy).\n", 0, 0,
-         countMultipoles, countPairs, countCoMs); */
+  printf("task counts: [ %8i %8i %8i %8i %8i ] (legacy).\n", 0, 0,
+         countMultipoles, countPairs, countCoMs);
   printf("task counts: [ ");
   for (k = 0; k < task_type_count; k++) printf("%8i ", counts[k]);
   printf("] (new).\n");
@@ -1938,4 +1899,5 @@ int main(int argc, char *argv[]) {
   test_bh(N, nr_threads, runs, fileName);
 
   return 0;
+
 }
