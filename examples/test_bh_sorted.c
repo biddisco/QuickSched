@@ -749,6 +749,33 @@ static inline int is_inside(struct cell* leaf, struct cell* c)
 }
 
 
+
+/**
+ * @brief Checks whether the cells are direct neighbours ot not
+ */
+static inline int are_neighbours(struct cell* ci, struct cell* cj){
+
+  int k;
+  float dx[3];
+  double cih = ci->h, cjh = cj->h;
+
+  /* Maximum allowed distance */
+  double min_dist = 0.5 * (cih + cjh);
+
+  /* (Manhattan) Distance between the cells */
+  for (k = 0; k < 3; k++) {
+    float center_i = ci->loc[k] + 0.5 * cih;
+    float center_j = cj->loc[k] + 0.5 * cjh;
+    dx[k] = fabs(center_i - center_j);
+  }
+
+  if ((dx[0] <= min_dist) && (dx[1] <= min_dist) && (dx[2] <= min_dist)) 
+    return 1;
+  else
+    return 0;
+}
+
+
 /**
  * @brief Compute the interactions between all particles in a cell leaf
  *        and the center of mass of all the cells in a part of the tree described by ci and cj
@@ -758,11 +785,7 @@ static inline int is_inside(struct cell* leaf, struct cell* c)
  */
 static inline void iact_pair_pc(struct cell *ci, struct cell *cj, struct cell *leaf) {
 
-  int k;
   int count_i = ci->count, count_j = cj->count;
-  double center_i, center_j;
-  double min_dist, cih = ci->h, cjh = cj->h;
-  float dx[3];
   struct cell *cp, *cps;
 
   /* Early abort? */
@@ -773,18 +796,8 @@ static inline void iact_pair_pc(struct cell *ci, struct cell *cj, struct cell *l
     error("The impossible has happened: pair interaction between a cell and "
           "itself.");
 
-  /* Distance between the cell centers */
-  for (k = 0; k < 3; k++) {
-    center_i = ci->loc[k] + 0.5 * cih;
-    center_j = cj->loc[k] + 0.5 * cjh;
-    dx[k] = fabs(center_i - center_j);
-  }
-
-  min_dist = 0.5 * (cih + cjh);
-
-
   /* Are the cells NOT direct neighbours? */
-  if ((dx[0] > min_dist) || (dx[1] > min_dist) || (dx[2] > min_dist)) {
+  if ( ! are_neighbours( ci, cj ) ) {
 
     /* If the leaf is contained within one of the cells, we interact the leaf with the other one. */
     if( is_inside(leaf, ci) )
@@ -1123,10 +1136,7 @@ static inline void iact_pair_direct_sorted(struct cell *ci, struct cell *cj) {
  */
 void iact_pair(struct cell *ci, struct cell *cj) {
 
-  int k;
   int count_i = ci->count, count_j = cj->count;
-  double center_i, center_j, dx[3];
-  double min_dist, cih = ci->h, cjh = cj->h;
   struct cell *cp, *cps;
 
   /* Early abort? */
@@ -1141,17 +1151,8 @@ void iact_pair(struct cell *ci, struct cell *cj) {
     error("The impossible has happened: pair interaction between a cell and "
           "itself.");
 
-  /* Distance between the cell centers */
-  for (k = 0; k < 3; k++) {
-    center_i = ci->loc[k] + 0.5 * cih;
-    center_j = cj->loc[k] + 0.5 * cjh;
-    dx[k] = fabs(center_i - center_j);
-  }
-
-  min_dist = 0.5 * (cih + cjh);
-
   /* Are the cells direct neighbours? */
-  if ((dx[0] <= min_dist) && (dx[1] <= min_dist) && (dx[2] <= min_dist)) {
+  if ( are_neighbours( ci , cj ) ) {
 
     /* Are both cells split ? */
     if (ci->split && cj->split) {
@@ -1160,17 +1161,8 @@ void iact_pair(struct cell *ci, struct cell *cj) {
       for (cp = ci->firstchild; cp != ci->sibling; cp = cp->sibling) {
         for (cps = cj->firstchild; cps != cj->sibling; cps = cps->sibling) {
 
-          /* Check the distance between the two children */
-          for (k = 0; k < 3; k++) {
-            center_i = cp->loc[k] + 0.5 * cp->h;
-            center_j = cps->loc[k] + 0.5 * cps->h;
-            dx[k] = fabs(center_i - center_j);
-          }
-          min_dist = 0.5 * (cp->h + cps->h);
-
           /* If the cells are neighbours, recurse. */
-          if ((dx[0] <= min_dist) && (dx[1] <= min_dist) &&
-              (dx[2] <= min_dist)) {
+          if ( are_neighbours( cp , cps ) ) {
             iact_pair(cp, cps);
           }
         }
@@ -1268,10 +1260,7 @@ void iact_self_direct(struct cell *c) {
  */
 void create_tasks(struct qsched *s, struct cell *ci, struct cell *cj) {
 
-  int k;
   qsched_task_t tid;
-  double center_i, center_j, dx[3];
-  double min_dist, cih, cjh;
   struct cell *data[2], *cp, *cps;
 
 
@@ -1318,20 +1307,8 @@ void create_tasks(struct qsched *s, struct cell *ci, struct cell *cj) {
     /* Otherwise, it's a pair. */
   } else {
 
-    cih = ci->h;
-    cjh = cj->h;
-
-    /* Distance between the cell centers */
-    for (k = 0; k < 3; k++) {
-      center_i = ci->loc[k] + 0.5 * cih;
-      center_j = cj->loc[k] + 0.5 * cjh;
-      dx[k] = fabs(center_i - center_j);
-    }
-
-    min_dist = 0.5 * (cih + cjh);
-
     /* Are the cells NOT neighbours ? */
-    if ((dx[0] > min_dist) || (dx[1] > min_dist) || (dx[2] > min_dist)) {
+    if ( ! are_neighbours( ci , cj ) ) {
 
       // No Separate tasks for particle-cell interactions!
       //
