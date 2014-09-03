@@ -38,7 +38,7 @@
 /* Some local constants. */
 #define cell_pool_grow 1000
 #define cell_maxparts 20
-#define task_limit 1.0e20
+#define task_limit 1e20
 #define const_G 6.6738e-8
 #define dist_min 0.5 /* Used fpr legacy walk only */
 #define iact_pair_direct iact_pair_direct_unsorted
@@ -804,31 +804,40 @@ static inline void iact_pair_pc(struct cell *ci, struct cell *cj, struct cell *l
   if ( ! is_inside( leaf , ci ) )
     error( "The impossible has happened: The leaf is not within ci" );
 
+  /* Are the cells NOT direct neighbours? */
+  if ( ! are_neighbours( ci, cj ) )
+    error( "Cells are not neighours" );
 #endif
 
-  /* Are the cells NOT direct neighbours? */
-  if ( ! are_neighbours( ci, cj ) ) {
+  /* Are both cells split ? */
+  if ( ci->split && cj->split ) {
 
-    /* Go for multipole interaction */
-    make_interact_pc(leaf, cj);
-
-  } else {
-
-    /* Are both cells split ? */
-    if (ci->split && cj->split) {
-
-      /* Let's find in which subcell of ci the leaf is */
-      for (cp = ci->firstchild; cp != ci->sibling; cp = cp->sibling) {
-
-	if ( is_inside(leaf, cp) )     
-	  break;
-      }
-
+    /* Let's find in which subcell of ci the leaf is */
+    for ( cp = ci->firstchild; cp != ci->sibling; cp = cp->sibling ) {
+      
+      if ( is_inside( leaf, cp ) )     
+	break;
+    }
+    
+    if ( are_neighbours( cp, cj ) ) {
+      
       /* Now interact this subcell with all subcells of cj */
-      for (cps = cj->firstchild; cps != cj->sibling; cps = cps->sibling) {
-	iact_pair_pc( cp, cps, leaf );	    
-      }
-    } 
+      for ( cps = cj->firstchild; cps != cj->sibling; cps = cps->sibling ) {
+
+	/* Check whether we have to recurse or can directly jump to the multipole calculation */
+	if ( are_neighbours( cp, cps ) )
+	  iact_pair_pc( cp, cps, leaf );	 
+	else
+	  make_interact_pc( leaf, cps );
+      }   
+    } else {
+      
+      /* If cp is not a neoghbour of cj, we can directly interact with the multipoles */
+      for ( cps = cj->firstchild; cps != cj->sibling; cps = cps->sibling ) {
+	
+	make_interact_pc( leaf, cps );
+      }   
+    }
   }
 }
 
