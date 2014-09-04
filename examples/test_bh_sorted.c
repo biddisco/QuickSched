@@ -743,9 +743,10 @@ static inline void make_interact_pc(struct cell* leaf, struct cell* cj) {
  */
 static inline int is_inside(struct cell* leaf, struct cell* c)
 {
-  if ( leaf->loc[0] >= c->loc[0] && leaf->loc[0] < c->loc[0] + c->h && 
-       leaf->loc[1] >= c->loc[1] && leaf->loc[1] < c->loc[1] + c->h && 
-       leaf->loc[2] >= c->loc[2] && leaf->loc[2] < c->loc[2] + c->h) 
+  if ( leaf->loc[0] >= c->loc[0] && leaf->loc[0] < c->loc[0] + c->h &&
+       leaf->loc[1] >= c->loc[1] && leaf->loc[1] < c->loc[1] + c->h &&
+       leaf->loc[2] >= c->loc[2] && leaf->loc[2] < c->loc[2] + c->h)
+  /* if ( leaf->parts >= c->parts && leaf->parts < c->parts + c->count ) */
     return 1;
   else
     return 0;
@@ -756,19 +757,48 @@ static inline int is_inside(struct cell* leaf, struct cell* c)
 /**
  * @brief Checks whether the cells are direct neighbours ot not
  */
-static inline int are_neighbours(struct cell* ci, struct cell* cj){
+static inline int are_neighbours_different_size(struct cell* ci, struct cell* cj){
 
   int k;
   float dx[3];
   double cih = ci->h, cjh = cj->h;
 
   /* Maximum allowed distance */
-  double min_dist = 0.5 * (cih + cjh);
+  float min_dist = 0.5 * (cih + cjh);
 
   /* (Manhattan) Distance between the cells */
   for (k = 0; k < 3; k++) {
     float center_i = ci->loc[k] + 0.5 * cih;
     float center_j = cj->loc[k] + 0.5 * cjh;
+    dx[k] = fabs(center_i - center_j);
+  }
+
+  if ((dx[0] <= min_dist) && (dx[1] <= min_dist) && (dx[2] <= min_dist)) 
+    return 1;
+  else
+    return 0;
+}
+
+/**
+ * @brief Checks whether the cells are direct neighbours ot not. Both cells have to be of the same size
+ */
+static inline int are_neighbours(struct cell* ci, struct cell* cj){
+
+  int k;
+  float dx[3];
+
+#ifdef SANITY_CHECKS
+  if ( ci->h != cj->h )
+    error( " Cells of different size in distance calculation." );
+#endif
+
+  /* Maximum allowed distance */
+  float min_dist = ci->h;
+
+  /* (Manhattan) Distance between the cells */
+  for (k = 0; k < 3; k++) {
+    float center_i = ci->loc[k];
+    float center_j = cj->loc[k];
     dx[k] = fabs(center_i - center_j);
   }
 
@@ -820,7 +850,7 @@ static inline void iact_pair_pc(struct cell *ci, struct cell *cj, struct cell *l
       break;
   }
     
-  if ( are_neighbours( cp, cj ) ) {
+  if ( are_neighbours_different_size( cp, cj ) ) {
     
     /* Now interact this subcell with all subcells of cj */
     for ( cps = cj->firstchild; cps != cj->sibling; cps = cps->sibling ) {
