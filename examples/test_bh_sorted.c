@@ -804,40 +804,46 @@ static inline void iact_pair_pc(struct cell *ci, struct cell *cj, struct cell *l
   if ( ! is_inside( leaf , ci ) )
     error( "The impossible has happened: The leaf is not within ci" );
 
-  /* Are the cells NOT direct neighbours? */
+  /* Are the cells direct neighbours? */
   if ( ! are_neighbours( ci, cj ) )
     error( "Cells are not neighours" );
-#endif
 
   /* Are both cells split ? */
-  if ( ci->split && cj->split ) {
+  if ( !ci->split || !cj->split ) 
+    error( "One of the cells is not split !" );
+#endif
 
-    /* Let's find in which subcell of ci the leaf is */
-    for ( cp = ci->firstchild; cp != ci->sibling; cp = cp->sibling ) {
-      
-      if ( is_inside( leaf, cp ) )     
-	break;
-    }
+  /* Let's find in which subcell of ci the leaf is */
+  for ( cp = ci->firstchild; cp != ci->sibling; cp = cp->sibling ) {
     
-    if ( are_neighbours( cp, cj ) ) {
+    if ( is_inside( leaf, cp ) )     
+      break;
+  }
+    
+  if ( are_neighbours( cp, cj ) ) {
+    
+    /* Now interact this subcell with all subcells of cj */
+    for ( cps = cj->firstchild; cps != cj->sibling; cps = cps->sibling ) {
       
-      /* Now interact this subcell with all subcells of cj */
-      for ( cps = cj->firstchild; cps != cj->sibling; cps = cps->sibling ) {
+      /* Check whether we have to recurse or can directly jump to the multipole calculation */
+      if ( are_neighbours( cp, cps ) ) {
 
-	/* Check whether we have to recurse or can directly jump to the multipole calculation */
-	if ( are_neighbours( cp, cps ) )
-	  iact_pair_pc( cp, cps, leaf );	 
-	else
-	  make_interact_pc( leaf, cps );
-      }   
-    } else {
-      
-      /* If cp is not a neoghbour of cj, we can directly interact with the multipoles */
-      for ( cps = cj->firstchild; cps != cj->sibling; cps = cps->sibling ) {
-	
+	/* We only recurse if the children are split */
+	if ( cp->split && cps->split ) {
+	  iact_pair_pc( cp, cps, leaf );
+	}
+
+      } else {
 	make_interact_pc( leaf, cps );
-      }   
-    }
+      }
+    }   
+  } else {
+    
+    /* If cp is not a neoghbour of cj, we can directly interact with the multipoles */
+    for ( cps = cj->firstchild; cps != cj->sibling; cps = cps->sibling ) {
+      
+      make_interact_pc( leaf, cps );
+    }   
   }
 }
 
