@@ -56,7 +56,7 @@ struct part {
   // };
   float mass;
   int id;
-};// __attribute__((aligned(64)));
+};// __attribute__((aligned(128)));
 
 /** Data structure for the sorted particle positions. */
 struct index {
@@ -923,9 +923,18 @@ static inline void iact_self_pc(struct cell *c, struct cell *leaf) {
 }
 
 
+/**
+ * @brief Starts the recursive tree walk of a given leaf
+ */
+void init_multipole_walk(struct cell *root, struct cell *leaf) {
 
+  /* Pre-fetch the leaf's particles */
+  __builtin_prefetch( leaf->parts, 1, 3 );
 
+  /* Start the recursion */
+  iact_self_pc( root, leaf );
 
+}
 
 
 
@@ -1692,7 +1701,7 @@ void test_bh(int N, int nr_threads, int runs, char *fileName) {
         iact_pair_direct(d[0], d[1]);
         break;
       case task_type_self_pc:
-        iact_self_pc(d[0], d[1]);
+	init_multipole_walk(d[0], d[1]);
         break;
       case task_type_com:
         comp_com(d[0]);
