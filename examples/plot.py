@@ -66,19 +66,20 @@ accx_new = accx_new[rank]
 accy_new = accy_new[rank]
 accz_new = accz_new[rank]
 
-# # Read Gadget accelerations
-# data=loadtxt("particle_dump_gadget.dat")
-# id = data[:,0]
-# accx_g=data[:,4]
-# accy_g=data[:,5]
-# accz_g=data[:,6]
+# Read Gadget accelerations
+data=loadtxt("gadget_dump.dat")
+id = data[:,0]
+accx_g=data[:,5]
+accy_g=data[:,6]
+accz_g=data[:,7]
 
-# # Sort accelerations
-# rank = argsort(id)
-# id = id[rank]
-# accx_g = accx_g[rank]
-# accy_g = accy_g[rank]
-# accz_g = accz_g[rank]
+# Sort accelerations
+rank = argsort(id)
+id = id[rank]
+accx_g = accx_g[rank]
+accy_g = accy_g[rank]
+accz_g = accz_g[rank]
+
 
 # Build error ------------------------------------------------
 
@@ -90,9 +91,9 @@ errx_new = (accx_new - accx_e )/abs(accx_e)
 erry_new = (accy_new - accy_e )/abs(accy_e) 
 errz_new = (accz_new - accz_e )/abs(accz_e) 
 
-# errx_g = (accx_g - accx_e )/abs(accx_e) 
-# erry_g = (accy_g - accy_e )/abs(accy_e) 
-# errz_g = (accz_g - accz_e )/abs(accz_e) 
+errx_g = (accx_g - accx_e )/abs(accx_e) 
+erry_g = (accy_g - accy_e )/abs(accy_e) 
+errz_g = (accz_g - accz_e )/abs(accz_e) 
 
 # Statistics
 meanx_bh = mean(errx_bh[abs(errx_bh) < 0.1])
@@ -120,7 +121,7 @@ stdz_new = std(errz_new[abs(errz_new) < 0.1])
 figure(frameon=True)
 
 subplot(311, title="Acceleration along X")
-#plot(id, errx_g , 'gs')
+plot(id, errx_g , 'gs')
 plot(id, errx_bh , 'rx')
 plot(id, errx_new , 'b.')
 text(id[-1], 0.18, "B-H: $%5.3f\\pm%5.3f$\n QuickShed: $%5.3f\\pm%5.3f$"%(meanx_bh, stdx_bh, meanx_new, stdx_new), backgroundcolor="w", va="top", ha="right" )
@@ -131,7 +132,7 @@ xlim(0,id[-1])
 grid()
 
 subplot(312, title="Acceleration along Y")
-#plot(id, erry_g , 'gs')
+plot(id, erry_g , 'gs')
 plot(id, erry_bh , 'rx')
 plot(id, erry_new , 'b.')
 text(id[-1], 0.18, "B-H: $%5.3f\\pm%5.3f$\n QuickShed: $%5.3f\\pm%5.3f$"%(meany_bh, stdy_bh, meany_new, stdy_new), backgroundcolor="w", va="top", ha="right" )
@@ -143,7 +144,7 @@ xlim(0,id[-1])
 grid()
 
 subplot(313, title="Acceleration along Z")
-#plot(id, errz_g , 'gs')
+plot(id, errz_g , 'gs', label="Gadget")
 plot(id, errz_new , 'b.', label="QuickShed")
 plot(id, errz_bh , 'rx', label="Legacy")
 #text(id[-1], 0.18, "B-H: $%5.3f\\pm%5.3f$\n QuickShed: $%5.3f\\pm%5.3f$"%(meanz_bh, stdz_bh, meanz_new, stdz_new), backgroundcolor="w", va="top", ha="right" )
@@ -164,21 +165,22 @@ bins = linspace(-3, 3, 10000)
 
 figure(frameon=True)
 subplot(311, title="Acceleration along X")
-#hist(errx_g, bins=bins, normed=1, histtype='step', rwidth=0.01, color='g')
-hist(errx_bh, bins=bins, normed=1, histtype='step', rwidth=0.01, color='r')
-hist(errx_new, bins=bins, normed=1, histtype='step', rwidth=0.01, color='b')
+hist(errx_g, bins=bins, normed=1, histtype='step', rwidth=0.01, color='g', label="Gadget")
+hist(errx_bh, bins=bins, normed=1, histtype='step', rwidth=0.01, color='r', label="Legacy")
+hist(errx_new, bins=bins, normed=1, histtype='step', rwidth=0.01, color='b', label="QuickShed")
+legend(loc="upper right")
 xlim(-0.03, 0.03)
 
 subplot(312, title="Acceleration along Y")
-#hist(erry_g, bins=bins, normed=1, histtype='step', rwidth=0.01, color='g')
+hist(erry_g, bins=bins, normed=1, histtype='step', rwidth=0.01, color='g')
 hist(erry_bh, bins=bins, normed=1, histtype='step', rwidth=0.01, color='r')
 hist(erry_new, bins=bins, normed=1, histtype='step', rwidth=0.01, color='b')
 xlim(-0.03, 0.03)
 
 subplot(313, title="Acceleration along Z")
-#hist(errz_g, bins=bins, normed=1, histtype='step', rwidth=0.01, color='g')
+hist(errz_g, bins=bins, normed=1, histtype='step', rwidth=0.01, color='g')
 hist(errz_bh, bins=bins, normed=1, histtype='step', rwidth=0.01, color='r')
 hist(errz_new, bins=bins, normed=1, histtype='step', rwidth=0.01, color='b')
-#xlim(-0.03, 0.03)
+xlim(-0.03, 0.03)
 
 savefig("histogram.png")
