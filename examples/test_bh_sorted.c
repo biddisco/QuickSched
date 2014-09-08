@@ -37,26 +37,27 @@
 
 /* Some local constants. */
 #define cell_pool_grow 1000
-#define cell_maxparts 20
-#define task_limit 1e20
+#define cell_maxparts 100
+#define task_limit 1e8
 #define const_G 6.6738e-8
 #define dist_min 0.5 /* Used fpr legacy walk only */
 #define iact_pair_direct iact_pair_direct_unsorted
 
 #define ICHECK -1
-#define SANITY_CHECKS
+#define NO_SANITY_CHECKS
+#define NO_COM_AS_TASK
 
 /** Data structure for the particles. */
 struct part {
   double x[3];
-  // union {
+  union {
   float a[3];
   float a_legacy[3];
   float a_exact[3];
-  // };
+  };
   float mass;
   int id;
-};// __attribute__((aligned(128)));
+}; // __attribute__((aligned(64)));
 
 /** Data structure for the sorted particle positions. */
 struct index {
@@ -83,14 +84,14 @@ struct cell {
 
   /* We keep both CoMs and masses to make sure the comp_com calculation is
    * correct (use an anonymous union to keep variable names compact).  */
-  union {
+  // union {
 
     /* Information for the legacy walk */
     struct multipole legacy;
 
     /* Information for the QuickShed walk */
     struct multipole new;
-  };
+  // };
 
   int res, com_tid;
   struct index *indices;
@@ -158,6 +159,10 @@ const int axis_sid[27] = {
   /* (  1 ,  1 ,  0 ) */ 1,
   /* (  1 ,  1 ,  1 ) */ 0
 };
+
+/* Some forward declarations. */
+void comp_com(struct cell *c);
+
 
 /**
  * @brief Sort the entries in ascending order using QuickSort.
@@ -481,9 +486,11 @@ void cell_split(struct cell *c, struct qsched *s) {
     c->res = qsched_addres(s, qsched_owner_none, qsched_res_none);
 
   /* Attach a center-of-mass task to the cell. */
+  #ifdef COM_AS_TASK
   if (count > 0)
     c->com_tid = qsched_addtask(s, task_type_com, task_flag_none, &c,
                                 sizeof(struct cell *), 1);
+  #endif
 
   /* Does this cell need to be split? */
   if (count > cell_maxparts) {
@@ -600,9 +607,11 @@ void cell_split(struct cell *c, struct qsched *s) {
       if (progenitors[k]->count > 0) cell_split(progenitors[k], s);
 
     /* Link the COM tasks. */
+    #ifdef COM_AS_TASK
     for (k = 0; k < 8; k++)
       if (progenitors[k]->count > 0)
         qsched_addunlock(s, progenitors[k]->com_tid, c->com_tid);
+    #endif
 
     /* Otherwise, we're at a leaf, so create the cell's particle-cell task. */
   } else {
@@ -610,8 +619,15 @@ void cell_split(struct cell *c, struct qsched *s) {
     int tid = qsched_addtask(s, task_type_self_pc, task_flag_none, data,
                              2 * sizeof(struct cell *), 1);
     qsched_addlock(s, tid, c->res);
-    qsched_addunlock(s, root->com_tid, tid); 
+    #ifdef COM_AS_TASK
+      qsched_addunlock(s, root->com_tid, tid);
+    #endif
   } /* does the cell need to be split? */
+  
+  /* Compute the cell's center of mass. */
+  #ifndef COM_AS_TASK
+    comp_com(c);
+  #endif
 
   /* Set this cell's resources ownership. */
   qsched_res_own(s, c->res,
@@ -1049,6 +1065,7 @@ static inline void iact_pair_direct_sorted(struct cell *ci, struct cell *cj) {
   parts_j = cj->parts;
   cjh = cj->h;
 
+#if ICHECK >= 0
   for (k = 0; k < count_i; k++)
     if (parts_i[k].id == ICHECK)
       message("[DEBUG] interacting cells loc=[%f,%f,%f], h=%f and "
@@ -1061,9 +1078,10 @@ static inline void iact_pair_direct_sorted(struct cell *ci, struct cell *cj) {
               "loc=[%f,%f,%f], h=%f.",
               cj->loc[0], cj->loc[1], cj->loc[2], cj->h, ci->loc[0], ci->loc[1],
               ci->loc[2], ci->h);
+#endif
 
   /* Distance along the axis as of which we will use a multipole. */
-  float d_max = cjh / dist_min / corr;
+  float d_max = cjh * dist_min / corr;
 
   /* Loop over all particles in ci... */
   for (i = count_i - 1; i >= 0; i--) {
@@ -1373,7 +1391,9 @@ void create_tasks(struct qsched *s, struct cell *ci, struct cell *cj) {
 
       /* If this call might recurse, add a dependency on the cell's COM
          task. */
+      #ifdef COM_AS_TASK
       if (ci->split) qsched_addunlock(s, ci->com_tid, tid);
+      #endif
     }
 
     /* Otherwise, it's a pair. */
@@ -1701,7 +1721,7 @@ void test_bh(int N, int nr_threads, int runs, char *fileName) {
         iact_pair_direct(d[0], d[1]);
         break;
       case task_type_self_pc:
-	init_multipole_walk(d[0], d[1]);
+        init_multipole_walk(d[0], d[1]);
         break;
       case task_type_com:
         comp_com(d[0]);
@@ -1778,7 +1798,7 @@ void test_bh(int N, int nr_threads, int runs, char *fileName) {
   }
   message("Average number of parts per leaf is %f.", ((double)N) / nr_leaves);
 
-  //#if ICHECK > 0
+  #if ICHECK > 0
   printf("----------------------------------------------------------\n");
 
   /* Do a N^2 interactions calculation */
@@ -1791,7 +1811,7 @@ void test_bh(int N, int nr_threads, int runs, char *fileName) {
          toc_exact - tic_exact, (float)(toc_exact - tic_exact));
 
   printf("----------------------------------------------------------\n");
-  //#endif
+  #endif
 
   /* Create the tasks. */
   tic = getticks();
@@ -1815,7 +1835,7 @@ void test_bh(int N, int nr_threads, int runs, char *fileName) {
   // FILE *fileTime = fopen(buffer, "w");
 
   /* Loop over the number of runs. */
-  for (k = 0; k < runs; k++) {
+  for (k = 0; k < 0 /* runs */; k++) {
 
     countMultipoles = 0;
     countPairs = 0;
@@ -1856,6 +1876,13 @@ void test_bh(int N, int nr_threads, int runs, char *fileName) {
       parts[i].a[0] = 0.0;
       parts[i].a[1] = 0.0;
       parts[i].a[2] = 0.0;
+    }
+    
+    struct cell *finger = root;
+    while (finger != NULL) {
+      finger->sorted = 0;
+      if (finger->split) finger = finger->firstchild;
+      else finger = finger->sibling;
     }
 
     /* Execute the tasks. */
