@@ -499,6 +499,10 @@ void qsched_done ( struct qsched *s , struct task *t ) {
         
     TIMER_TIC
     
+    /* Set the task stats. */
+    t->toc = getticks();
+    t->cost = t->toc - t->tic;
+
     /* Release this task's locks. */
     for ( k = 0 ; k < t->nr_locks ; k++ )
         qsched_unlockres( s , t->locks[k] );
@@ -515,10 +519,6 @@ void qsched_done ( struct qsched *s , struct task *t ) {
             
         }
         
-    /* Set the task stats. */
-    t->toc = getticks();
-    t->cost = t->toc - t->tic;
-
     /* Decrease the number of tasks in this space. */
     atomic_dec( &s->waiting );
 
