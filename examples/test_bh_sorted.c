@@ -1900,10 +1900,10 @@ void test_bh(int N, int nr_threads, int runs, char *fileName) {
 
   /* Dump the particles to a file */
   file = fopen("particle_dump.dat", "w");
-  fprintf(file, "# x y z a_exact.x   a_exact.y    a_exact.z    a_legacy.x    "
+  fprintf(file, "# m x y z a_exact.x   a_exact.y    a_exact.z    a_legacy.x    "
                 "a_legacy.y    a_legacy.z    a_new.x     a_new.y    a_new.z\n");
   for (k = 0; k < N; ++k)
-    fprintf(file, "%d %e %e %e %e %e %e %e %e %e %e %e %e\n", parts[k].id,
+    fprintf(file, "%d %e %e %e %e %e %e %e %e %e %e %e %e %e\n", parts[k].id, parts[k].mass,
             parts[k].x[0], parts[k].x[1], parts[k].x[2], parts[k].a_exact[0],
             parts[k].a_exact[1], parts[k].a_exact[2], parts[k].a_legacy[0],
             parts[k].a_legacy[1], parts[k].a_legacy[2], parts[k].a[0],

@@ -39,17 +39,17 @@ print "Plotting..."
 # Read Quickshed accelerations
 data=loadtxt("particle_dump.dat")
 id = data[:,0]
-accx_e=data[:,4]
-accy_e=data[:,5]
-accz_e=data[:,6]
+accx_e=data[:,5]
+accy_e=data[:,6]
+accz_e=data[:,7]
 
-accx_bh=data[:,7]
-accy_bh=data[:,8]
-accz_bh=data[:,9]
+accx_bh=data[:,8]
+accy_bh=data[:,9]
+accz_bh=data[:,10]
 
-accx_new=data[:,10]
-accy_new=data[:,11]
-accz_new=data[:,12]
+accx_new=data[:,11]
+accy_new=data[:,12]
+accz_new=data[:,13]
 
 # Sort accelerations
 rank = argsort(id)
