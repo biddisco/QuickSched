@@ -164,7 +164,7 @@ bins = linspace(-3, 3, 10000)
 
 
 figure(frameon=True)
-subplot(311, title="Acceleration along X")
+subplot(311, title="Acceleration along X")#, yscale='log')
 hist(errx_g, bins=bins, normed=1, histtype='step', rwidth=0.01, color='g', label="Gadget")
 hist(errx_bh, bins=bins, normed=1, histtype='step', rwidth=0.01, color='r', label="Legacy")
 hist(errx_new, bins=bins, normed=1, histtype='step', rwidth=0.01, color='b', label="QuickShed")
@@ -184,3 +184,22 @@ hist(errz_new, bins=bins, normed=1, histtype='step', rwidth=0.01, color='b')
 xlim(-0.03, 0.03)
 
 savefig("histogram.png")
+
+
+# Print error
+errx_g = errx_g[ (errx_g > -0.1) & (errx_g < 0.1) ]
+erry_g = erry_g[ (erry_g > -0.1) & (erry_g < 0.1) ]
+errz_g = errz_g[ (errz_g > -0.1) & (errz_g < 0.1) ]
+
+errx_bh = errx_bh[ (errx_bh > -0.1) & (errx_bh < 0.1) ]
+erry_bh = erry_bh[ (erry_bh > -0.1) & (erry_bh < 0.1) ]
+errz_bh = errz_bh[ (errz_bh > -0.1) & (errz_bh < 0.1) ]
+
+errx_new = errx_new[ (errx_new > -0.1) & (errx_new < 0.1) ]
+erry_new = erry_new[ (erry_new > -0.1) & (erry_new < 0.1) ]
+errz_new = errz_new[ (errz_new > -0.1) & (errz_new < 0.1) ]
+
+
+print "Error for Gadget: ( x= %4.3e"%std(errx_g), "y= %4.3e"%std(erry_g), "z= %4.3e"%std(errz_g), ") Combined= %4.3e"%(( std(errx_g) + std(erry_g) + std(errz_g) )/3.)
+print "Error for Legacy: ( x= %4.3e"%std(errx_bh), "y= %4.3e"%std(erry_bh), "z= %4.3e"%std(errz_bh), ") Combined= %4.3e"%(( std(errx_bh) + std(erry_bh) + std(errz_bh) )/3.)
+print "Error for QuShed: ( x= %4.3e"%std(errx_new), "y= %4.3e"%std(erry_new), "z= %4.3e"%std(errz_new), ") Combined= %4.3e"%(( std(errx_new) + std(erry_new) + std(errz_new) )/3.)
