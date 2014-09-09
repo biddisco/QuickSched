@@ -41,7 +41,8 @@
 #define task_limit 1e8
 #define const_G 6.6738e-8
 #define dist_min 0.5 /* Used fpr legacy walk only */
-#define iact_pair_direct iact_pair_direct_unsorted
+#define dist_cutoff_ratio 1.75
+#define iact_pair_direct iact_pair_direct_sorted
 
 #define ICHECK -1
 #define NO_SANITY_CHECKS
@@ -50,11 +51,11 @@
 /** Data structure for the particles. */
 struct part {
   double x[3];
-  union {
+  // union {
   float a[3];
   float a_legacy[3];
   float a_exact[3];
-  };
+  // };
   float mass;
   int id;
 }; // __attribute__((aligned(64)));
@@ -995,7 +996,7 @@ static inline void iact_pair_direct_unsorted(struct cell *ci, struct cell *cj) {
 
     /* Loop over every following particle. */
     for (j = 0; j < count_j; j++) {
-
+    
       /* Compute the pairwise distance. */
       for (r2 = 0.0, k = 0; k < 3; k++) {
         dx[k] = xi[k] - parts_j[j].x[k];
@@ -1040,7 +1041,7 @@ static inline void iact_pair_direct_sorted(struct cell *ci, struct cell *cj) {
   int i, j, k;
   int count_i, count_j;
   struct part *parts_i, *parts_j;
-  double cih = ci->h, cjh = cj->h;
+  double cjh = cj->h;
   double xi[3];
   float dx[3], ai[3], mi, mj, r2, w, ir;
 
@@ -1060,7 +1061,6 @@ static inline void iact_pair_direct_sorted(struct cell *ci, struct cell *cj) {
   get_axis(&ci, &cj, &ind_i, &ind_j, &corr);
   count_i = ci->count;
   parts_i = ci->parts;
-  cih = ci->h;
   count_j = cj->count;
   parts_j = cj->parts;
   cjh = cj->h;
@@ -1081,7 +1081,7 @@ static inline void iact_pair_direct_sorted(struct cell *ci, struct cell *cj) {
 #endif
 
   /* Distance along the axis as of which we will use a multipole. */
-  float d_max = cjh * dist_min / corr;
+  float d_max = dist_cutoff_ratio * cjh;
 
   /* Loop over all particles in ci... */
   for (i = count_i - 1; i >= 0; i--) {
@@ -1099,7 +1099,7 @@ static inline void iact_pair_direct_sorted(struct cell *ci, struct cell *cj) {
 
     /* Loop over every following particle within d_max along the axis. */
     for (j = 0; j < count_j && (ind_j[j].d - di) < d_max; j++) {
-
+    
       /* Get the sorted index. */
       int pjd = ind_j[j].ind;
 
@@ -1170,7 +1170,6 @@ static inline void iact_pair_direct_sorted(struct cell *ci, struct cell *cj) {
   com[1] = 0.0;
   com[2] = 0.0;
   com_mass = 0.0f;
-  d_max = cih / dist_min / corr;
   for (j = 0; j < count_j; j++) {
 
     /* Get the sorted index. */
