@@ -54,7 +54,7 @@ char *qsched_timer_names[ qsched_timer_count ] =
 /**
  * @brief Change the owner of a resource.
  *
- * @param Pointer to the #qsched.
+ * @param s Pointer to the #qsched.
  * @param res Resource handle.
  * @param owner The ID of the new owner.
  */
@@ -89,7 +89,7 @@ void qsched_res_own ( struct qsched *s , qsched_res_t res , int owner ) {
  * rounded up to 16 bytes for alignment.
  * The number of dependencies, locks, and uses refers to the
  * number of times #qsched_addunlock, #qsched_addlock, and
- * #qsched_adduses are called, respectively.
+ * #qsched_adduse are called, respectively.
  */
  
 void qsched_ensure ( struct qsched *s , int nr_tasks , int nr_res , int nr_deps , int nr_locks , int nr_uses , int size_data ) {
@@ -1062,6 +1062,7 @@ void qsched_prepare ( struct qsched *s ) {
  *
  * @param s Pointer to the #qsched.
  * @param parent ID of the parent resource or #qsched_res_none if none.
+ * @param owner ID of the ower
  *
  * @return The ID of the new shared resource.
  */

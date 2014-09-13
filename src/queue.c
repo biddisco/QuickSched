@@ -39,8 +39,8 @@
  * @brief Get a task index from the given #queue.
  *
  * @param q The #queue.
- * @param s The #sched in which this queue's tasks lives.
- * @param insists If set, wait at the queue's lock, otherwise fail.
+ * @param s The #qsched in which this queue's tasks lives.
+ * @param insist If set, wait at the queue's lock, otherwise fail.
  *
  * @return The task ID or -1 if no available task could be found.
  */
@@ -136,7 +136,7 @@ int queue_get ( struct queue *q , struct qsched *s , int insist ) {
  * @brief Add a task index to the given #queue.
  * 
  * @param q The #queue.
- * @param s The #sched in which the tasks live.
+ * @param s The #qsched in which the tasks live.
  * @param tid The task index.
  */
  
