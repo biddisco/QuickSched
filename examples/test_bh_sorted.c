@@ -85,14 +85,14 @@ struct cell {
 
   /* We keep both CoMs and masses to make sure the comp_com calculation is
    * correct (use an anonymous union to keep variable names compact).  */
-  // union {
+  union {
 
     /* Information for the legacy walk */
     struct multipole legacy;
 
     /* Information for the QuickShed walk */
     struct multipole new;
-  // };
+  };
 
   int res, com_tid;
   struct index *indices;
@@ -1938,7 +1938,115 @@ void test_bh(int N, int nr_threads, int runs, char *fileName) {
 
   /* Clean up. */
   qsched_free(&s);
+  free(parts);
 }
+
+
+/**
+ * @brief Creates two neighbouring cells wiht N_parts per celland makes them interact using both the 
+ * sorted and unsortde interactions. Outputs then the tow sets of accelerations for accuracy tests.
+ */
+void test_direct_neighbour( int N_parts ) {
+
+  int k;
+  struct part *parts;
+  struct cell left, right;
+
+  /* Init and fill the particle array. */
+  if ((parts = (struct part *)malloc(sizeof(struct part) * N_parts * 2)) == NULL)
+    error("Failed to allocate particle buffer.");
+
+  /* Create random set of particles in both cells */
+  for (k = 0; k < 2*N_parts; k++) {
+      parts[k].id = k;
+      parts[k].x[0] = ((double)rand()) / RAND_MAX + (k >= N_parts ? 1 : 0. );
+      parts[k].x[1] = ((double)rand()) / RAND_MAX;
+      parts[k].x[2] = ((double)rand()) / RAND_MAX;
+      parts[k].mass = ((double)rand()) / RAND_MAX;
+      parts[k].a[0] = 0.0;
+      parts[k].a[1] = 0.0;
+      parts[k].a[2] = 0.0;
+    }
+
+  /* Get the cell geometry right */
+  left.loc[0] = 0.; left.loc[1] = 0.; left.loc[2] = 0.;
+  left.h = 1.;
+  right.loc[0] = 1.; right.loc[1] = 0.; right.loc[2] = 0.;
+  right.h = 1.;
+
+  /* Put the particles in the cell */
+  left.parts = parts; 
+  left.count = N_parts;
+  right.parts = parts + N_parts;
+  right.count = N_parts;
+
+  /* Get the linked list right (functions should not recurse but hey...) */
+  left.firstchild = NULL; left.sibling = NULL;
+  left.split = 0;
+  right.firstchild = NULL; right.sibling = NULL;
+  right.split = 0;
+
+  /* Get the multipoles right (should also be useless) */
+  comp_com( &left );
+  comp_com( &right );
+
+  /* Nothing has been sorted yet */
+  left.indices = NULL;
+  left.sorted = 0;
+  right.indices = NULL;
+  right.sorted = 0;
+
+
+  /* Do the interactions without sorting */
+  iact_pair_direct_unsorted( &left, &right );
+
+  message( "Unsorted interactions done " );
+
+
+  /* Store accelerations */
+  for (k = 0; k < 2*N_parts; k++) {
+    parts[k].a_exact[0] = parts[k].a[0];
+    parts[k].a_exact[1] = parts[k].a[1];
+    parts[k].a_exact[2] = parts[k].a[2];
+    parts[k].a[0] = 0.0;
+    parts[k].a[1] = 0.0;
+    parts[k].a[2] = 0.0;
+  }
+
+
+
+  /* Do the interactions with sorting */
+  iact_pair_direct_sorted( &left, &right );
+
+  message( "Sorted interactions done " );
+
+
+
+  /* Sort the particles along axis to simply interpretation */
+  int compParts(const void* c1, const void* c2) {
+    if      ( ((struct part*)c1)->x[0] <  ((struct part*)c2)->x[0] ) return -1;
+    else if ( ((struct part*)c1)->x[0] == ((struct part*)c2)->x[0] ) return 0;
+    else    return 1;
+  }
+  qsort( parts, 2*N_parts, sizeof(struct part), compParts);
+
+
+  /* Now, output everything */
+  message( "Writing file 'interaction_dump.dat'" );
+  FILE* file = fopen("interaction_dump.dat", "w");
+  fprintf(file, "# ID m x y z a_u.x   a_u.y    a_u.z    a_s.x    a_s.y    a_s.z\n");
+  for (k = 0; k < 2*N_parts; k++) {
+    fprintf(file, "%d %e %e %e %e %e %e %e %e %e %e\n", parts[k].id, parts[k].mass,
+            parts[k].x[0], parts[k].x[1], parts[k].x[2], 
+	    parts[k].a_exact[0], parts[k].a_exact[1], parts[k].a_exact[2], 
+	    parts[k].a[0], parts[k].a[1], parts[k].a[2]);
+  }
+  fclose( file );
+
+  /* Clean up */
+  free( parts );  
+}
+
 
 /**
  * @brief Main function.
@@ -1949,6 +2057,7 @@ int main(int argc, char *argv[]) {
   int c, nr_threads;
   int N = 1000, runs = 1;
   char fileName[100] = {0};
+  int N_parts = 0;
 
   /* Die on FP-exceptions. */
   feenableexcept(FE_DIVBYZERO | FE_INVALID | FE_OVERFLOW);
@@ -1960,7 +2069,7 @@ int main(int argc, char *argv[]) {
   }
 
   /* Parse the options */
-  while ((c = getopt(argc, argv, "n:r:t:f:")) != -1) switch (c) {
+  while ((c = getopt(argc, argv, "n:r:t:f:c:")) != -1) switch (c) {
       case 'n':
         if (sscanf(optarg, "%d", &N) != 1)
           error("Error parsing number of particles.");
@@ -1978,14 +2087,19 @@ int main(int argc, char *argv[]) {
         if (sscanf(optarg, "%s", &fileName[0]) != 1)
           error("Error parsing file name.");
         break;
+      case 'c':
+        if (sscanf(optarg, "%d", &N_parts) != 1)
+          error("Error parsing number of particles in neighbouring cells test.");
+        break;
       case '?':
         fprintf(stderr,
-                "Usage: %s [-t nr_threads] [-n N] [-r runs] [-f file]\n",
+                "Usage: %s [-t nr_threads] [-n N] [-r runs] [-f file] [-c Nparts]\n",
                 argv[0]);
         fprintf(stderr, "Solves the N-body problem using a Barnes-Hut\n"
                         "tree code with N random particles read from a file in "
-                        "[0,1]^3 using\n"
-                        "nr_threads threads.\n");
+                        "[0,1]^3 using"
+                        "nr_threads threads.\n"
+		        "A test of the neighbouring cells interaction with Nparts per cell is also run.\n" );
         exit(EXIT_FAILURE);
     }
 
@@ -1995,19 +2109,33 @@ int main(int argc, char *argv[]) {
   /* Part information */
   printf("Size of part: %zu bytes.\n", sizeof(struct part));
 
-  /* Dump arguments. */
-  if (fileName[0] == 0) {
-    message("Computing the N-body problem over %i random particles using %i "
-            "threads (%i runs).",
-            N, nr_threads, runs);
-  } else {
-    message("Computing the N-body problem over %i particles read from '%s' "
-            "using %i threads (%i runs).",
-            N, fileName, nr_threads, runs);
+  /* Run the neighbour direct integration test */
+  if ( N_parts > 0 ) {
+    
+    /* Dump arguments */
+    message("Interacting 2 neighbouring cells with %d particles per cell", N_parts);
+    
+    /* Run the test */
+    test_direct_neighbour( N_parts );
+    
   }
+  else {
 
-  /* Run the test. */
-  test_bh(N, nr_threads, runs, fileName);
+    /* Dump arguments. */
+    if (fileName[0] == 0) {
+      message("Computing the N-body problem over %i random particles using %i "
+	      "threads (%i runs).",
+	      N, nr_threads, runs);
+    } else {
+      message("Computing the N-body problem over %i particles read from '%s' "
+	      "using %i threads (%i runs).",
+	      N, fileName, nr_threads, runs);
+    }
+
+    /* Run the BH test. */
+    test_bh(N, nr_threads, runs, fileName);
+
+  }
 
   return 0;
 
