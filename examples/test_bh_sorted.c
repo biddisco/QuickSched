@@ -47,6 +47,7 @@
 #define ICHECK -1
 #define NO_SANITY_CHECKS
 #define NO_COM_AS_TASK
+#define COUNTERS
 
 /** Data structure for the particles. */
 struct part {
@@ -108,6 +109,13 @@ enum task_type {
   task_type_com,
   task_type_count
 };
+
+#ifdef COUNTERS
+int count_direct_unsorted;
+int count_direct_sorted_pp;
+int count_direct_sorted_pm_i;
+int count_direct_sorted_pm_j;
+#endif
 
 /** Per-type timers. */
 ticks task_timers[task_type_count];
@@ -994,7 +1002,7 @@ static inline void iact_pair_direct_unsorted(struct cell *ci, struct cell *cj) {
     }
     mi = parts_i[i].mass;
 
-    /* Loop over every following particle. */
+    /* Loop over every particle in the other cell. */
     for (j = 0; j < count_j; j++) {
     
       /* Compute the pairwise distance. */
@@ -1012,6 +1020,10 @@ static inline void iact_pair_direct_unsorted(struct cell *ci, struct cell *cj) {
         parts_j[j].a[k] += wdx * mi;
         ai[k] -= wdx * mj;
       }
+
+#ifdef COUNTERS
+      ++count_direct_unsorted;
+#endif
 
 #if ICHECK >= 0
       if (parts_i[i].id == ICHECK)
@@ -1119,6 +1131,11 @@ static inline void iact_pair_direct_sorted(struct cell *ci, struct cell *cj) {
         ai[k] -= wdx * mj;
       }
 
+#ifdef COUNTERS
+      ++count_direct_sorted_pp;
+#endif
+
+
 #if ICHECK >= 0
       if (parts_i[pid].id == ICHECK)
         printf("[NEW] Interaction with particle id= %d (pair i)\n",
@@ -1156,6 +1173,11 @@ static inline void iact_pair_direct_sorted(struct cell *ci, struct cell *cj) {
       ir = 1.0f / sqrtf(r2);
       w = const_G * ir * ir * ir;
       for (k = 0; k < 3; k++) ai[k] -= w * dx[k] * com_mass;
+
+#ifdef COUNTERS
+      ++count_direct_sorted_pm_i;
+#endif
+
     }
 
     /* Store the accumulated acceleration on the ith part. */
@@ -1199,6 +1221,11 @@ static inline void iact_pair_direct_sorted(struct cell *ci, struct cell *cj) {
       ir = 1.0f / sqrtf(r2);
       w = const_G * ir * ir * ir;
       for (k = 0; k < 3; k++) parts_j[pjd].a[k] += w * dx[k] * com_mass;
+
+#ifdef COUNTERS
+      ++count_direct_sorted_pm_j;
+#endif
+
     }
   }
 }
@@ -1996,6 +2023,12 @@ void test_direct_neighbour( int N_parts ) {
   right.indices = NULL;
   right.sorted = 0;
 
+#ifdef COUNTERS
+  count_direct_unsorted = 0;
+  count_direct_sorted_pp = 0;
+  count_direct_sorted_pm_i = 0;
+  count_direct_sorted_pm_j = 0;
+#endif
 
   /* Do the interactions without sorting */
   iact_pair_direct_unsorted( &left, &right );
@@ -2042,6 +2075,16 @@ void test_direct_neighbour( int N_parts ) {
 	    parts[k].a[0], parts[k].a[1], parts[k].a[2]);
   }
   fclose( file );
+
+#ifdef COUNTERS
+  message( "Unsorted intereactions:           %d" ,count_direct_unsorted );
+  message( "Sorted intereactions PP:          %d" ,count_direct_sorted_pp );
+  message( "Sorted intereactions PM (part i): %d" ,count_direct_sorted_pm_i );
+  message( "Sorted intereactions PM (part j): %d" ,count_direct_sorted_pm_j );
+  message( "Sorted intereactions total:       %d" ,count_direct_sorted_pm_j + count_direct_sorted_pm_i +  count_direct_sorted_pp );
+  //message( "%f %d %d %d %d\n", dist_cutoff_ratio, count_direct_unsorted, count_direct_sorted_pp, count_direct_sorted_pm_i, count_direct_sorted_pm_j );
+#endif
+
 
   /* Clean up */
   free( parts );  
