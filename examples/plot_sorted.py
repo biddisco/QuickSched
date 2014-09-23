@@ -56,9 +56,9 @@ errx_s = (accx_s - accx_u )/abs(accx_u)
 erry_s = (accy_s - accy_u )/abs(accy_u) 
 errz_s = (accz_s - accz_u )/abs(accz_u) 
 
-e_errx_s = errx_s[abs(errx_s) > 0.001]
-e_erry_s = erry_s[abs(erry_s) > 0.001]
-e_errz_s = errz_s[abs(errz_s) > 0.001]
+e_errx_s = errx_s#[abs(errx_s) > 0.001]
+e_erry_s = erry_s#[abs(erry_s) > 0.001]
+e_errz_s = errz_s#[abs(errz_s) > 0.001]
 
 # Statistics
 meanx_s = mean(errx_s[abs(errx_s) < 0.1])
@@ -74,14 +74,16 @@ stdz_s = std(errz_s[abs(errz_s) < 0.1])
 figure(frameon=True)
 
 subplot(311, title="Acceleration along X")
-plot(id[abs(errx_s) > 0.001], e_errx_s , 'rx')
+#plot(id[abs(errx_s) > 0.001], e_errx_s , 'rx')
+plot(id, e_errx_s , 'rx')
 #text(id[-1], 0.18, "B-H: $%5.3f\\pm%5.3f$\n QuickShed: $%5.3f\\pm%5.3f$"%(meanx_bh, stdx_bh, meanx_new, stdx_new), backgroundcolor="w", va="top", ha="right" )
 ylim(-0.2, 0.2)
 xlim(0, size(id)-1)
 grid()
 
 subplot(312, title="Acceleration along Y")
-plot(id[abs(erry_s) > 0.001], e_erry_s , 'rx')
+#plot(id[abs(erry_s) > 0.001], e_erry_s , 'rx')
+plot(id, e_erry_s , 'rx')
 #text(id[-1], 0.18, "B-H: $%5.3f\\pm%5.3f$\n QuickShed: $%5.3f\\pm%5.3f$"%(meany_bh, stdy_bh, meany_new, stdy_new), backgroundcolor="w", va="top", ha="right" )
 ylim(-0.2, 0.2)
 xlim(0, size(id)-1)
@@ -89,7 +91,8 @@ xlim(0, size(id)-1)
 grid()
 
 subplot(313, title="Acceleration along Z")
-plot(id[abs(errz_s) > 0.001], e_errz_s , 'rx', label="Sorted")
+#plot(id[abs(errz_s) > 0.001], e_errz_s , 'rx', label="Sorted")
+plot(id, e_errz_s , 'rx', label="Sorted")
 #text(id[-1], 0.18, "B-H: $%5.3f\\pm%5.3f$\n QuickShed: $%5.3f\\pm%5.3f$"%(meanz_bh, stdz_bh, meanz_new, stdz_new), backgroundcolor="w", va="top", ha="right" )
 legend(loc="upper right")
 

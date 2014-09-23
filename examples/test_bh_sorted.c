@@ -39,15 +39,16 @@
 #define cell_pool_grow 1000
 #define cell_maxparts 100
 #define task_limit 1e8
-#define const_G 6.6738e-8
+#define const_G 1//6.6738e-8
 #define dist_min 0.5 /* Used fpr legacy walk only */
-#define dist_cutoff_ratio 1.75
+#define dist_cutoff_ratio 1.5
 #define iact_pair_direct iact_pair_direct_sorted
 
-#define ICHECK -1
+#define ICHECK 2
 #define NO_SANITY_CHECKS
 #define NO_COM_AS_TASK
 #define COUNTERS
+#define NO_MANY_MULTIPOLES
 
 /** Data structure for the particles. */
 struct part {
@@ -1025,7 +1026,7 @@ static inline void iact_pair_direct_unsorted(struct cell *ci, struct cell *cj) {
       ++count_direct_unsorted;
 #endif
 
-#if ICHECK >= 0
+#if ICHECK >= 0 && 0
       if (parts_i[i].id == ICHECK)
         printf("[NEW] Interaction with particle id= %d (pair i) a=( %e %e %e )\n", parts_j[j].id, -mi*w*dx[0], -mi*w*dx[1], -mi*w*dx[2]);
 
@@ -1050,7 +1051,7 @@ static inline void iact_pair_direct_unsorted(struct cell *ci, struct cell *cj) {
  */
 static inline void iact_pair_direct_sorted(struct cell *ci, struct cell *cj) {
 
-  int i, j, k;
+  int i, j, k, l;
   int count_i, count_j;
   struct part *parts_i, *parts_j;
   double cjh = cj->h;
@@ -1068,8 +1069,8 @@ static inline void iact_pair_direct_sorted(struct cell *ci, struct cell *cj) {
   /* Get the sorted indices and stuff. */
   struct index *ind_i, *ind_j;
   float corr;
-  double com[3] = {0.0, 0.0, 0.0};
-  float com_mass = 0.0;
+  double com[4][3] = {{0.0, 0.0, 0.0}, {0.0, 0.0, 0.0}, {0.0, 0.0, 0.0}, {0.0, 0.0, 0.0}};
+  float com_mass[4] = {0.0, 0.0, 0.0, 0.0};
   get_axis(&ci, &cj, &ind_i, &ind_j, &corr);
   count_i = ci->count;
   parts_i = ci->parts;
@@ -1131,12 +1132,15 @@ static inline void iact_pair_direct_sorted(struct cell *ci, struct cell *cj) {
         ai[k] -= wdx * mj;
       }
 
+      if ( parts_i[i].id == ICHECK )
+	message( "Interaction with part %d - d= %f", parts_j[j].id, sqrt(r2) );
+
 #ifdef COUNTERS
       ++count_direct_sorted_pp;
 #endif
 
 
-#if ICHECK >= 0
+#if ICHECK >= 0 && 0
       if (parts_i[pid].id == ICHECK)
         printf("[NEW] Interaction with particle id= %d (pair i)\n",
                parts_j[pjd].id);
@@ -1144,7 +1148,7 @@ static inline void iact_pair_direct_sorted(struct cell *ci, struct cell *cj) {
       if (parts_j[j].id == ICHECK)
         printf("[NEW] Interaction with particle id= %d (pair j) h_i= %f h_j= "
                "%f ci= %p cj= %p count_i= %d count_j= %d d_i= %d d_j= %d\n",
-               parts_i[pid].id, cih, cjh, ci, cj, count_i, count_j, ci->res,
+               parts_i[pid].id, ci->h, cj->h, ci, cj, count_i, count_j, ci->res,
                cj->res);
 #endif
 
@@ -1154,29 +1158,51 @@ static inline void iact_pair_direct_sorted(struct cell *ci, struct cell *cj) {
     for (int jj = j; jj < count_j; jj++) {
       int pjd = ind_j[jj].ind;
       mj = parts_j[pjd].mass;
-      com[0] += mj * parts_j[pjd].x[0];
-      com[1] += mj * parts_j[pjd].x[1];
-      com[2] += mj * parts_j[pjd].x[2];
-      com_mass += mj;
+
+#ifdef MANY_MULTIPOLES      
+      l = -1;
+      if ( parts_j[pjd].x[1] > 0.5*ci->h  && parts_j[pjd].x[2] > 0.5*ci->h)
+	l = 0;
+      else if ( parts_j[pjd].x[1] > 0.5*ci->h  && parts_j[pjd].x[2] <= 0.5*ci->h)
+	l = 1;
+      else if ( parts_j[pjd].x[1] <= 0.5*ci->h  && parts_j[pjd].x[2] > 0.5*ci->h)
+	l = 2;
+      else if ( parts_j[pjd].x[1] <= 0.5*ci->h  && parts_j[pjd].x[2] <= 0.5*ci->h)
+	l = 3;
+#else
+      l = 0;
+#endif
+
+      com[l][0] += mj * parts_j[pjd].x[0];
+      com[l][1] += mj * parts_j[pjd].x[1];
+      com[l][2] += mj * parts_j[pjd].x[2];
+      com_mass[l] += mj;
     }
 
     /* Shrink count_j to the latest valid particle. */
     count_j = j;
 
     /* Interact part_i with the center of mass. */
-    if (com_mass > 0.0) {
-      float icom_mass = 1.0f / com_mass;
-      for (r2 = 0.0, k = 0; k < 3; k++) {
-        dx[k] = xi[k] - com[k] * icom_mass;
-        r2 += dx[k] * dx[k];
-      }
-      ir = 1.0f / sqrtf(r2);
-      w = const_G * ir * ir * ir;
-      for (k = 0; k < 3; k++) ai[k] -= w * dx[k] * com_mass;
+    for ( l = 0 ; l < 4 ; ++l ) {
+      if (com_mass[l] > 0.0) {
+	float icom_mass = 1.0f / com_mass[l];
+	for (r2 = 0.0, k = 0; k < 3; k++) {
+	  dx[k] = xi[k] - com[l][k] * icom_mass;
+	  r2 += dx[k] * dx[k];
+	}
+	ir = 1.0f / sqrtf(r2);
+	w = const_G * ir * ir * ir;
+	for (k = 0; k < 3; k++) ai[k] -= w * dx[k] * com_mass[l];
+	
+	if ( parts_i[i].id == ICHECK )
+	message( "Interaction with multipole");//, parts_j[j].id );
+
 
 #ifdef COUNTERS
-      ++count_direct_sorted_pm_i;
+	++count_direct_sorted_pm_i;
 #endif
+
+      }
 
     }
 
@@ -1188,10 +1214,13 @@ static inline void iact_pair_direct_sorted(struct cell *ci, struct cell *cj) {
   /* Loop over the particles in cj, catch the COM interactions. */
   count_j = cj->count;
   int last_i = 0;
-  com[0] = 0.0;
-  com[1] = 0.0;
-  com[2] = 0.0;
-  com_mass = 0.0f;
+  for ( l = 0 ; l < 4 ; ++l ) {
+    com[l][0] = 0.0;
+    com[l][1] = 0.0;
+    com[l][2] = 0.0;
+    com_mass[l] = 0.0f;
+  }
+
   for (j = 0; j < count_j; j++) {
 
     /* Get the sorted index. */
@@ -1202,30 +1231,47 @@ static inline void iact_pair_direct_sorted(struct cell *ci, struct cell *cj) {
     for (i = last_i; i < count_i && (dj - ind_i[i].d) > d_max; i++) {
       int pid = ind_i[i].ind;
       mi = parts_i[pid].mass;
-      com[0] += parts_i[pid].x[0] * mi;
-      com[1] += parts_i[pid].x[1] * mi;
-      com[2] += parts_i[pid].x[2] * mi;
-      com_mass += mi;
+
+#ifdef MANY_MULTIPOLES      
+      l = -1;
+      if ( parts_i[pid].x[1] > 0.5*ci->h  && parts_i[pid].x[2] > 0.5*ci->h)
+	l = 0;
+      else if ( parts_i[pid].x[1] > 0.5*ci->h  && parts_i[pid].x[2] <= 0.5*ci->h)
+	l = 1;
+      else if ( parts_i[pid].x[1] <= 0.5*ci->h  && parts_i[pid].x[2] > 0.5*ci->h)
+	l = 2;
+      else if ( parts_i[pid].x[1] <= 0.5*ci->h  && parts_i[pid].x[2] <= 0.5*ci->h)
+	l = 3;
+#else
+      l = 0;
+#endif
+
+      com[l][0] += parts_i[pid].x[0] * mi;
+      com[l][1] += parts_i[pid].x[1] * mi;
+      com[l][2] += parts_i[pid].x[2] * mi;
+      com_mass[l] += mi;
     }
 
     /* Set the new last_i to the last particle checked. */
     last_i = i;
 
     /* Interact part_j with the COM. */
-    if (com_mass > 0.0) {
-      float icom_mass = 1.0f / com_mass;
-      for (r2 = 0.0, k = 0; k < 3; k++) {
-        dx[k] = com[k] * icom_mass - parts_j[pjd].x[k];
-        r2 += dx[k] * dx[k];
-      }
-      ir = 1.0f / sqrtf(r2);
-      w = const_G * ir * ir * ir;
-      for (k = 0; k < 3; k++) parts_j[pjd].a[k] += w * dx[k] * com_mass;
+    for ( l = 0 ; l < 4 ; ++l ) {
+      if (com_mass[l] > 0.0) {
+	float icom_mass = 1.0f / com_mass[l];
+	for (r2 = 0.0, k = 0; k < 3; k++) {
+	  dx[k] = com[l][k] * icom_mass - parts_j[pjd].x[k];
+	  r2 += dx[k] * dx[k];
+	}
+	ir = 1.0f / sqrtf(r2);
+	w = const_G * ir * ir * ir;
+	for (k = 0; k < 3; k++) parts_j[pjd].a[k] += w * dx[k] * com_mass[l];
 
 #ifdef COUNTERS
       ++count_direct_sorted_pm_j;
 #endif
 
+      }
     }
   }
 }
@@ -1989,7 +2035,7 @@ void test_direct_neighbour( int N_parts ) {
       parts[k].x[0] = ((double)rand()) / RAND_MAX + (k >= N_parts ? 1 : 0. );
       parts[k].x[1] = ((double)rand()) / RAND_MAX;
       parts[k].x[2] = ((double)rand()) / RAND_MAX;
-      parts[k].mass = ((double)rand()) / RAND_MAX;
+      parts[k].mass = 1.;//((double)rand()) / RAND_MAX;
       parts[k].a[0] = 0.0;
       parts[k].a[1] = 0.0;
       parts[k].a[2] = 0.0;
@@ -2053,7 +2099,13 @@ void test_direct_neighbour( int N_parts ) {
 
   message( "Sorted interactions done " );
 
-
+  for (k=0 ; k < 2*N_parts; ++k){
+    if ( parts[k].id == ICHECK ) {
+      
+      message( "Accel exact : [ %e %e %e ]", parts[k].a_exact[0], parts[k].a_exact[1], parts[k].a_exact[2] );
+      message( "Accel sorted: [ %e %e %e ]", parts[k].a[0], parts[k].a[1], parts[k].a[2] );
+    }
+  }
 
   /* Sort the particles along axis to simply interpretation */
   int compParts(const void* c1, const void* c2) {
@@ -2061,7 +2113,7 @@ void test_direct_neighbour( int N_parts ) {
     else if ( ((struct part*)c1)->x[0] == ((struct part*)c2)->x[0] ) return 0;
     else    return 1;
   }
-  qsort( parts, 2*N_parts, sizeof(struct part), compParts);
+  //qsort( parts, 2*N_parts, sizeof(struct part), compParts);
 
 
   /* Now, output everything */
