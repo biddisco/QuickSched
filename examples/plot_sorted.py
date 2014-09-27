@@ -39,6 +39,8 @@ print "Plotting..."
 # Read Quickshed accelerations
 data=loadtxt("interaction_dump.dat")
 id = data[:,0]
+posx = data[:,2]
+
 accx_u=data[:,5]
 accy_u=data[:,6]
 accz_u=data[:,7]
@@ -75,29 +77,29 @@ figure(frameon=True)
 
 subplot(311, title="Acceleration along X")
 #plot(id[abs(errx_s) > 0.001], e_errx_s , 'rx')
-plot(id, e_errx_s , 'rx')
+plot(posx, e_errx_s , 'rx')
 #text(id[-1], 0.18, "B-H: $%5.3f\\pm%5.3f$\n QuickShed: $%5.3f\\pm%5.3f$"%(meanx_bh, stdx_bh, meanx_new, stdx_new), backgroundcolor="w", va="top", ha="right" )
 ylim(-0.2, 0.2)
-xlim(0, size(id)-1)
+#xlim(0, size(id)-1)
 grid()
 
 subplot(312, title="Acceleration along Y")
 #plot(id[abs(erry_s) > 0.001], e_erry_s , 'rx')
-plot(id, e_erry_s , 'rx')
+plot(posx, e_erry_s , 'rx')
 #text(id[-1], 0.18, "B-H: $%5.3f\\pm%5.3f$\n QuickShed: $%5.3f\\pm%5.3f$"%(meany_bh, stdy_bh, meany_new, stdy_new), backgroundcolor="w", va="top", ha="right" )
 ylim(-0.2, 0.2)
-xlim(0, size(id)-1)
+#xlim(0, size(id)-1)
 
 grid()
 
 subplot(313, title="Acceleration along Z")
 #plot(id[abs(errz_s) > 0.001], e_errz_s , 'rx', label="Sorted")
-plot(id, e_errz_s , 'rx', label="Sorted")
+plot(posx, e_errz_s , 'rx', label="Sorted")
 #text(id[-1], 0.18, "B-H: $%5.3f\\pm%5.3f$\n QuickShed: $%5.3f\\pm%5.3f$"%(meanz_bh, stdz_bh, meanz_new, stdz_new), backgroundcolor="w", va="top", ha="right" )
 legend(loc="upper right")
 
 ylim(-0.2, 0.2)
-xlim(0, size(id)-1)
+#xlim(0, size(id)-1)
 grid()
 
 savefig("accelerations.png")
