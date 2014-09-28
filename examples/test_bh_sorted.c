@@ -44,7 +44,7 @@
 #define dist_cutoff_ratio 1.5
 #define iact_pair_direct iact_pair_direct_sorted
 
-#define ICHECK 2
+#define ICHECK -1
 #define NO_SANITY_CHECKS
 #define NO_COM_AS_TASK
 #define COUNTERS
@@ -2018,8 +2018,10 @@ void test_bh(int N, int nr_threads, int runs, char *fileName) {
 /**
  * @brief Creates two neighbouring cells wiht N_parts per celland makes them interact using both the 
  * sorted and unsortde interactions. Outputs then the tow sets of accelerations for accuracy tests.
+ * @param N_parts Number of particles in each cell
+ * @param orientation Orientation of the cells ( 0 == side, 1 == edge, 2 == corner )
  */
-void test_direct_neighbour( int N_parts ) {
+void test_direct_neighbour( int N_parts , int orientation ) {
 
   int k;
   struct part *parts;
@@ -2032,19 +2034,34 @@ void test_direct_neighbour( int N_parts ) {
   /* Create random set of particles in both cells */
   for (k = 0; k < 2*N_parts; k++) {
       parts[k].id = k;
-      parts[k].x[0] = ((double)rand()) / RAND_MAX + (k >= N_parts ? 1 : 0. );
+
+      parts[k].x[0] = ((double)rand()) / RAND_MAX;
+      if ( k >= N_parts )
+	parts[k].x[0] += 1.;
+
       parts[k].x[1] = ((double)rand()) / RAND_MAX;
+      if ( orientation > 0 && k >= N_parts )
+      	parts[k].x[1] += 1.;
+
       parts[k].x[2] = ((double)rand()) / RAND_MAX;
-      parts[k].mass = 1.;//((double)rand()) / RAND_MAX;
+      if ( orientation > 1 && k >= N_parts )
+      	parts[k].x[2] += 1.;
+
+      parts[k].mass = ((double)rand()) / RAND_MAX;
       parts[k].a[0] = 0.0;
       parts[k].a[1] = 0.0;
       parts[k].a[2] = 0.0;
     }
 
   /* Get the cell geometry right */
-  left.loc[0] = 0.; left.loc[1] = 0.; left.loc[2] = 0.;
+  left.loc[0] = 0.; 
+  left.loc[1] = 0.; 
+  left.loc[2] = 0.;
   left.h = 1.;
-  right.loc[0] = 1.; right.loc[1] = 0.; right.loc[2] = 0.;
+  
+  right.loc[0] = 1.; 
+  right.loc[1] = ( orientation > 0 ? 1 : 0 ); 
+  right.loc[2] = ( orientation > 1 ? 1 : 0 );
   right.h = 1.;
 
   /* Put the particles in the cell */
@@ -2107,26 +2124,49 @@ void test_direct_neighbour( int N_parts ) {
     }
   }
 
-  /* Sort the particles along axis to simply interpretation */
-  int compParts(const void* c1, const void* c2) {
-    if      ( ((struct part*)c1)->x[0] <  ((struct part*)c2)->x[0] ) return -1;
-    else if ( ((struct part*)c1)->x[0] == ((struct part*)c2)->x[0] ) return 0;
-    else    return 1;
+  
+  /* Position along the axis */
+  double* position;
+  if ((position = (double *)malloc(sizeof(double) * N_parts * 2)) == NULL)
+    error("Failed to allocate position buffer.");
+
+  for ( k = 0; k < 2*N_parts ; ++k ) {
+   
+    switch( orientation ) {
+
+    case 0:
+      position[k] = parts[k].x[0] - 1.;
+      break;
+
+    case 1:
+      position[k] = sqrt( ( parts[k].x[0] * parts[k].x[0] ) + ( parts[k].x[1] * parts[k].x[1] ) ) - sqrt(2.);
+      break;
+
+    case 2:
+      position[k] = sqrt( ( parts[k].x[0] * parts[k].x[0] ) + ( parts[k].x[1] * parts[k].x[1] ) + ( parts[k].x[2] * parts[k].x[2] ) ) - sqrt(3.);
+      break;
+
+    default:
+      error("Wrong switch statement");
+      break;
+    }
   }
-  //qsort( parts, 2*N_parts, sizeof(struct part), compParts);
 
 
   /* Now, output everything */
-  message( "Writing file 'interaction_dump.dat'" );
-  FILE* file = fopen("interaction_dump.dat", "w");
-  fprintf(file, "# ID m x y z a_u.x   a_u.y    a_u.z    a_s.x    a_s.y    a_s.z\n");
+  char fileName[100];
+  sprintf( fileName, "interaction_dump_%d.dat", orientation );
+  message( "Writing file '%s'", fileName );
+  FILE* file = fopen( fileName , "w" );
+  fprintf(file, "# ID m r x y z a_u.x   a_u.y    a_u.z    a_s.x    a_s.y    a_s.z\n");
   for (k = 0; k < 2*N_parts; k++) {
-    fprintf(file, "%d %e %e %e %e %e %e %e %e %e %e\n", parts[k].id, parts[k].mass,
+    fprintf(file, "%d %e %e %e %e %e %e %e %e %e %e %e\n", parts[k].id, parts[k].mass, position[k],
             parts[k].x[0], parts[k].x[1], parts[k].x[2], 
 	    parts[k].a_exact[0], parts[k].a_exact[1], parts[k].a_exact[2], 
 	    parts[k].a[0], parts[k].a[1], parts[k].a[2]);
   }
   fclose( file );
+
 
 #ifdef COUNTERS
   message( "Unsorted intereactions:           %d" ,count_direct_unsorted );
@@ -2211,7 +2251,9 @@ int main(int argc, char *argv[]) {
     message("Interacting 2 neighbouring cells with %d particles per cell", N_parts);
     
     /* Run the test */
-    test_direct_neighbour( N_parts );
+    test_direct_neighbour( N_parts, 0 );
+    test_direct_neighbour( N_parts, 1 );
+    test_direct_neighbour( N_parts, 2 );
     
   }
   else {
