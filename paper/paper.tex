@@ -1088,46 +1088,61 @@ The function recurses as follows:
         recurse over all the cell's sub-cells (line~9), and all
         pairs of the cell's sub-cells (line~11),
     \item If called with a single unsplit cell (line~13),
-        create a self-interaction task on that cell (line~14),
-    \item If called with two cells that are sufficiently well
-        separated (line~21), create two particle-cell pair
-        interactions (lines~23 and~28) over both cells in
-        opposite orders, which depend on the center of mass
-        task of each cell,
-    \item If called with two cells that are not well
-        separated and both cells are split (line~33),
+        create a self-interaction task as well as a particle-cell
+        task on that cell (line~14),
+    \item If called with two non-neighbouring cells (line~21),
+        do nothing, as these interactions
+        will be computed by the particle-cell task,
+    \item If called with two neighbouring cells and both cells
+        are split (line~33),
         recurse over all pairs of sub-cells spanning
         both cells (line~37), and
-    \item If called with two cells that are not well separated
-        and either of the cells are not split, create
+    \item If called with two neighbouring cells
+        and one of the cells are not split, create
         a particle-particle pair task over both cells.
 \end{itemize}
 \noindent where every interaction task additionally locks
 the cells on which it operates (lines~16, 25, 30, and 42--43).
-
 In order to prevent generating
 a large number of very small tasks, the task generation only recurses
 if the cells contain more than a minimum number $n_\mathsf{task}$
 of threads each (lines~7 and~34).
-The tasks themselves are then left to recurse over the sub-trees,
-which is why in these cases, the tasks are made to depend on the
-center of mass tasks (lines~17--18 and~41--47)
-which may be used in the ensuing interactions.
+
+The particle-particle pair interaction tasks are implemented
+by computing the interactions between all particle pairs spanning
+both cells in a double for-loop.
+The particle-cell interactions for each leaf node are computed by
+traversing the tree recursively starting from the root node:
+\begin{itemize}
+  \item If called with a node that is a hierarchical parent of
+    the leaf node, or with a node that is a direct neighbour of
+    a hierarchical parent of the leaf node, recurse over the
+    node's sub-cells,
+  \item Otherwise, compute the interaction between the leaf node's
+    center of mass and all the particles in the leaf node.
+\end{itemize}
+
+This task decomposition differs from the traditional tree-walk
+in the Barnes-Hut algorithm in that the particle-cell interactions
+are grouped per leaf, with each leaf doing its own tree walk.
+This approach was chosen to maximize the memory locality
+of the particle-cell calculation, as the particles in the leaf,
+which are traversed for each particle-cell interaction, are
+contiguous in memory, and are thus more likely to remain in the
+lowest-level cache.
 
 This Barnes-Hut tree-code was used to approximate the gravitational
-N-Body problem for 1\,000\,000 particles with random coordinates
+N-Body problem for 1\,000\,000 particles with uniformly random coordinates
 in $[0,1]^3$.
 The parameters $n_\mathsf{max}=100$ and $n_\mathsf{task}=5000$
-were used to generate the tasks, and cell pairs were considered
-well separated if not directly adjacent.
+were used to generate the tasks.
 Using the above scheme generated 97\,553 tasks, of which
 512 self-interaction tasks, ??? particle-particle interaction
-task, ??? particle-cell interaction tasks, and 37\,449
-center of mass tasks.
+task, and ??? particle-cell interaction tasks.
 A total of 141\,840 dependencies were generated, along with
 104\,392 locks on 37\,449 resources.
 
-For these tests, OpenMP parallelism was used and resource
+For these tests, {\tt pthread}s parallelism was used and resource
 re-owning was switched off.
 Resource ownership was attributed by dividing the global
 {\tt parts} array by the number of queues and assigning each cell's
@@ -1549,60 +1564,42 @@ and ID, respectively.
 \begin{figure}
 \begin{center}\begin{minipage}{0.9\textwidth}
     \begin{lstlisting}[basicstyle=\scriptsize\tt]
-void comp_com(struct cell *c) {
-  int j, k;
-  c->com[0] = 0.0; c->com[1] = 0.0; c->com[2] = 0.0;
-  c->mass = 0.0;
-  if (c->split)
-    for (k = 0; k < 8; k++) {
-      struct cell *cp = c->progeny[k];
-      for (j = 0; j < 3; j++)
-        c->com[j] += cp->com[j] * cp->mass;
-      c->mass += cp->mass;
-    }
-  else
-    for (k = 0; k < 8; k++) {
-      struct part *p = &c->parts[k];
-      for (j = 0; j < 3; j++)
-        c->com[j] += p->x[j] * p->mass;
-      c->mass += p->mass;
-    }
-  c->com[0] /= c->mass; c->com[1] /= c->mass; c->com[2] /= c->mass;
-}
-
 void comp_self(struct cell *c) {
-  int j, k;
   if (c->split)
-    for (j = 0; j < 8; j++) {
+    for (int j = 0; j < 8; j++) {
       comp_self(c->progeny[j]);
-      for (k = j + 1; k < 8; k++)
+      for (int k = j + 1; k < 8; k++)
         comp_pair(c->progeny[j], c->progeny[k]);
     }
   else
-    for (j = 0; j < c->count; j++)
-      for (k = j + 1; k < c->count; k++)
+    for (int j = 0; j < c->count; j++)
+      for (int k = j + 1; k < c->count; k++)
         interact c->parts[j] and c->parts[k].
 }
 
 void comp_pair(struct cell *ci, struct cell *cj) {
-  int j, k;
-  if (ci and cj well separated) {
-    comp_pair_pc(ci, cj);
-    comp_pair_pc(cj, ci);
-  } else if (ci->split && cj->split)
-    for (j = 0; j < 8; j++)
-      for (k = 0; k < 8; k++)
+  if (ci and cj are not neighbours)
+    return;
+  if (ci->split && cj->split) {
+    for (int j = 0; j < 8; j++)
+      for (int k = 0; k < 8; k++)
         comp_pair(ci->progeny[j], cj->progeny[k]);
-  else
-    for (j = 0; j < ci->count; j++)
-      for (k = 0; k < cj->count; k++)
+  } else {
+    for (int j = 0; j < ci->count; j++)
+      for (int k = 0; k < cj->count; k++)
         interact ci->parts[j] and cj->parts[k].
+  }
 }
 
-void comp_pair_cp(struct cell *ci, struct cell *cj) {
-  int k;
-  for (k = 0; k < ci->count; k++)
-    interact ci->parts[k] and cj center of mass.
+void comp_pair_cp(struct cell *leaf, struct cell *c) {
+  if (c is a parent of leaf ||
+      c is a neighbour of a parent of leaf) {
+    for (int k = 0; k < 8; k++)
+     comp_pair_cp(leaf, c->progeny[k]);
+  } else if (leaf and c are not direct neighbours) {
+    for (int k = 0; k < leaf->count; k++)
+      interact leaf->parts[k] and c center of mass.
+  }
 }
     \end{lstlisting}
 \end{minipage}\end{center}
@@ -1613,7 +1610,7 @@ void comp_pair_cp(struct cell *ci, struct cell *cj) {
 \begin{figure}
 \begin{center}\begin{minipage}{0.9\textwidth}
     \begin{lstlisting}[basicstyle=\scriptsize\tt]
-enum { tSELF , tPAIR_PP , tPAIR_PC , tCOM };
+enum { tSELF , tPAIR_PP , tPAIR_PC };
 void make_tasks(struct qsched *s, struct cell *ci, struct cell *cj) {
   int j, k;
   qsched_task_t tid;
@@ -1627,28 +1624,23 @@ void make_tasks(struct qsched *s, struct cell *ci, struct cell *cj) {
       }
     else {
       tid = qsched_addtask(s, tSELF, qsched_flags_none, &ci,
-                           sizeof(struct cell *), ci->count * ci->count);
+                           sizeof(struct cell *),
+                           ci->count * ci->count);
       qsched_addlock(s, tid, ci->res);
-      if (ci->split) qsched_addunlock(s, ci->com, tid);
+      tid = qsched_addtask(s, tPAIR_PC, qsched_flags_none, &ci,
+                           sizeof(struct cell *), ci->count);
+      qsched_addlock(s, tid, ci->res);
     }
-  } else if (ci and cj are well separated) {
-    data[0] = ci; data[1] = cj;
-    tid = qsched_addtask(s, tPAIR_PC, qsched_flags_none, data,
-                         sizeof(struct cell *) * 2, ci->count);
-    qsched_addlock(s, tid, ci->res);
-    qsched_addunlock(s, cj->com, tid);
-    data[0] = cj; data[1] = ci;
-    tid = qsched_addtask(s, tPAIR_PC, qsched_flags_none, data,
-                         sizeof(struct cell *) * 2, cj->count);
-    qsched_addlock(s, tid, cj->res);
-    qsched_addunlock(s, ci->com, tid);
-  } else if (ci->split && cj->split && ci->count * cj->count > n_task * n_task)
+  } else if (ci->split && cj->split &&
+             ci->count * cj->count > n_task * n_task)
     for (j = 0; j < 8; j++)
-      for (k = 0; k < 8; k++) make_tasks(s, ci->progeny[j], cj->progeny[k]);
+      for (k = 0; k < 8; k++)
+        make_tasks(s, ci->progeny[j], cj->progeny[k]);
   else {
     data[0] = ci; data[1] = cj;
     tid = qsched_addtask(s, tPAIR_PP, qsched_flags_none, data,
-                         sizeof(struct cell *) * 2, ci->count * cj->count);
+                         sizeof(struct cell *) * 2,
+                         ci->count * cj->count);
     qsched_addlock(s, tid, ci->res);
     qsched_addlock(s, tid, cj->res);
     if (ci->split && cj->split) {
@@ -1679,7 +1671,7 @@ void exec_fun ( int type , void *data ) {
       comp_pair( cells[0] , cells[1] );
       break;
     case tPAIR_PC:
-      comp_pair_pc( cells[0] , cells[1] );
+      comp_pair_pc( cells[0] , root );
       break;
     case tCOM:
       comp_com( cells[0] );
