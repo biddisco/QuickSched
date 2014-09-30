@@ -2064,7 +2064,7 @@ void test_bh(int N, int nr_threads, int runs, char *fileName) {
  * sorted and unsortde interactions. Outputs then the tow sets of accelerations
  * for accuracy tests.
  * @param N_parts Number of particles in each cell
- * @param orientation Orientation of the cells ( 0 <= orientation < 13 )
+ * @param orientation Orientation of the cells ( 0 <= orientation < 26 )
  */
 void test_direct_neighbour(int N_parts, int orientation) {
 
@@ -2073,23 +2073,36 @@ void test_direct_neighbour(int N_parts, int orientation) {
   struct cell left, right;
 
   /* All 13 configurations */
-  const float cell_shift[13 * 3] = {
-    1.0,  1.0,  1.0, /* 0 */
-    1.0,  1.0,  0.0, /* 1 */
-    1.0,  1.0, -1.0, /* 2 */
-    1.0,  0.0,  1.0, /* 3 */
-    1.0,  0.0,  0.0, /* 4 */
-    1.0,  0.0, -1.0, /* 5 */
-    1.0, -1.0,  1.0, /* 6 */
-    1.0, -1.0,  0.0, /* 7 */
-    1.0, -1.0, -1.0, /* 8 */
-    0.0,  1.0,  1.0, /* 9 */
-    0.0,  1.0,  0.0, /* 10 */
-    0.0,  1.0, -1.0, /* 11 */
-    0.0,  0.0,  1.0  /* 12 */
+  const float cell_shift[26 * 3] = {
+     1.0,  1.0,  1.0, /* 0 */
+     1.0,  1.0,  0.0, /* 1 */
+     1.0,  1.0, -1.0, /* 2 */
+     1.0,  0.0,  1.0, /* 3 */
+     1.0,  0.0,  0.0, /* 4 */
+     1.0,  0.0, -1.0, /* 5 */
+     1.0, -1.0,  1.0, /* 6 */
+     1.0, -1.0,  0.0, /* 7 */
+     1.0, -1.0, -1.0, /* 8 */
+     0.0,  1.0,  1.0, /* 9 */
+     0.0,  1.0,  0.0, /* 10 */
+     0.0,  1.0, -1.0, /* 11 */
+     0.0,  0.0,  1.0, /* 12 */
+    -1.0, -1.0, -1.0, /* 13 */
+    -1.0, -1.0,  0.0, /* 14 */
+    -1.0, -1.0,  1.0, /* 15 */
+    -1.0,  0.0, -1.0, /* 16 */
+    -1.0,  0.0,  0.0, /* 17 */
+    -1.0,  0.0,  1.0, /* 18 */
+    -1.0,  1.0, -1.0, /* 19 */
+    -1.0,  1.0,  0.0, /* 20 */
+    -1.0,  1.0,  1.0, /* 21 */
+     0.0, -1.0, -1.0, /* 22 */
+     0.0, -1.0,  0.0, /* 23 */
+     0.0, -1.0,  1.0, /* 24 */
+     0.0,  0.0, -1.0  /* 25 */
   };
 
-  if ( orientation >= 13 )
+  if ( orientation >= 26 )
     error( "Wrong orientation !" );
 
   /* Select configuration */
@@ -2312,7 +2325,7 @@ int main(int argc, char *argv[]) {
             N_parts);
 
     /* Run the test */
-    for ( k = 0 ; k < 13 ; ++k )
+    for ( k = 0 ; k < 26 ; ++k )
       test_direct_neighbour(N_parts, k);
 
   } else {

@@ -49,13 +49,26 @@ axis = [
     0.0,  1.0,  1.0, 
     0.0,  1.0,  0.0, 
     0.0,  1.0, -1.0, 
-    0.0,  0.0,  1.0  
+    0.0,  0.0,  1.0,
+    -1.0, -1.0, -1.0, 
+    -1.0, -1.0,  0.0, 
+    -1.0, -1.0,  1.0, 
+    -1.0,  0.0, -1.0, 
+    -1.0,  0.0,  0.0, 
+    -1.0,  0.0,  1.0, 
+    -1.0,  1.0, -1.0, 
+    -1.0,  1.0,  0.0, 
+    -1.0,  1.0,  1.0, 
+     0.0, -1.0, -1.0, 
+     0.0, -1.0,  0.0, 
+     0.0, -1.0,  1.0, 
+     0.0,  0.0, -1.0  
   ]
 
 
 #names = ["side", "edge", "corner"]
 
-for orientation in range( 13 ):
+for orientation in range( 26 ):
 
     # Read Quickshed accelerations
     data=loadtxt( "interaction_dump_%d.dat"%orientation )
@@ -121,7 +134,42 @@ for orientation in range( 13 ):
     #xlim(0, size(id)-1)
     grid()
 
-    savefig("accelerations_%d.png"%orientation)
+    savefig("accelerations_relative_%d.png"%orientation)
+    close()
+
+
+    # Plot -------------------------------------------------------
+    figure(frameon=True)
+    
+    subplot(311, title="Acceleration along X")
+    #plot(id[abs(errx_s) > 0.001], e_errx_s , 'ro')
+    plot(pos, accx_u , 'bx')
+    plot(pos, accx_s , 'ro')
+    text( 0., 0.1, "axis=( %d %d %d )"%(axis[orientation*3 + 0], axis[orientation*3 + 1], axis[orientation*3 + 2]) , ha='center', backgroundcolor='w', fontsize=14)
+    ylim(-700, 700)
+    grid()
+    
+    subplot(312, title="Acceleration along Y")
+    #plot(id[abs(erry_s) > 0.001], e_erry_s , 'ro')
+    plot(pos, accy_u , 'bx')
+    plot(pos, accy_s , 'ro')
+    text( 0., 0.1, "axis=( %d %d %d )"%(axis[orientation*3 + 0], axis[orientation*3 + 1], axis[orientation*3 + 2]) , ha='center', backgroundcolor='w', fontsize=14)
+    ylim(-700, 700) 
+    grid()
+    
+    subplot(313, title="Acceleration along Z")
+    #plot(id[abs(errz_s) > 0.001], e_errz_s , 'ro', label="Sorted")
+    plot(pos, accz_u , 'bx', label="Unsorted")
+    plot(pos, accz_s , 'ro', label="Sorted")
+
+    text( 0., 0.1, "axis=( %d %d %d )"%(axis[orientation*3 + 0], axis[orientation*3 + 1], axis[orientation*3 + 2]) , ha='center', backgroundcolor='w', fontsize=14)
+
+    legend(loc="upper right")
+    
+    ylim(-700, 700)
+    grid()
+
+    savefig("accelerations_absolute_%d.png"%orientation)
     close()
     
     
