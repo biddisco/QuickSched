@@ -169,6 +169,23 @@ const int axis_num_orth[13] = {
   /* (  0 , -1 ,  1 ) */ 1,
   /* (  0 ,  0 , -1 ) */ 2
 };
+/* const int axis_num_orth[13] = { */
+/*   /\* ( -1 , -1 , -1 ) *\/ 2, */
+/*   /\* ( -1 , -1 ,  0 ) *\/ 2, */
+/*   /\* ( -1 , -1 ,  1 ) *\/ 2, */
+/*   /\* ( -1 ,  0 , -1 ) *\/ 2, */
+/*   /\* ( -1 ,  0 ,  0 ) *\/ 2, */
+/*   /\* ( -1 ,  0 ,  1 ) *\/ 2, */
+/*   /\* ( -1 ,  1 , -1 ) *\/ 2, */
+/*   /\* ( -1 ,  1 ,  0 ) *\/ 2, */
+/*   /\* ( -1 ,  1 ,  1 ) *\/ 2, */
+/*   /\* (  0 , -1 , -1 ) *\/ 2, */
+/*   /\* (  0 , -1 ,  0 ) *\/ 2, */
+/*   /\* (  0 , -1 ,  1 ) *\/ 2, */
+/*   /\* (  0 ,  0 , -1 ) *\/ 2 */
+/* }; */
+
+
 const char axis_flip[27] = {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0,
                             0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 
@@ -465,8 +482,11 @@ void get_axis(struct cell **ci, struct cell **cj, struct index **ind_i,
   orth1[3] = -d1;
   orth2[3] = -d2;
 
-  /* message("dx=[%.3e,%.3e,%.3e], axis=[%.3e,%.3e,%.3e], corr=%.3e.",
-    dx[0], dx[1], dx[2], axis[0], axis[1], axis[2], *corr); */
+  message("dx=[%.3e,%.3e,%.3e], axis=[%.3e,%.3e,%.3e]",
+	  dx[0], dx[1], dx[2], axis[0], axis[1], axis[2]);
+  message("N_planes= %d", *num_orth_planes);
+  message("o1=[%.3e,%.3e,%.3e] %.3e", orth1[0], orth1[1], orth1[2], orth1[3]);
+  message("o2=[%.3e,%.3e,%.3e] %.3e", orth2[0], orth2[1], orth2[2], orth2[3]);
 
   /* Make sure the sorts are ok. */
   /* for (int k = 1; k < (*ci)->count; k++)
@@ -2044,14 +2064,38 @@ void test_bh(int N, int nr_threads, int runs, char *fileName) {
  * sorted and unsortde interactions. Outputs then the tow sets of accelerations
  * for accuracy tests.
  * @param N_parts Number of particles in each cell
- * @param orientation Orientation of the cells ( 0 == side, 1 == edge, 2 ==
- * corner )
+ * @param orientation Orientation of the cells ( 0 <= orientation < 13 )
  */
 void test_direct_neighbour(int N_parts, int orientation) {
 
   int k;
   struct part *parts;
   struct cell left, right;
+
+  /* All 13 configurations */
+  const float cell_shift[13 * 3] = {
+    1.0,  1.0,  1.0, /* 0 */
+    1.0,  1.0,  0.0, /* 1 */
+    1.0,  1.0, -1.0, /* 2 */
+    1.0,  0.0,  1.0, /* 3 */
+    1.0,  0.0,  0.0, /* 4 */
+    1.0,  0.0, -1.0, /* 5 */
+    1.0, -1.0,  1.0, /* 6 */
+    1.0, -1.0,  0.0, /* 7 */
+    1.0, -1.0, -1.0, /* 8 */
+    0.0,  1.0,  1.0, /* 9 */
+    0.0,  1.0,  0.0, /* 10 */
+    0.0,  1.0, -1.0, /* 11 */
+    0.0,  0.0,  1.0  /* 12 */
+  };
+
+  if ( orientation >= 13 )
+    error( "Wrong orientation !" );
+
+  /* Select configuration */
+  float shift[3];
+  for ( k = 0 ; k < 3 ; ++k )
+    shift[k] = cell_shift[ 3 * orientation + k ];
 
   /* Init and fill the particle array. */
   if ((parts = (struct part *)malloc(sizeof(struct part) * N_parts * 2)) ==
@@ -2063,13 +2107,15 @@ void test_direct_neighbour(int N_parts, int orientation) {
     parts[k].id = k;
 
     parts[k].x[0] = ((double)rand()) / RAND_MAX;
-    if (k >= N_parts) parts[k].x[0] += 1.;
-
     parts[k].x[1] = ((double)rand()) / RAND_MAX;
-    if (orientation > 0 && k >= N_parts) parts[k].x[1] += 1.;
-
     parts[k].x[2] = ((double)rand()) / RAND_MAX;
-    if (orientation > 1 && k >= N_parts) parts[k].x[2] += 1.;
+
+    /* Shift the second cell */
+    if (k >= N_parts) {
+      parts[k].x[0] += shift[0];
+      parts[k].x[1] += shift[1];
+      parts[k].x[2] += shift[2];
+    }
 
     parts[k].mass = ((double)rand()) / RAND_MAX;
     parts[k].a[0] = 0.0;
@@ -2083,9 +2129,9 @@ void test_direct_neighbour(int N_parts, int orientation) {
   left.loc[2] = 0.;
   left.h = 1.;
 
-  right.loc[0] = 1.;
-  right.loc[1] = (orientation > 0 ? 1 : 0);
-  right.loc[2] = (orientation > 1 ? 1 : 0);
+  right.loc[0] = shift[0];
+  right.loc[1] = shift[1];
+  right.loc[2] = shift[2];
   right.h = 1.;
 
   /* Put the particles in the cell */
@@ -2153,33 +2199,16 @@ void test_direct_neighbour(int N_parts, int orientation) {
   double *position;
   if ((position = (double *)malloc(sizeof(double) * N_parts * 2)) == NULL)
     error("Failed to allocate position buffer.");
+  
+  float midPoint = shift[0]*shift[0] + shift[1]*shift[1] + shift[2]*shift[2];
+  midPoint += ( shift[0] < 0 ? -1 : 0);
+  midPoint += ( shift[1] < 0 ? -1 : 0);
+  midPoint += ( shift[2] < 0 ? -1 : 0);
+  message( "MidPoint: %f", midPoint );
 
-  for (k = 0; k < 2 * N_parts; ++k) {
-
-    switch (orientation) {
-
-      case 0:
-        position[k] = parts[k].x[0] - 1.;
-        break;
-
-      case 1:
-        position[k] = sqrt((parts[k].x[0] * parts[k].x[0]) +
-                           (parts[k].x[1] * parts[k].x[1])) -
-                      sqrt(2.);
-        break;
-
-      case 2:
-        position[k] = sqrt((parts[k].x[0] * parts[k].x[0]) +
-                           (parts[k].x[1] * parts[k].x[1]) +
-                           (parts[k].x[2] * parts[k].x[2])) -
-                      sqrt(3.);
-        break;
-
-      default:
-        error("Wrong switch statement");
-        break;
-    }
-  }
+  for (k = 0; k < 2 * N_parts; ++k)
+    position[k] = parts[k].x[0] * shift[0] + parts[k].x[1] * shift[1] + parts[k].x[2] * shift[2] - midPoint;
+    
 
   /* Now, output everything */
   char fileName[100];
@@ -2218,7 +2247,7 @@ void test_direct_neighbour(int N_parts, int orientation) {
 
 int main(int argc, char *argv[]) {
 
-  int c, nr_threads;
+  int c, k, nr_threads;
   int N = 1000, runs = 1;
   char fileName[100] = {0};
   int N_parts = 0;
@@ -2283,9 +2312,8 @@ int main(int argc, char *argv[]) {
             N_parts);
 
     /* Run the test */
-    test_direct_neighbour(N_parts, 0);
-    test_direct_neighbour(N_parts, 1);
-    test_direct_neighbour(N_parts, 2);
+    for ( k = 0 ; k < 13 ; ++k )
+      test_direct_neighbour(N_parts, k);
 
   } else {
 

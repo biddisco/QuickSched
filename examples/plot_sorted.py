@@ -22,7 +22,7 @@ params = {'axes.labelsize': 16,
           'figure.subplot.wspace'  : 0.26  ,  # the amount of width reserved for blank space between subplots                              
           'figure.subplot.hspace'  : 0.22  ,  # the amount of height reserved for white space between subplots                             
 
-          'lines.markersize' : 6,
+          'lines.markersize' : 2,
           'lines.linewidth' : 2,
 
 #          'axes.formatter.limits' : (-2, 1),                                                                                              
@@ -36,9 +36,26 @@ import os
 
 print "Plotting..."
 
-names = ["side", "edge", "corner"]
+axis = [
+    1.0,  1.0,  1.0, 
+    1.0,  1.0,  0.0, 
+    1.0,  1.0, -1.0, 
+    1.0,  0.0,  1.0, 
+    1.0,  0.0,  0.0, 
+    1.0,  0.0, -1.0, 
+    1.0, -1.0,  1.0, 
+    1.0, -1.0,  0.0, 
+    1.0, -1.0, -1.0, 
+    0.0,  1.0,  1.0, 
+    0.0,  1.0,  0.0, 
+    0.0,  1.0, -1.0, 
+    0.0,  0.0,  1.0  
+  ]
 
-for orientation in range( 3 ):
+
+#names = ["side", "edge", "corner"]
+
+for orientation in range( 13 ):
 
     # Read Quickshed accelerations
     data=loadtxt( "interaction_dump_%d.dat"%orientation )
@@ -80,34 +97,32 @@ for orientation in range( 3 ):
     figure(frameon=True)
     
     subplot(311, title="Acceleration along X")
-    #plot(id[abs(errx_s) > 0.001], e_errx_s , 'rx')
-    plot(pos, e_errx_s , 'rx')
-    #text(id[-1], 0.18, "B-H: $%5.3f\\pm%5.3f$\n QuickShed: $%5.3f\\pm%5.3f$"%(meanx_bh, stdx_bh, meanx_new, stdx_new), backgroundcolor="w", va="top", ha="right" )
+    #plot(id[abs(errx_s) > 0.001], e_errx_s , 'ro')
+    plot(pos, e_errx_s , 'ro')
+    text( 0., 0.1, "axis=( %d %d %d )"%(axis[orientation*3 + 0], axis[orientation*3 + 1], axis[orientation*3 + 2]) , ha='center', backgroundcolor='w', fontsize=14)
     ylim(-0.2, 0.2)
-    #xlim(0, size(id)-1)
     grid()
     
     subplot(312, title="Acceleration along Y")
-    #plot(id[abs(erry_s) > 0.001], e_erry_s , 'rx')
-    plot(pos, e_erry_s , 'rx')
-    #text(id[-1], 0.18, "B-H: $%5.3f\\pm%5.3f$\n QuickShed: $%5.3f\\pm%5.3f$"%(meany_bh, stdy_bh, meany_new, stdy_new), backgroundcolor="w", va="top", ha="right" )
-    ylim(-0.2, 0.2)
-    #xlim(0, size(id)-1)
-    
+    #plot(id[abs(erry_s) > 0.001], e_erry_s , 'ro')
+    plot(pos, e_erry_s , 'ro')
+    text( 0., 0.1, "axis=( %d %d %d )"%(axis[orientation*3 + 0], axis[orientation*3 + 1], axis[orientation*3 + 2]) , ha='center', backgroundcolor='w', fontsize=14)
+    ylim(-0.2, 0.2)  
     grid()
     
     subplot(313, title="Acceleration along Z")
-    #plot(id[abs(errz_s) > 0.001], e_errz_s , 'rx', label="Sorted")
-    plot(pos, e_errz_s , 'rx', label="Sorted")
-    #text(id[-1], 0.18, "B-H: $%5.3f\\pm%5.3f$\n QuickShed: $%5.3f\\pm%5.3f$"%(meanz_bh, stdz_bh, meanz_new, stdz_new), backgroundcolor="w", va="top", ha="right" )
+    #plot(id[abs(errz_s) > 0.001], e_errz_s , 'ro', label="Sorted")
+    plot(pos, e_errz_s , 'ro', label="Sorted")
+    text( 0., 0.1, "axis=( %d %d %d )"%(axis[orientation*3 + 0], axis[orientation*3 + 1], axis[orientation*3 + 2]) , ha='center', backgroundcolor='w', fontsize=14)
+
     legend(loc="upper right")
     
     ylim(-0.2, 0.2)
     #xlim(0, size(id)-1)
     grid()
 
-    savefig("accelerations_%s.png"% names[orientation])
-    
+    savefig("accelerations_%d.png"%orientation)
+    close()
     
     
     
@@ -134,8 +149,8 @@ for orientation in range( 3 ):
     hist(e_errz_s, bins=bins, normed=1, histtype='step', rwidth=0.01, color='r')
     xlim(-0.12, 0.12)
     
-    savefig("histogram_%s.png"% names[orientation])
-
+    savefig("histogram_%d.png"%orientation)
+    close()
 
 
 
