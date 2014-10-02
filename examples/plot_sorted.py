@@ -88,9 +88,9 @@ for orientation in range( 26 ):
 
     # Build error ------------------------------------------------
     
-    errx_s = (accx_s - accx_u )/abs(accx_u) 
-    erry_s = (accy_s - accy_u )/abs(accy_u) 
-    errz_s = (accz_s - accz_u )/abs(accz_u) 
+    errx_s = (accx_s - accx_u )/sqrt(accx_u**2 + accy_u**2 + accz_u**2) 
+    erry_s = (accy_s - accy_u )/sqrt(accy_u**2 + accy_u**2 + accz_u**2) 
+    errz_s = (accz_s - accz_u )/sqrt(accx_u**2 + accy_u**2 + accz_u**2) 
     
     e_errx_s = errx_s#[abs(errx_s) > 0.001]
     e_erry_s = erry_s#[abs(erry_s) > 0.001]
@@ -177,14 +177,14 @@ for orientation in range( 26 ):
     # Plot -------------------------------------------------------
     bins = linspace(-3, 3, 10000)
     
-    e_errx_s = errx_s[(abs(errx_s) > 0.001) & (abs(errx_s) < 1.)]
-    e_erry_s = erry_s[(abs(erry_s) > 0.001) & (abs(erry_s) < 1.)]
-    e_errz_s = errz_s[(abs(errz_s) > 0.001) & (abs(errz_s) < 1.)]
+    e_errx_s = errx_s[(abs(errx_s) >= 0.000) & (abs(errx_s) < 1.)]
+    e_erry_s = erry_s[(abs(erry_s) >= 0.000) & (abs(erry_s) < 1.)]
+    e_errz_s = errz_s[(abs(errz_s) >= 0.000) & (abs(errz_s) < 1.)]
     
     
     
     figure(frameon=True)
-    subplot(311, title="Acceleration along X")#, yscale='log')
+    subplot(311, title="Acceleration along X")
     hist(e_errx_s, bins=bins, normed=1, histtype='step', rwidth=0.01, color='r', label="Sorted")
     legend(loc="upper right")
     xlim(-0.12, 0.12)
