@@ -40,7 +40,7 @@
 #define cell_maxparts 100
 #define task_limit 1e8
 #define const_G 1    // 6.6738e-8
-#define dist_min 0.5 /* Used fpr legacy walk only */
+#define dist_min 0.5 /* Used for legacy walk only */
 #define dist_cutoff_ratio 1.5
 #define iact_pair_direct iact_pair_direct_sorted
 
@@ -482,11 +482,11 @@ void get_axis(struct cell **ci, struct cell **cj, struct index **ind_i,
   orth1[3] = -d1;
   orth2[3] = -d2;
 
-  message("dx=[%.3e,%.3e,%.3e], axis=[%.3e,%.3e,%.3e]",
-	  dx[0], dx[1], dx[2], axis[0], axis[1], axis[2]);
-  message("N_planes= %d", *num_orth_planes);
-  message("o1=[%.3e,%.3e,%.3e] %.3e", orth1[0], orth1[1], orth1[2], orth1[3]);
-  message("o2=[%.3e,%.3e,%.3e] %.3e", orth2[0], orth2[1], orth2[2], orth2[3]);
+  /* message("dx=[%.3e,%.3e,%.3e], axis=[%.3e,%.3e,%.3e]", */
+  /* 	  dx[0], dx[1], dx[2], axis[0], axis[1], axis[2]); */
+  /* message("N_planes= %d", *num_orth_planes); */
+  /* message("o1=[%.3e,%.3e,%.3e] %.3e", orth1[0], orth1[1], orth1[2], orth1[3]); */
+  /* message("o2=[%.3e,%.3e,%.3e] %.3e", orth2[0], orth2[1], orth2[2], orth2[3]); */
 
   /* Make sure the sorts are ok. */
   /* for (int k = 1; k < (*ci)->count; k++)
@@ -2058,6 +2058,39 @@ void test_bh(int N, int nr_threads, int runs, char *fileName) {
   free(parts);
 }
 
+
+/* All 26 configurations for the cell tests */
+const float cell_shift[27 * 3] = {
+  1.0,  1.0,  1.0, /* 0 */
+  1.0,  1.0,  0.0, /* 1 */
+  1.0,  1.0, -1.0, /* 2 */
+  1.0,  0.0,  1.0, /* 3 */
+  1.0,  0.0,  0.0, /* 4 */
+  1.0,  0.0, -1.0, /* 5 */
+  1.0, -1.0,  1.0, /* 6 */
+  1.0, -1.0,  0.0, /* 7 */
+  1.0, -1.0, -1.0, /* 8 */
+  0.0,  1.0,  1.0, /* 9 */
+  0.0,  1.0,  0.0, /* 10 */
+  0.0,  1.0, -1.0, /* 11 */
+  0.0,  0.0,  1.0, /* 12 */
+  -1.0, -1.0, -1.0, /* 13 */
+  -1.0, -1.0,  0.0, /* 14 */
+  -1.0, -1.0,  1.0, /* 15 */
+  -1.0,  0.0, -1.0, /* 16 */
+  -1.0,  0.0,  0.0, /* 17 */
+  -1.0,  0.0,  1.0, /* 18 */
+  -1.0,  1.0, -1.0, /* 19 */
+  -1.0,  1.0,  0.0, /* 20 */
+  -1.0,  1.0,  1.0, /* 21 */
+  0.0, -1.0, -1.0, /* 22 */
+  0.0, -1.0,  0.0, /* 23 */
+  0.0, -1.0,  1.0, /* 24 */
+  0.0,  0.0, -1.0,  /* 25 */
+  0.0,  0.0, 0.0  /* 26 */ /* <-- The cell itself */
+};
+
+
 /**
  * @brief Creates two neighbouring cells wiht N_parts per celland makes them
  * interact using both the
@@ -2071,36 +2104,6 @@ void test_direct_neighbour(int N_parts, int orientation) {
   int k;
   struct part *parts;
   struct cell left, right;
-
-  /* All 13 configurations */
-  const float cell_shift[26 * 3] = {
-     1.0,  1.0,  1.0, /* 0 */
-     1.0,  1.0,  0.0, /* 1 */
-     1.0,  1.0, -1.0, /* 2 */
-     1.0,  0.0,  1.0, /* 3 */
-     1.0,  0.0,  0.0, /* 4 */
-     1.0,  0.0, -1.0, /* 5 */
-     1.0, -1.0,  1.0, /* 6 */
-     1.0, -1.0,  0.0, /* 7 */
-     1.0, -1.0, -1.0, /* 8 */
-     0.0,  1.0,  1.0, /* 9 */
-     0.0,  1.0,  0.0, /* 10 */
-     0.0,  1.0, -1.0, /* 11 */
-     0.0,  0.0,  1.0, /* 12 */
-    -1.0, -1.0, -1.0, /* 13 */
-    -1.0, -1.0,  0.0, /* 14 */
-    -1.0, -1.0,  1.0, /* 15 */
-    -1.0,  0.0, -1.0, /* 16 */
-    -1.0,  0.0,  0.0, /* 17 */
-    -1.0,  0.0,  1.0, /* 18 */
-    -1.0,  1.0, -1.0, /* 19 */
-    -1.0,  1.0,  0.0, /* 20 */
-    -1.0,  1.0,  1.0, /* 21 */
-     0.0, -1.0, -1.0, /* 22 */
-     0.0, -1.0,  0.0, /* 23 */
-     0.0, -1.0,  1.0, /* 24 */
-     0.0,  0.0, -1.0  /* 25 */
-  };
 
   if ( orientation >= 26 )
     error( "Wrong orientation !" );
@@ -2254,6 +2257,146 @@ void test_direct_neighbour(int N_parts, int orientation) {
   free(parts);
 }
 
+
+
+
+
+
+/**
+ * @brief Creates 27 cells and makes the particles in the central one 
+ * interact with the other cells 
+ * using both the sorted and unsorted interactions
+ * Outputs then the two sets of accelerations for accuracy tests.
+ * @param N_parts Number of particles in each cell
+ */
+void test_all_direct_neighbours(int N_parts) {
+
+  int k, j;
+  struct part *parts;
+  struct cell cells[27];
+
+
+  /* Init and fill the particle array. */
+  if ((parts = (struct part *)malloc(sizeof(struct part) * N_parts * 27)) ==
+      NULL)
+    error("Failed to allocate particle buffer.");
+
+
+  for (j = 0; j < 27 ; ++j) {
+
+    float shift[3];
+    for ( k = 0 ; k < 3 ; ++k )
+      shift[k] = cell_shift[ 3 * j + k ];
+
+    /* Create random set of particles in all cells */  
+    for (k = 0; k < N_parts; k++) {
+      parts[j*N_parts + k].id = j*N_parts + k;
+      
+      parts[j*N_parts + k].x[0] = ((double)rand()) / RAND_MAX + shift[0];
+      parts[j*N_parts + k].x[1] = ((double)rand()) / RAND_MAX + shift[1];
+      parts[j*N_parts + k].x[2] = ((double)rand()) / RAND_MAX + shift[2];
+      
+      parts[j*N_parts + k].mass = ((double)rand()) / RAND_MAX;
+      parts[j*N_parts + k].a[0] = 0.0;
+      parts[j*N_parts + k].a[1] = 0.0;
+      parts[j*N_parts + k].a[2] = 0.0;
+    }    
+
+
+    /* Get the cell geometry right */
+    cells[j].loc[0] = shift[0];
+    cells[j].loc[1] = shift[1];
+    cells[j].loc[2] = shift[2];
+    cells[j].h = 1.;
+
+    /* Put the particles in the cell */
+    cells[j].parts = parts + N_parts * j;
+    cells[j].count = N_parts;
+
+    /* Get the linked list right (functions should not recurse but hey...) */
+    cells[j].firstchild = NULL;
+    cells[j].sibling = NULL;
+    cells[j].split = 0;
+
+    /* Get the multipoles right (should also be useless) */
+    comp_com(&cells[j]);
+
+    /* Nothing has been sorted yet */
+    cells[j].indices = NULL;
+    cells[j].sorted = 0;
+  }
+
+
+#ifdef COUNTERS
+  count_direct_unsorted = 0;
+  count_direct_sorted_pp = 0;
+  count_direct_sorted_pm_i = 0;
+  count_direct_sorted_pm_j = 0;
+#endif
+
+  /* Do the interactions without sorting */
+  for (j = 0; j < 26 ; ++j)
+    iact_pair_direct_unsorted(&cells[26], &cells[j]);
+
+  message("Unsorted interactions done ");
+
+  /* Store accelerations */
+  for (k = 0; k < 27*N_parts; k++) {
+    parts[k].a_exact[0] = parts[k].a[0];
+    parts[k].a_exact[1] = parts[k].a[1];
+    parts[k].a_exact[2] = parts[k].a[2];
+    parts[k].a[0] = 0.0;
+    parts[k].a[1] = 0.0;
+    parts[k].a[2] = 0.0;
+  }
+
+  /* Do the interactions with sorting */
+  for (j = 0; j < 26 ; ++j) 
+    iact_pair_direct_sorted(&cells[26], &cells[j]);
+
+  message("Sorted interactions done ");
+
+
+  /* Now, output everything */
+  char fileName[100];
+  sprintf(fileName, "interaction_dump_all.dat");
+  message("Writing file '%s'", fileName);
+  FILE *file = fopen(fileName, "w");
+  fprintf(file,
+          "# ID m x y z a_u.x   a_u.y    a_u.z    a_s.x    a_s.y    a_s.z\n");
+  for (k = 0; k < N_parts; k++) {
+    fprintf(file, "%d %e %e %e %e %e %e %e %e %e %e\n", parts[26*N_parts + k].id,
+            parts[26*N_parts + k].mass, parts[26*N_parts + k].x[0], parts[26*N_parts + k].x[1],
+            parts[26*N_parts + k].x[2], parts[26*N_parts + k].a_exact[0], parts[26*N_parts + k].a_exact[1],
+            parts[26*N_parts + k].a_exact[2], parts[26*N_parts + k].a[0], parts[26*N_parts + k].a[1], parts[26*N_parts + k].a[2]);
+  }
+  fclose(file);
+
+
+
+#ifdef COUNTERS
+  message("Unsorted intereactions:           %d", count_direct_unsorted);
+  message("Sorted intereactions PP:          %d", count_direct_sorted_pp);
+  message("Sorted intereactions PM (part i): %d", count_direct_sorted_pm_i);
+  message("Sorted intereactions PM (part j): %d", count_direct_sorted_pm_j);
+  message("Sorted intereactions total:       %d",
+          count_direct_sorted_pm_j + count_direct_sorted_pm_i +
+              count_direct_sorted_pp);
+// message( "%f %d %d %d %d\n", dist_cutoff_ratio, count_direct_unsorted,
+// count_direct_sorted_pp, count_direct_sorted_pm_i, count_direct_sorted_pm_j );
+#endif
+
+  /* Clean up */
+  free(parts);
+
+}
+
+
+
+
+
+
+
 /**
  * @brief Main function.
  */
@@ -2327,6 +2470,14 @@ int main(int argc, char *argv[]) {
     /* Run the test */
     for ( k = 0 ; k < 26 ; ++k )
       test_direct_neighbour(N_parts, k);
+
+    k++;
+    /* Dump arguments */
+    message("Interacting one cell with %d particles with its 27 neighbours",
+            N_parts);
+
+    test_all_direct_neighbours(N_parts);
+
 
   } else {
 
