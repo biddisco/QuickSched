@@ -2337,6 +2337,7 @@ void test_all_direct_neighbours(int N_parts) {
   /* Do the interactions without sorting */
   for (j = 0; j < 26 ; ++j)
     iact_pair_direct_unsorted(&cells[26], &cells[j]);
+  iact_self_direct(&cells[26]);
 
   message("Unsorted interactions done ");
 
@@ -2353,6 +2354,7 @@ void test_all_direct_neighbours(int N_parts) {
   /* Do the interactions with sorting */
   for (j = 0; j < 26 ; ++j) 
     iact_pair_direct_sorted(&cells[26], &cells[j]);
+  iact_self_direct(&cells[26]);
 
   message("Sorted interactions done ");
 
