@@ -2289,11 +2289,15 @@ void test_all_direct_neighbours(int N_parts, int N_test) {
   count_direct_sorted_pm_i = 0;
   count_direct_sorted_pm_j = 0;
 #endif
+  int countMultipoles = 0;
+  int countPairs = 0;
+  int countCoMs = 0;
 
 
   /* Loop over the number of tests */
   for ( i = 0 ; i < N_test ; ++i ) {
 
+    /* Loop over the 27 cells */
     for (j = 0; j < 27 ; ++j) {
       
       float shift[3];
@@ -2312,6 +2316,12 @@ void test_all_direct_neighbours(int N_parts, int N_test) {
 	parts[j*N_parts + k].a[0] = 0.0;
 	parts[j*N_parts + k].a[1] = 0.0;
 	parts[j*N_parts + k].a[2] = 0.0;
+	parts[j*N_parts + k].a_exact[0] = 0.0;
+	parts[j*N_parts + k].a_exact[1] = 0.0;
+	parts[j*N_parts + k].a_exact[2] = 0.0;
+	parts[j*N_parts + k].a_legacy[0] = 0.0;
+	parts[j*N_parts + k].a_legacy[1] = 0.0;
+	parts[j*N_parts + k].a_legacy[2] = 0.0;
       }    
 
 
@@ -2364,18 +2374,40 @@ void test_all_direct_neighbours(int N_parts, int N_test) {
     //message("Sorted interactions done ");
 
 
+    /* Now, do a B-H calculation on the same set of particles */
+    struct cell* root = cell_get();
+    root->loc[0] = -1.0;
+    root->loc[1] = -1.0;
+    root->loc[2] = -1.0;
+    root->h = 3.0;
+    root->count = 27*N_parts;
+    root->parts = parts;
+    struct qsched s;
+    qsched_init(&s, 1, qsched_flag_noreown);
+    cell_split(root, &s);
+    legacy_tree_walk(27*N_parts, parts, root, ICHECK, &countMultipoles, &countPairs,
+                     &countCoMs);
+
+    //free(root);
+    //++countCoMs;
+
+
     /* Now, output everything */
     char fileName[100];
     sprintf(fileName, "interaction_dump_all.dat");
     //message("Writing file '%s'", fileName);
     FILE *file = fopen(fileName, ( i == 0 ? "w" :"a" ));
     if ( i == 0 )
-      fprintf(file,  "# ID m x y z a_u.x   a_u.y    a_u.z    a_s.x    a_s.y    a_s.z\n");
-    for (k = 0; k < N_parts; k++) {
-      fprintf(file, "%d %e %e %e %e %e %e %e %e %e %e\n", parts[26*N_parts + k].id,
-	      parts[26*N_parts + k].mass, parts[26*N_parts + k].x[0], parts[26*N_parts + k].x[1],
-	      parts[26*N_parts + k].x[2], parts[26*N_parts + k].a_exact[0], parts[26*N_parts + k].a_exact[1],
-	      parts[26*N_parts + k].a_exact[2], parts[26*N_parts + k].a[0], parts[26*N_parts + k].a[1], parts[26*N_parts + k].a[2]);
+      fprintf(file,  "# ID m x y z a_u.x   a_u.y    a_u.z    a_s.x    a_s.y    a_s.z"
+	             "   a_bh.x   a_bh.y   a_bh.z\n");
+    for (k = 0; k < 27*N_parts; k++) {
+      if (parts[k].id >= 26*N_parts )
+	fprintf(file, "%d %e %e %e %e %e %e %e %e %e %e %e %e %e\n", parts[k].id,
+	      parts[k].mass, 
+	      parts[k].x[0], parts[k].x[1], parts[k].x[2], 
+	      parts[k].a_exact[0], parts[k].a_exact[1], parts[k].a_exact[2], 
+	      parts[k].a[0], parts[k].a[1], parts[k].a[2], 
+	      parts[k].a_legacy[0], parts[k].a_legacy[1], parts[k].a_legacy[2]);
     }
     fclose(file);
 
@@ -2384,6 +2416,9 @@ void test_all_direct_neighbours(int N_parts, int N_test) {
 
 #ifdef COUNTERS
   message("Unsorted intereactions:           %d", count_direct_unsorted);
+  message("B-H intereactions:   PP           %d", countPairs);
+  message("B-H intereactions:   PM           %d", countMultipoles);
+  message("B-H intereactions:   total        %d", countPairs + countMultipoles);
   message("Sorted intereactions PP:          %d", count_direct_sorted_pp);
   message("Sorted intereactions PM (part i): %d", count_direct_sorted_pm_i);
   message("Sorted intereactions PM (part j): %d", count_direct_sorted_pm_j);

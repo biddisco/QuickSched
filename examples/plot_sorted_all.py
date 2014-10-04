@@ -54,17 +54,30 @@ accz_u=data[:,7]
 accx_s=data[:,8]
 accy_s=data[:,9]
 accz_s=data[:,10]
+
+accx_bh=data[:,11]
+accy_bh=data[:,12]
+accz_bh=data[:,13]
     
 
 # Build error ------------------------------------------------
     
-errx_s = (accx_s - accx_u )/sqrt(accx_u**2 + accy_u**2 + accz_u**2) 
-erry_s = (accy_s - accy_u )/sqrt(accy_u**2 + accy_u**2 + accz_u**2) 
-errz_s = (accz_s - accz_u )/sqrt(accx_u**2 + accy_u**2 + accz_u**2) 
+errx_s = (accx_s - accx_u ) / sqrt(accx_u**2 + accy_u**2 + accz_u**2) 
+erry_s = (accy_s - accy_u ) / sqrt(accy_u**2 + accy_u**2 + accz_u**2) 
+errz_s = (accz_s - accz_u ) / sqrt(accx_u**2 + accy_u**2 + accz_u**2) 
+
+errx_bh = (accx_bh - accx_u ) / sqrt(accx_u**2 + accy_u**2 + accz_u**2) 
+erry_bh = (accy_bh - accy_u ) / sqrt(accy_u**2 + accy_u**2 + accz_u**2) 
+errz_bh = (accz_bh - accz_u ) / sqrt(accx_u**2 + accy_u**2 + accz_u**2) 
 
 e_errx_s = errx_s#[abs(errx_s) > 0.001]
 e_erry_s = erry_s#[abs(erry_s) > 0.001]
 e_errz_s = errz_s#[abs(errz_s) > 0.001]
+
+e_errx_bh = errx_bh#[abs(errx_bh) > 0.001]
+e_erry_bh = erry_bh#[abs(erry_bh) > 0.001]
+e_errz_bh = errz_bh#[abs(errz_bh) > 0.001]
+
 
 # Statistics
 meanx_s = mean(errx_s[abs(errx_s) < 0.1])
@@ -82,12 +95,14 @@ figure(frameon=True)
 subplot(311, title="Acceleration along X")
 #plot(id[abs(errx_s) > 0.001], e_errx_s , 'ro')
 plot(pos_x, e_errx_s , 'ro')
+plot(pos_x, e_errx_bh , 'bx', label='B-H')
 #text( 0., 0.1, "axis=( %d %d %d )"%(axis[orientation*3 + 0], axis[orientation*3 + 1], axis[orientation*3 + 2]) , ha='center', backgroundcolor='w', fontsize=14)
 ylim(-0.2, 0.2)
 grid()
 
 subplot(312, title="Acceleration along Y")
 #plot(id[abs(erry_s) > 0.001], e_erry_s , 'ro')
+plot(pos_x, e_erry_bh , 'bx', label='B-H')
 plot(pos_y, e_erry_s , 'ro')
 #text( 0., 0.1, "axis=( %d %d %d )"%(axis[orientation*3 + 0], axis[orientation*3 + 1], axis[orientation*3 + 2]) , ha='center', backgroundcolor='w', fontsize=14)
 ylim(-0.2, 0.2)  
@@ -95,6 +110,7 @@ grid()
 
 subplot(313, title="Acceleration along Z")
 #plot(id[abs(errz_s) > 0.001], e_errz_s , 'ro', label="Sorted")
+plot(pos_x, e_errz_bh , 'bx', label='B-H')
 plot(pos_z, e_errz_s , 'ro', label="Sorted")
 #text( 0., 0.1, "axis=( %d %d %d )"%(axis[orientation*3 + 0], axis[orientation*3 + 1], axis[orientation*3 + 2]) , ha='center', backgroundcolor='w', fontsize=14)
 
@@ -121,8 +137,9 @@ grid()
 
 subplot(312, title="Acceleration along Y")
 #plot(id[abs(erry_s) > 0.001], e_erry_s , 'ro')
-plot(pos_y, accy_u , 'bx')
+plot(pos_y, accy_u , 'gs')
 plot(pos_y, accy_s , 'ro')
+plot(pos_z, accz_bh , 'bx', label="B-H")
 #text( 0., 0.1, "axis=( %d %d %d )"%(axis[orientation*3 + 0], axis[orientation*3 + 1], axis[orientation*3 + 2]) , ha='center', backgroundcolor='w', fontsize=14)
 #ylim(-70, 70)
 ylim(-250, 250)
@@ -130,8 +147,9 @@ grid()
 
 subplot(313, title="Acceleration along Z")
 #plot(id[abs(errz_s) > 0.001], e_errz_s , 'ro', label="Sorted")
-plot(pos_z, accz_u , 'bx', label="Unsorted")
+plot(pos_z, accz_bh , 'bx', label="B-H")
 plot(pos_z, accz_s , 'ro', label="Sorted")
+plot(pos_z, accz_u , 'gs', label="Unsorted")
 
 #text( 0., 0.1, "axis=( %d %d %d )"%(axis[orientation*3 + 0], axis[orientation*3 + 1], axis[orientation*3 + 2]) , ha='center', backgroundcolor='w', fontsize=14)
 
@@ -158,16 +176,19 @@ e_errz_s = errz_s[(abs(errz_s) >= 0.000) & (abs(errz_s) < 1.)]
 figure(frameon=True)
 subplot(311, title="Acceleration along X")
 hist(e_errx_s, bins=bins, normed=1, histtype='step', rwidth=0.01, color='r', label="Sorted")
+hist(e_errx_bh, bins=bins, normed=1, histtype='step', rwidth=0.01, color='g', label="B-H")
 legend(loc="upper right")
-xlim(-0.12, 0.12)
+xlim(-0.15, 0.15)
 
 subplot(312, title="Acceleration along Y")
 hist(e_erry_s, bins=bins, normed=1, histtype='step', rwidth=0.01, color='r')
-xlim(-0.12, 0.12)
+hist(e_erry_bh, bins=bins, normed=1, histtype='step', rwidth=0.01, color='g')
+xlim(-0.15, 0.15)
 
 subplot(313, title="Acceleration along Z")
 hist(e_errz_s, bins=bins, normed=1, histtype='step', rwidth=0.01, color='r')
-xlim(-0.12, 0.12)
+hist(e_errz_bh, bins=bins, normed=1, histtype='step', rwidth=0.01, color='g')
+xlim(-0.15, 0.15)
 
 savefig("histogram_all.png")
 close()
