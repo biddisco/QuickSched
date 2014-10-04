@@ -37,7 +37,7 @@
 
 /* Some local constants. */
 #define cell_pool_grow 1000
-#define cell_maxparts 100
+#define cell_maxparts 1
 #define task_limit 1e8
 #define const_G 1    // 6.6738e-8
 #define dist_min 0.5 /* Used for legacy walk only */
@@ -2268,10 +2268,11 @@ void test_direct_neighbour(int N_parts, int orientation) {
  * using both the sorted and unsorted interactions
  * Outputs then the two sets of accelerations for accuracy tests.
  * @param N_parts Number of particles in each cell
+ * @param N_test Number of times the test has to be run
  */
-void test_all_direct_neighbours(int N_parts) {
+void test_all_direct_neighbours(int N_parts, int N_test) {
 
-  int k, j;
+  int i, k, j;
   struct part *parts;
   struct cell cells[27];
 
@@ -2282,51 +2283,6 @@ void test_all_direct_neighbours(int N_parts) {
     error("Failed to allocate particle buffer.");
 
 
-  for (j = 0; j < 27 ; ++j) {
-
-    float shift[3];
-    for ( k = 0 ; k < 3 ; ++k )
-      shift[k] = cell_shift[ 3 * j + k ];
-
-    /* Create random set of particles in all cells */  
-    for (k = 0; k < N_parts; k++) {
-      parts[j*N_parts + k].id = j*N_parts + k;
-      
-      parts[j*N_parts + k].x[0] = ((double)rand()) / RAND_MAX + shift[0];
-      parts[j*N_parts + k].x[1] = ((double)rand()) / RAND_MAX + shift[1];
-      parts[j*N_parts + k].x[2] = ((double)rand()) / RAND_MAX + shift[2];
-      
-      parts[j*N_parts + k].mass = ((double)rand()) / RAND_MAX;
-      parts[j*N_parts + k].a[0] = 0.0;
-      parts[j*N_parts + k].a[1] = 0.0;
-      parts[j*N_parts + k].a[2] = 0.0;
-    }    
-
-
-    /* Get the cell geometry right */
-    cells[j].loc[0] = shift[0];
-    cells[j].loc[1] = shift[1];
-    cells[j].loc[2] = shift[2];
-    cells[j].h = 1.;
-
-    /* Put the particles in the cell */
-    cells[j].parts = parts + N_parts * j;
-    cells[j].count = N_parts;
-
-    /* Get the linked list right (functions should not recurse but hey...) */
-    cells[j].firstchild = NULL;
-    cells[j].sibling = NULL;
-    cells[j].split = 0;
-
-    /* Get the multipoles right (should also be useless) */
-    comp_com(&cells[j]);
-
-    /* Nothing has been sorted yet */
-    cells[j].indices = NULL;
-    cells[j].sorted = 0;
-  }
-
-
 #ifdef COUNTERS
   count_direct_unsorted = 0;
   count_direct_sorted_pp = 0;
@@ -2334,46 +2290,96 @@ void test_all_direct_neighbours(int N_parts) {
   count_direct_sorted_pm_j = 0;
 #endif
 
-  /* Do the interactions without sorting */
-  for (j = 0; j < 26 ; ++j)
-    iact_pair_direct_unsorted(&cells[26], &cells[j]);
-  iact_self_direct(&cells[26]);
 
-  message("Unsorted interactions done ");
+  /* Loop over the number of tests */
+  for ( i = 0 ; i < N_test ; ++i ) {
 
-  /* Store accelerations */
-  for (k = 0; k < 27*N_parts; k++) {
-    parts[k].a_exact[0] = parts[k].a[0];
-    parts[k].a_exact[1] = parts[k].a[1];
-    parts[k].a_exact[2] = parts[k].a[2];
-    parts[k].a[0] = 0.0;
-    parts[k].a[1] = 0.0;
-    parts[k].a[2] = 0.0;
+    for (j = 0; j < 27 ; ++j) {
+      
+      float shift[3];
+      for ( k = 0 ; k < 3 ; ++k )
+	shift[k] = cell_shift[ 3 * j + k ];
+
+      /* Create random set of particles in all cells */  
+      for (k = 0; k < N_parts; k++) {
+	parts[j*N_parts + k].id = j*N_parts + k;
+      
+	parts[j*N_parts + k].x[0] = ((double)rand()) / RAND_MAX + shift[0];
+	parts[j*N_parts + k].x[1] = ((double)rand()) / RAND_MAX + shift[1];
+	parts[j*N_parts + k].x[2] = ((double)rand()) / RAND_MAX + shift[2];
+      
+	parts[j*N_parts + k].mass = ((double)rand()) / RAND_MAX;
+	parts[j*N_parts + k].a[0] = 0.0;
+	parts[j*N_parts + k].a[1] = 0.0;
+	parts[j*N_parts + k].a[2] = 0.0;
+      }    
+
+
+      /* Get the cell geometry right */
+      cells[j].loc[0] = shift[0];
+      cells[j].loc[1] = shift[1];
+      cells[j].loc[2] = shift[2];
+      cells[j].h = 1.;
+
+      /* Put the particles in the cell */
+      cells[j].parts = parts + N_parts * j;
+      cells[j].count = N_parts;
+
+      /* Get the linked list right (functions should not recurse but hey...) */
+      cells[j].firstchild = NULL;
+      cells[j].sibling = NULL;
+      cells[j].split = 0;
+
+      /* Get the multipoles right (should also be useless) */
+      comp_com(&cells[j]);
+
+      /* Nothing has been sorted yet */
+      cells[j].indices = NULL;
+      cells[j].sorted = 0;
+    }
+
+
+    /* Do the interactions without sorting */
+    for (j = 0; j < 26 ; ++j)
+      iact_pair_direct_unsorted(&cells[26], &cells[j]);
+    iact_self_direct(&cells[26]);
+
+    //message("Unsorted interactions done ");
+
+    /* Store accelerations */
+    for (k = 0; k < 27*N_parts; k++) {
+      parts[k].a_exact[0] = parts[k].a[0];
+      parts[k].a_exact[1] = parts[k].a[1];
+      parts[k].a_exact[2] = parts[k].a[2];
+      parts[k].a[0] = 0.0;
+      parts[k].a[1] = 0.0;
+      parts[k].a[2] = 0.0;
+    }
+
+    /* Do the interactions with sorting */
+    for (j = 0; j < 26 ; ++j) 
+      iact_pair_direct_sorted(&cells[26], &cells[j]);
+    iact_self_direct(&cells[26]);
+
+    //message("Sorted interactions done ");
+
+
+    /* Now, output everything */
+    char fileName[100];
+    sprintf(fileName, "interaction_dump_all.dat");
+    //message("Writing file '%s'", fileName);
+    FILE *file = fopen(fileName, ( i == 0 ? "w" :"a" ));
+    if ( i == 0 )
+      fprintf(file,  "# ID m x y z a_u.x   a_u.y    a_u.z    a_s.x    a_s.y    a_s.z\n");
+    for (k = 0; k < N_parts; k++) {
+      fprintf(file, "%d %e %e %e %e %e %e %e %e %e %e\n", parts[26*N_parts + k].id,
+	      parts[26*N_parts + k].mass, parts[26*N_parts + k].x[0], parts[26*N_parts + k].x[1],
+	      parts[26*N_parts + k].x[2], parts[26*N_parts + k].a_exact[0], parts[26*N_parts + k].a_exact[1],
+	      parts[26*N_parts + k].a_exact[2], parts[26*N_parts + k].a[0], parts[26*N_parts + k].a[1], parts[26*N_parts + k].a[2]);
+    }
+    fclose(file);
+
   }
-
-  /* Do the interactions with sorting */
-  for (j = 0; j < 26 ; ++j) 
-    iact_pair_direct_sorted(&cells[26], &cells[j]);
-  iact_self_direct(&cells[26]);
-
-  message("Sorted interactions done ");
-
-
-  /* Now, output everything */
-  char fileName[100];
-  sprintf(fileName, "interaction_dump_all.dat");
-  message("Writing file '%s'", fileName);
-  FILE *file = fopen(fileName, "w");
-  fprintf(file,
-          "# ID m x y z a_u.x   a_u.y    a_u.z    a_s.x    a_s.y    a_s.z\n");
-  for (k = 0; k < N_parts; k++) {
-    fprintf(file, "%d %e %e %e %e %e %e %e %e %e %e\n", parts[26*N_parts + k].id,
-            parts[26*N_parts + k].mass, parts[26*N_parts + k].x[0], parts[26*N_parts + k].x[1],
-            parts[26*N_parts + k].x[2], parts[26*N_parts + k].a_exact[0], parts[26*N_parts + k].a_exact[1],
-            parts[26*N_parts + k].a_exact[2], parts[26*N_parts + k].a[0], parts[26*N_parts + k].a[1], parts[26*N_parts + k].a[2]);
-  }
-  fclose(file);
-
 
 
 #ifdef COUNTERS
@@ -2387,6 +2393,8 @@ void test_all_direct_neighbours(int N_parts) {
 // message( "%f %d %d %d %d\n", dist_cutoff_ratio, count_direct_unsorted,
 // count_direct_sorted_pp, count_direct_sorted_pm_i, count_direct_sorted_pm_j );
 #endif
+
+
 
   /* Clean up */
   free(parts);
@@ -2409,6 +2417,7 @@ int main(int argc, char *argv[]) {
   int N = 1000, runs = 1;
   char fileName[100] = {0};
   int N_parts = 0;
+  int N_iterations = 0;
 
   /* Die on FP-exceptions. */
   feenableexcept(FE_DIVBYZERO | FE_INVALID | FE_OVERFLOW);
@@ -2420,7 +2429,7 @@ int main(int argc, char *argv[]) {
   }
 
   /* Parse the options */
-  while ((c = getopt(argc, argv, "n:r:t:f:c:")) != -1) switch (c) {
+  while ((c = getopt(argc, argv, "n:r:t:f:c:i:")) != -1) switch (c) {
       case 'n':
         if (sscanf(optarg, "%d", &N) != 1)
           error("Error parsing number of particles.");
@@ -2443,16 +2452,21 @@ int main(int argc, char *argv[]) {
           error(
               "Error parsing number of particles in neighbouring cells test.");
         break;
+      case 'i':
+        if (sscanf(optarg, "%d", &N_iterations) != 1)
+          error(
+              "Error parsing number of particles in neighbouring cells test.");
+        break;
       case '?':
         fprintf(stderr, "Usage: %s [-t nr_threads] [-n N] [-r runs] [-f file] "
-                        "[-c Nparts]\n",
+                        "[-c Nparts] [-i Niterations] \n",
                 argv[0]);
         fprintf(stderr, "Solves the N-body problem using a Barnes-Hut\n"
                         "tree code with N random particles read from a file in "
                         "[0,1]^3 using"
                         "nr_threads threads.\n"
                         "A test of the neighbouring cells interaction with "
-                        "Nparts per cell is also run.\n");
+                        "Nparts per cell is also run Niterations times.\n");
         exit(EXIT_FAILURE);
     }
 
@@ -2473,12 +2487,12 @@ int main(int argc, char *argv[]) {
     for ( k = 0 ; k < 26 ; ++k )
       test_direct_neighbour(N_parts, k);
 
-    k++;
     /* Dump arguments */
-    message("Interacting one cell with %d particles with its 27 neighbours",
-            N_parts);
+    message("Interacting one cell with %d particles with its 27 neighbours"
+	    " %d times to get the statistics.",
+            N_parts , N_iterations);
 
-    test_all_direct_neighbours(N_parts);
+    test_all_direct_neighbours(N_parts, N_iterations);
 
 
   } else {
