@@ -1100,7 +1100,7 @@ static inline void iact_pair_direct_unsorted(struct cell *ci, struct cell *cj) {
  * @param ci The #cell containing the particles.
  * @param cj The #cell containing the other particles
  */
-static inline void iact_pair_direct_sorted(struct cell *ci, struct cell *cj) {
+static inline void iact_pair_direct_sorted_old(struct cell *ci, struct cell *cj) {
 
   int i, j, k, l;
   int count_i, count_j;
@@ -1323,6 +1323,269 @@ static inline void iact_pair_direct_sorted(struct cell *ci, struct cell *cj) {
 #endif
       }
     }
+  }
+}
+
+static inline void iact_pair_direct_sorted(struct cell *ci, struct cell *cj) {
+
+  struct part_local {
+    double x[3];
+    float a[3];
+    float mass, d;
+    };
+
+  int i, j, k, l;
+  int count_i, count_j;
+  struct part_local *parts_i, *parts_j;
+  double cjh = cj->h;
+  double xi[3];
+  float dx[3], ai[3], mi, mj, r2, w, ir;
+
+#ifdef SANITY_CHECKS
+
+  /* Bad stuff will happen if cell sizes are different */
+  if (ci->h != cj->h)
+    error("Non matching cell sizes !! h_i=%f h_j=%f\n", ci->h, cj->h);
+
+#endif
+
+  /* Get the sorted indices and stuff. */
+  struct index *ind_i, *ind_j;
+  double com[4][3] = {{0.0, 0.0, 0.0}, {0.0, 0.0, 0.0}, {0.0, 0.0, 0.0},
+                      {0.0, 0.0, 0.0}};
+  float com_mass[4] = {0.0, 0.0, 0.0, 0.0};
+  float orth1[4], orth2[4];
+  int num_orth_planes = 0;
+  get_axis(&ci, &cj, &ind_i, &ind_j, &num_orth_planes, orth1, orth2);
+  cjh = cj->h;
+  
+  /* Allocate and fill-in the local parts. */
+  count_i = ci->count;
+  count_j = cj->count;
+  if ((parts_i = (struct part_local *)alloca(sizeof(struct part_local) * count_i)) == NULL ||
+      (parts_j = (struct part_local *)alloca(sizeof(struct part_local) * count_j)) == NULL)
+    error("Failed to allocate local part arrays.");
+  for (i = 0; i < count_i; i++) {
+    int pid = ind_i[i].ind;
+    parts_i[i].d = ind_i[i].d;
+    for (k = 0; k < 3; k++) {
+      parts_i[i].x[k] = ci->parts[pid].x[k];
+      parts_i[i].a[k] = 0.0f;
+    }
+    parts_i[i].mass = ci->parts[pid].mass;
+  }
+  for (j = 0; j < count_j; j++) {
+    int pjd = ind_j[j].ind;
+    parts_j[j].d = ind_j[j].d;
+    for (k = 0; k < 3; k++) {
+      parts_j[j].x[k] = cj->parts[pjd].x[k];
+      parts_j[j].a[k] = 0.0f;
+    }
+    parts_j[j].mass = cj->parts[pjd].mass;
+  }
+
+#if ICHECK >= 0
+  for (k = 0; k < count_i; k++)
+    if (parts_i[k].id == ICHECK)
+      message("[DEBUG] interacting cells loc=[%f,%f,%f], h=%f and "
+              "loc=[%f,%f,%f], h=%f.",
+              ci->loc[0], ci->loc[1], ci->loc[2], ci->h, cj->loc[0], cj->loc[1],
+              cj->loc[2], cj->h);
+  for (k = 0; k < count_j; k++)
+    if (parts_j[k].id == ICHECK)
+      message("[DEBUG] interacting cells loc=[%f,%f,%f], h=%f and "
+              "loc=[%f,%f,%f], h=%f.",
+              cj->loc[0], cj->loc[1], cj->loc[2], cj->h, ci->loc[0], ci->loc[1],
+              ci->loc[2], ci->h);
+#endif
+
+  /* Distance along the axis as of which we will use a multipole. */
+  float d_max = dist_cutoff_ratio * cjh;
+
+  /* Loop over all particles in ci... */
+  for (i = count_i - 1; i >= 0; i--) {
+
+    /* Get a local copy of the distance along the axis. */
+    float di = parts_i[i].d;
+
+    /* Init the ith particle's data. */
+    for (k = 0; k < 3; k++) {
+      xi[k] = parts_i[i].x[k];
+      ai[k] = 0.0;
+    }
+    mi = parts_i[i].mass;
+
+    /* Loop over every following particle within d_max along the axis. */
+    for (j = 0; j < count_j && (parts_j[j].d - di) < d_max; j++) {
+
+      /* Compute the pairwise distance. */
+      for (r2 = 0.0, k = 0; k < 3; k++) {
+        dx[k] = xi[k] - parts_j[j].x[k];
+        r2 += dx[k] * dx[k];
+      }
+
+      /* Apply the gravitational acceleration. */
+      ir = 1.0f / sqrtf(r2);
+      w = const_G * ir * ir * ir;
+      mj = parts_j[j].mass;
+      for (k = 0; k < 3; k++) {
+        float wdx = w * dx[k];
+        parts_j[j].a[k] += wdx * mi;
+        ai[k] -= wdx * mj;
+      }
+
+#if ICHECK >= 0
+      if (parts_i[i].id == ICHECK)
+        message("Interaction with part %d - d= %f", parts_j[j].id, sqrt(r2));
+#endif
+
+#ifdef COUNTERS
+      ++count_direct_sorted_pp;
+#endif
+
+#if ICHECK >= 0 && 0
+      if (parts_i[i].id == ICHECK)
+        printf("[NEW] Interaction with particle id= %d (pair i)\n",
+               parts_j[pjd].id);
+
+      if (parts_j[j].id == ICHECK)
+        printf("[NEW] Interaction with particle id= %d (pair j) h_i= %f h_j= "
+               "%f ci= %p cj= %p count_i= %d count_j= %d d_i= %d d_j= %d\n",
+               parts_i[pid].id, ci->h, cj->h, ci, cj, count_i, count_j, ci->res,
+               cj->res);
+#endif
+
+    } /* loop over every other particle. */
+
+    /* Add any remaining particles to the COM. */
+    for (int jj = j; jj < count_j; jj++) {
+      mj = parts_j[jj].mass;
+
+      l = 0;
+#ifdef MANY_MULTIPOLES
+      if (num_orth_planes > 0) {
+        float n1 = parts_j[jj].x[0] * orth1[0] + parts_j[jj].x[1] * orth1[1] +
+                   parts_j[jj].x[2] * orth1[2] + orth1[3];
+        l = 2 * l + ((n1 < 0.0) ? 0 : 1);
+        if (num_orth_planes > 1) {
+          float n2 =
+              parts_j[jj].x[0] * orth2[0] + parts_j[jj].x[1] * orth2[1] +
+              parts_j[jj].x[2] * orth2[2] + orth2[3];
+          l = 2 * l + ((n2 < 0.0) ? 0 : 1);
+        }
+      }
+#endif
+
+      com[l][0] += mj * parts_j[jj].x[0];
+      com[l][1] += mj * parts_j[jj].x[1];
+      com[l][2] += mj * parts_j[jj].x[2];
+      com_mass[l] += mj;
+    }
+
+    /* Shrink count_j to the latest valid particle. */
+    count_j = j;
+
+    /* Interact part_i with the center of mass. */
+    for (l = 0; l < (1 << num_orth_planes); ++l) {
+      if (com_mass[l] > 0.0) {
+        float icom_mass = 1.0f / com_mass[l];
+        for (r2 = 0.0, k = 0; k < 3; k++) {
+          dx[k] = xi[k] - com[l][k] * icom_mass;
+          r2 += dx[k] * dx[k];
+        }
+        ir = 1.0f / sqrtf(r2);
+        w = const_G * ir * ir * ir;
+        for (k = 0; k < 3; k++) ai[k] -= w * dx[k] * com_mass[l];
+
+#if ICHECK >= 0
+        if (parts_i[i].id == ICHECK)
+          message("Interaction with multipole");  //, parts_j[j].id );
+#endif
+
+#ifdef COUNTERS
+        ++count_direct_sorted_pm_i;
+#endif
+      }
+    }
+
+    /* Store the accumulated acceleration on the ith part. */
+    for (k = 0; k < 3; k++) parts_i[i].a[k] += ai[k];
+
+  } /* loop over all particles in ci. */
+
+  /* Re-init some values. */
+  count_j = cj->count;
+  int last_i = 0;
+  for (l = 0; l < (1 << num_orth_planes); ++l) {
+    com[l][0] = 0.0;
+    com[l][1] = 0.0;
+    com[l][2] = 0.0;
+    com_mass[l] = 0.0f;
+  }
+
+  /* Loop over the particles in cj, catch the COM interactions. */
+  for (j = 0; j < count_j; j++) {
+
+    /* Get the sorted index. */
+    float dj = parts_j[j].d;
+
+    /* Fill the COM with any new particles. */
+    for (i = last_i; i < count_i && (dj - parts_i[i].d) > d_max; i++) {
+      mi = parts_i[i].mass;
+
+      l = 0;
+#ifdef MANY_MULTIPOLES
+      if (num_orth_planes > 0) {
+        float n1 = parts_i[i].x[0] * orth1[0] + parts_i[i].x[1] * orth1[1] +
+                   parts_i[i].x[2] * orth1[2] + orth1[3];
+        l = 2 * l + ((n1 < 0) ? 0 : 1);
+        if (num_orth_planes > 1) {
+          float n2 =
+              parts_i[i].x[0] * orth2[0] + parts_i[i].x[1] * orth2[1] +
+              parts_i[i].x[2] * orth2[2] + orth2[3];
+          l = 2 * l + ((n2 < 0) ? 0 : 1);
+        }
+      }
+#endif
+
+      com[l][0] += parts_i[i].x[0] * mi;
+      com[l][1] += parts_i[i].x[1] * mi;
+      com[l][2] += parts_i[i].x[2] * mi;
+      com_mass[l] += mi;
+    }
+
+    /* Set the new last_i to the last particle checked. */
+    last_i = i;
+
+    /* Interact part_j with the COM. */
+    for (l = 0; l < (1 << num_orth_planes); ++l) {
+      if (com_mass[l] > 0.0) {
+        float icom_mass = 1.0f / com_mass[l];
+        for (r2 = 0.0, k = 0; k < 3; k++) {
+          dx[k] = com[l][k] * icom_mass - parts_j[j].x[k];
+          r2 += dx[k] * dx[k];
+        }
+        ir = 1.0f / sqrtf(r2);
+        w = const_G * ir * ir * ir;
+        for (k = 0; k < 3; k++) parts_j[j].a[k] += w * dx[k] * com_mass[l];
+
+#ifdef COUNTERS
+        ++count_direct_sorted_pm_j;
+#endif
+      }
+    }
+  }
+  
+  /* Copy the accelerations back to the original particles. */
+  for (i = 0; i < count_i; i++) {
+    int pid = ind_i[i].ind;
+    for (k = 0; k < 3; k++)
+      ci->parts[pid].a[k] += parts_i[i].a[k];
+  }
+  for (j = 0; j < count_j; j++) {
+    int pjd = ind_j[j].ind;
+    for (k = 0; k < 3; k++)
+      cj->parts[pjd].a[k] += parts_j[j].a[k];
   }
 }
 
