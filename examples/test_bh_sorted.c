@@ -42,7 +42,7 @@
 #define const_G 1    // 6.6738e-8
 #define dist_min 0.5 /* Used for legacy walk only */
 #define dist_cutoff_ratio 1.5
-#define iact_pair_direct iact_pair_direct_sorted
+#define iact_pair_direct iact_pair_direct_sorted_dipole
 
 #define ICHECK -1
 #define NO_SANITY_CHECKS
@@ -110,6 +110,76 @@ enum task_type {
   task_type_com,
   task_type_count
 };
+
+/** Dipole stuff. Moment-matching multipole along a given direction. */
+struct dipole {
+  float axis[3];
+  double x[3];
+  float mass;
+  double da, da2;
+};
+
+static inline void dipole_init(struct dipole *d, const float *axis) {
+  for (int k = 0; k < 3; k++) {
+    d->axis[k] = axis[k];
+    d->x[k] = 0.0;
+  }
+  d->mass = 0.0;
+  d->da = 0.0;
+  d->da2 = 0.0;
+}
+
+static inline void dipole_reset(struct dipole *d) {
+  for (int k = 0; k < 3; k++) d->x[k] = 0.0;
+  d->mass = 0.0;
+  d->da = 0.0;
+  d->da2 = 0.0;
+}
+
+static inline void dipole_add(struct dipole *d, const double *x, float mass,
+                              float da) {
+  for (int k = 0; k < 3; k++) d->x[k] += x[k] * mass;
+  d->mass += mass;
+  d->da += da * mass;
+  d->da2 += da * da * mass;
+}
+
+static inline void dipole_iact(const struct dipole *d, const double *x,
+                               float *a) {
+  // Bail early if no mass.
+  if (d->mass == 0.0) return;
+
+  float inv_mass = 1.0f / d->mass;
+  float dx[3], r2, ir, w;
+  int k;
+
+  /* Get the offset along the dipole axis. This looks weird, but negative
+     offsets can happen due to rounding error. */
+  float offset = (d->da2 - d->da * d->da * inv_mass) * inv_mass;
+  if (offset > 0) {
+    offset = sqrtf(offset);
+  } else {
+    offset = 0.0f;
+  }
+
+  /* Compute the first dipole. */
+  for (r2 = 0.0f, k = 0; k < 3; k++) {
+    dx[k] = x[k] - d->x[k] * inv_mass + offset * d->axis[k];
+    r2 += dx[k] * dx[k];
+  }
+  ir = 1.0f / sqrtf(r2);
+  w = const_G * ir * ir * ir * d->mass * 0.5f;
+  for (k = 0; k < 3; k++) a[k] -= w * dx[k];
+
+  /* Compute the second dipole. */
+  for (r2 = 0.0f, k = 0; k < 3; k++) {
+    dx[k] = x[k] - d->x[k] * inv_mass - offset * d->axis[k];
+    r2 += dx[k] * dx[k];
+  }
+  ir = 1.0f / sqrtf(r2);
+  w = const_G * ir * ir * ir * d->mass * 0.5f;
+  for (k = 0; k < 3; k++) a[k] -= w * dx[k];
+}
 
 #ifdef COUNTERS
 int count_direct_unsorted;
@@ -184,7 +254,6 @@ const int axis_num_orth[13] = {
 /*   /\* (  0 , -1 ,  1 ) *\/ 2, */
 /*   /\* (  0 ,  0 , -1 ) *\/ 2 */
 /* }; */
-
 
 const char axis_flip[27] = {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0,
                             0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
@@ -435,10 +504,10 @@ void cell_sort(struct cell *c, float *axis, int aid) {
  * @param orth2 The second orthogonal plane, vector of four floats.
  */
 void get_axis(struct cell **ci, struct cell **cj, struct index **ind_i,
-              struct index **ind_j, int *num_orth_planes, float *orth1,
-              float *orth2) {
+              struct index **ind_j, float *axis, int *num_orth_planes,
+              float *orth1, float *orth2) {
 
-  float dx[3], axis[3];
+  float dx[3];
   int aid = 0;
 
   /* Get the cell pair separation and the axis index. */
@@ -485,8 +554,10 @@ void get_axis(struct cell **ci, struct cell **cj, struct index **ind_i,
   /* message("dx=[%.3e,%.3e,%.3e], axis=[%.3e,%.3e,%.3e]", */
   /* 	  dx[0], dx[1], dx[2], axis[0], axis[1], axis[2]); */
   /* message("N_planes= %d", *num_orth_planes); */
-  /* message("o1=[%.3e,%.3e,%.3e] %.3e", orth1[0], orth1[1], orth1[2], orth1[3]); */
-  /* message("o2=[%.3e,%.3e,%.3e] %.3e", orth2[0], orth2[1], orth2[2], orth2[3]); */
+  /* message("o1=[%.3e,%.3e,%.3e] %.3e", orth1[0], orth1[1], orth1[2],
+   * orth1[3]); */
+  /* message("o2=[%.3e,%.3e,%.3e] %.3e", orth2[0], orth2[1], orth2[2],
+   * orth2[3]); */
 
   /* Make sure the sorts are ok. */
   /* for (int k = 1; k < (*ci)->count; k++)
@@ -1106,7 +1177,7 @@ static inline void iact_pair_direct_sorted(struct cell *ci, struct cell *cj) {
     double x[3];
     float a[3];
     float mass, d;
-    };
+  };
 
   int i, j, k, l;
   int count_i, count_j;
@@ -1128,16 +1199,20 @@ static inline void iact_pair_direct_sorted(struct cell *ci, struct cell *cj) {
   double com[4][3] = {{0.0, 0.0, 0.0}, {0.0, 0.0, 0.0}, {0.0, 0.0, 0.0},
                       {0.0, 0.0, 0.0}};
   float com_mass[4] = {0.0, 0.0, 0.0, 0.0};
-  float orth1[4], orth2[4];
+  float axis[3], orth1[4], orth2[4];
   int num_orth_planes = 0;
-  get_axis(&ci, &cj, &ind_i, &ind_j, &num_orth_planes, orth1, orth2);
+  get_axis(&ci, &cj, &ind_i, &ind_j, axis, &num_orth_planes, orth1, orth2);
   cjh = cj->h;
-  
+
   /* Allocate and fill-in the local parts. */
   count_i = ci->count;
   count_j = cj->count;
-  if ((parts_i = (struct part_local *)alloca(sizeof(struct part_local) * count_i)) == NULL ||
-      (parts_j = (struct part_local *)alloca(sizeof(struct part_local) * count_j)) == NULL)
+  if ((parts_i =
+           (struct part_local *)alloca(sizeof(struct part_local) *count_i)) ==
+          NULL ||
+      (parts_j =
+           (struct part_local *)alloca(sizeof(struct part_local) * count_j)) ==
+          NULL)
     error("Failed to allocate local part arrays.");
   for (i = 0; i < count_i; i++) {
     int pid = ind_i[i].ind;
@@ -1242,9 +1317,8 @@ static inline void iact_pair_direct_sorted(struct cell *ci, struct cell *cj) {
                    parts_j[jj].x[2] * orth1[2] + orth1[3];
         l = 2 * l + ((n1 < 0.0) ? 0 : 1);
         if (num_orth_planes > 1) {
-          float n2 =
-              parts_j[jj].x[0] * orth2[0] + parts_j[jj].x[1] * orth2[1] +
-              parts_j[jj].x[2] * orth2[2] + orth2[3];
+          float n2 = parts_j[jj].x[0] * orth2[0] + parts_j[jj].x[1] * orth2[1] +
+                     parts_j[jj].x[2] * orth2[2] + orth2[3];
           l = 2 * l + ((n2 < 0.0) ? 0 : 1);
         }
       }
@@ -1314,9 +1388,8 @@ static inline void iact_pair_direct_sorted(struct cell *ci, struct cell *cj) {
                    parts_i[i].x[2] * orth1[2] + orth1[3];
         l = 2 * l + ((n1 < 0) ? 0 : 1);
         if (num_orth_planes > 1) {
-          float n2 =
-              parts_i[i].x[0] * orth2[0] + parts_i[i].x[1] * orth2[1] +
-              parts_i[i].x[2] * orth2[2] + orth2[3];
+          float n2 = parts_i[i].x[0] * orth2[0] + parts_i[i].x[1] * orth2[1] +
+                     parts_i[i].x[2] * orth2[2] + orth2[3];
           l = 2 * l + ((n2 < 0) ? 0 : 1);
         }
       }
@@ -1349,17 +1422,246 @@ static inline void iact_pair_direct_sorted(struct cell *ci, struct cell *cj) {
       }
     }
   }
-  
+
   /* Copy the accelerations back to the original particles. */
   for (i = 0; i < count_i; i++) {
     int pid = ind_i[i].ind;
-    for (k = 0; k < 3; k++)
-      ci->parts[pid].a[k] += parts_i[i].a[k];
+    for (k = 0; k < 3; k++) ci->parts[pid].a[k] += parts_i[i].a[k];
   }
   for (j = 0; j < count_j; j++) {
     int pjd = ind_j[j].ind;
-    for (k = 0; k < 3; k++)
-      cj->parts[pjd].a[k] += parts_j[j].a[k];
+    for (k = 0; k < 3; k++) cj->parts[pjd].a[k] += parts_j[j].a[k];
+  }
+}
+
+static inline void iact_pair_direct_sorted_dipole(struct cell *ci,
+                                                  struct cell *cj) {
+
+  struct part_local {
+    double x[3];
+    float a[3];
+    float mass, d;
+  };
+
+  int i, j, k, l;
+  int count_i, count_j;
+  struct part_local *parts_i, *parts_j;
+  double cjh = cj->h;
+  double xi[3];
+  float dx[3], ai[3], mi, mj, r2, w, ir;
+
+#ifdef SANITY_CHECKS
+
+  /* Bad stuff will happen if cell sizes are different */
+  if (ci->h != cj->h)
+    error("Non matching cell sizes !! h_i=%f h_j=%f\n", ci->h, cj->h);
+
+#endif
+
+  /* Get the sorted indices and stuff. */
+  struct index *ind_i, *ind_j;
+  struct dipole dip[4];
+  float axis[3], orth1[4], orth2[4];
+  int num_orth_planes = 0;
+  get_axis(&ci, &cj, &ind_i, &ind_j, axis, &num_orth_planes, orth1, orth2);
+  for (k = 0; k < (1 << num_orth_planes); k++) dipole_init(&dip[k], axis);
+  cjh = cj->h;
+
+  /* Allocate and fill-in the local parts. */
+  count_i = ci->count;
+  count_j = cj->count;
+  if ((parts_i =
+           (struct part_local *)alloca(sizeof(struct part_local) *count_i)) ==
+          NULL ||
+      (parts_j =
+           (struct part_local *)alloca(sizeof(struct part_local) * count_j)) ==
+          NULL)
+    error("Failed to allocate local part arrays.");
+  for (i = 0; i < count_i; i++) {
+    int pid = ind_i[i].ind;
+    parts_i[i].d = ind_i[i].d;
+    for (k = 0; k < 3; k++) {
+      parts_i[i].x[k] = ci->parts[pid].x[k];
+      parts_i[i].a[k] = 0.0f;
+    }
+    parts_i[i].mass = ci->parts[pid].mass;
+  }
+  for (j = 0; j < count_j; j++) {
+    int pjd = ind_j[j].ind;
+    parts_j[j].d = ind_j[j].d;
+    for (k = 0; k < 3; k++) {
+      parts_j[j].x[k] = cj->parts[pjd].x[k];
+      parts_j[j].a[k] = 0.0f;
+    }
+    parts_j[j].mass = cj->parts[pjd].mass;
+  }
+
+#if ICHECK >= 0
+  for (k = 0; k < count_i; k++)
+    if (parts_i[k].id == ICHECK)
+      message("[DEBUG] interacting cells loc=[%f,%f,%f], h=%f and "
+              "loc=[%f,%f,%f], h=%f.",
+              ci->loc[0], ci->loc[1], ci->loc[2], ci->h, cj->loc[0], cj->loc[1],
+              cj->loc[2], cj->h);
+  for (k = 0; k < count_j; k++)
+    if (parts_j[k].id == ICHECK)
+      message("[DEBUG] interacting cells loc=[%f,%f,%f], h=%f and "
+              "loc=[%f,%f,%f], h=%f.",
+              cj->loc[0], cj->loc[1], cj->loc[2], cj->h, ci->loc[0], ci->loc[1],
+              ci->loc[2], ci->h);
+#endif
+
+  /* Distance along the axis as of which we will use a multipole. */
+  float d_max = dist_cutoff_ratio * cjh;
+
+  /* Loop over all particles in ci... */
+  for (i = count_i - 1; i >= 0; i--) {
+
+    /* Get a local copy of the distance along the axis. */
+    float di = parts_i[i].d;
+
+    /* Init the ith particle's data. */
+    for (k = 0; k < 3; k++) {
+      xi[k] = parts_i[i].x[k];
+      ai[k] = 0.0;
+    }
+    mi = parts_i[i].mass;
+
+    /* Loop over every following particle within d_max along the axis. */
+    for (j = 0; j < count_j && (parts_j[j].d - di) < d_max; j++) {
+
+      /* Compute the pairwise distance. */
+      for (r2 = 0.0, k = 0; k < 3; k++) {
+        dx[k] = xi[k] - parts_j[j].x[k];
+        r2 += dx[k] * dx[k];
+      }
+
+      /* Apply the gravitational acceleration. */
+      ir = 1.0f / sqrtf(r2);
+      w = const_G * ir * ir * ir;
+      mj = parts_j[j].mass;
+      for (k = 0; k < 3; k++) {
+        float wdx = w * dx[k];
+        parts_j[j].a[k] += wdx * mi;
+        ai[k] -= wdx * mj;
+      }
+
+#if ICHECK >= 0
+      if (parts_i[i].id == ICHECK)
+        message("Interaction with part %d - d= %f", parts_j[j].id, sqrt(r2));
+#endif
+
+#ifdef COUNTERS
+      ++count_direct_sorted_pp;
+#endif
+
+#if ICHECK >= 0 && 0
+      if (parts_i[i].id == ICHECK)
+        printf("[NEW] Interaction with particle id= %d (pair i)\n",
+               parts_j[pjd].id);
+
+      if (parts_j[j].id == ICHECK)
+        printf("[NEW] Interaction with particle id= %d (pair j) h_i= %f h_j= "
+               "%f ci= %p cj= %p count_i= %d count_j= %d d_i= %d d_j= %d\n",
+               parts_i[pid].id, ci->h, cj->h, ci, cj, count_i, count_j, ci->res,
+               cj->res);
+#endif
+
+    } /* loop over every other particle. */
+
+    /* Add any remaining particles to the COM. */
+    for (int jj = j; jj < count_j; jj++) {
+
+      l = 0;
+#ifdef MANY_MULTIPOLES
+      if (num_orth_planes > 0) {
+        float n1 = parts_j[jj].x[0] * orth1[0] + parts_j[jj].x[1] * orth1[1] +
+                   parts_j[jj].x[2] * orth1[2] + orth1[3];
+        l = 2 * l + ((n1 < 0.0) ? 0 : 1);
+        if (num_orth_planes > 1) {
+          float n2 = parts_j[jj].x[0] * orth2[0] + parts_j[jj].x[1] * orth2[1] +
+                     parts_j[jj].x[2] * orth2[2] + orth2[3];
+          l = 2 * l + ((n2 < 0.0) ? 0 : 1);
+        }
+      }
+#endif
+
+      dipole_add(&dip[l], parts_j[jj].x, parts_j[jj].mass, parts_j[jj].d);
+    }
+
+    /* Shrink count_j to the latest valid particle. */
+    count_j = j;
+
+    /* Interact part_i with the center of mass. */
+    for (l = 0; l < (1 << num_orth_planes); ++l) {
+      dipole_iact(&dip[l], xi, ai);
+#if ICHECK >= 0
+      if (parts_i[i].id == ICHECK)
+        message("Interaction with multipole");  //, parts_j[j].id );
+#endif
+
+#ifdef COUNTERS
+      ++count_direct_sorted_pm_i;
+#endif
+    }
+
+    /* Store the accumulated acceleration on the ith part. */
+    for (k = 0; k < 3; k++) parts_i[i].a[k] += ai[k];
+
+  } /* loop over all particles in ci. */
+
+  /* Re-init some values. */
+  count_j = cj->count;
+  int last_i = 0;
+  for (l = 0; l < (1 << num_orth_planes); ++l) {
+    dipole_reset(&dip[l]);
+  }
+
+  /* Loop over the particles in cj, catch the COM interactions. */
+  for (j = 0; j < count_j; j++) {
+
+    /* Get the sorted index. */
+    float dj = parts_j[j].d;
+
+    /* Fill the COM with any new particles. */
+    for (i = last_i; i < count_i && (dj - parts_i[i].d) > d_max; i++) {
+      l = 0;
+#ifdef MANY_MULTIPOLES
+      if (num_orth_planes > 0) {
+        float n1 = parts_i[i].x[0] * orth1[0] + parts_i[i].x[1] * orth1[1] +
+                   parts_i[i].x[2] * orth1[2] + orth1[3];
+        l = 2 * l + ((n1 < 0) ? 0 : 1);
+        if (num_orth_planes > 1) {
+          float n2 = parts_i[i].x[0] * orth2[0] + parts_i[i].x[1] * orth2[1] +
+                     parts_i[i].x[2] * orth2[2] + orth2[3];
+          l = 2 * l + ((n2 < 0) ? 0 : 1);
+        }
+      }
+#endif
+
+      dipole_add(&dip[l], parts_i[i].x, parts_i[i].mass, parts_i[i].d);
+    }
+
+    /* Set the new last_i to the last particle checked. */
+    last_i = i;
+
+    /* Interact part_j with the COM. */
+    for (l = 0; l < (1 << num_orth_planes); ++l) {
+      dipole_iact(&dip[l], parts_j[j].x, parts_j[j].a);
+#ifdef COUNTERS
+      ++count_direct_sorted_pm_j;
+#endif
+    }
+  }
+
+  /* Copy the accelerations back to the original particles. */
+  for (i = 0; i < count_i; i++) {
+    int pid = ind_i[i].ind;
+    for (k = 0; k < 3; k++) ci->parts[pid].a[k] += parts_i[i].a[k];
+  }
+  for (j = 0; j < count_j; j++) {
+    int pjd = ind_j[j].ind;
+    for (k = 0; k < 3; k++) cj->parts[pjd].a[k] += parts_j[j].a[k];
   }
 }
 
@@ -2095,38 +2397,36 @@ void test_bh(int N, int nr_threads, int runs, char *fileName) {
   free(parts);
 }
 
-
 /* All 26 configurations for the cell tests */
-const float cell_shift[27 * 3] = {
-  1.0,  1.0,  1.0, /* 0 */
-  1.0,  1.0,  0.0, /* 1 */
-  1.0,  1.0, -1.0, /* 2 */
-  1.0,  0.0,  1.0, /* 3 */
-  1.0,  0.0,  0.0, /* 4 */
-  1.0,  0.0, -1.0, /* 5 */
-  1.0, -1.0,  1.0, /* 6 */
-  1.0, -1.0,  0.0, /* 7 */
-  1.0, -1.0, -1.0, /* 8 */
-  0.0,  1.0,  1.0, /* 9 */
-  0.0,  1.0,  0.0, /* 10 */
-  0.0,  1.0, -1.0, /* 11 */
-  0.0,  0.0,  1.0, /* 12 */
-  -1.0, -1.0, -1.0, /* 13 */
-  -1.0, -1.0,  0.0, /* 14 */
-  -1.0, -1.0,  1.0, /* 15 */
-  -1.0,  0.0, -1.0, /* 16 */
-  -1.0,  0.0,  0.0, /* 17 */
-  -1.0,  0.0,  1.0, /* 18 */
-  -1.0,  1.0, -1.0, /* 19 */
-  -1.0,  1.0,  0.0, /* 20 */
-  -1.0,  1.0,  1.0, /* 21 */
-  0.0, -1.0, -1.0, /* 22 */
-  0.0, -1.0,  0.0, /* 23 */
-  0.0, -1.0,  1.0, /* 24 */
-  0.0,  0.0, -1.0,  /* 25 */
-  0.0,  0.0, 0.0  /* 26 */ /* <-- The cell itself */
+const float cell_shift[27 * 3] = {1.0, 1.0, 1.0,    /* 0 */
+                                  1.0, 1.0, 0.0,    /* 1 */
+                                  1.0, 1.0, -1.0,   /* 2 */
+                                  1.0, 0.0, 1.0,    /* 3 */
+                                  1.0, 0.0, 0.0,    /* 4 */
+                                  1.0, 0.0, -1.0,   /* 5 */
+                                  1.0, -1.0, 1.0,   /* 6 */
+                                  1.0, -1.0, 0.0,   /* 7 */
+                                  1.0, -1.0, -1.0,  /* 8 */
+                                  0.0, 1.0, 1.0,    /* 9 */
+                                  0.0, 1.0, 0.0,    /* 10 */
+                                  0.0, 1.0, -1.0,   /* 11 */
+                                  0.0, 0.0, 1.0,    /* 12 */
+                                  -1.0, -1.0, -1.0, /* 13 */
+                                  -1.0, -1.0, 0.0,  /* 14 */
+                                  -1.0, -1.0, 1.0,  /* 15 */
+                                  -1.0, 0.0, -1.0,  /* 16 */
+                                  -1.0, 0.0, 0.0,   /* 17 */
+                                  -1.0, 0.0, 1.0,   /* 18 */
+                                  -1.0, 1.0, -1.0,  /* 19 */
+                                  -1.0, 1.0, 0.0,   /* 20 */
+                                  -1.0, 1.0, 1.0,   /* 21 */
+                                  0.0, -1.0, -1.0,  /* 22 */
+                                  0.0, -1.0, 0.0,   /* 23 */
+                                  0.0, -1.0, 1.0,   /* 24 */
+                                  0.0, 0.0, -1.0,   /* 25 */
+                                  0.0, 0.0,
+                                  0.0 /* 26 */ /* <-- The cell itself */
 };
-
 
 /**
  * @brief Creates two neighbouring cells wiht N_parts per celland makes them
@@ -2142,13 +2442,11 @@ void test_direct_neighbour(int N_parts, int orientation) {
   struct part *parts;
   struct cell left, right;
 
-  if ( orientation >= 26 )
-    error( "Wrong orientation !" );
+  if (orientation >= 26) error("Wrong orientation !");
 
   /* Select configuration */
   float shift[3];
-  for ( k = 0 ; k < 3 ; ++k )
-    shift[k] = cell_shift[ 3 * orientation + k ];
+  for (k = 0; k < 3; ++k) shift[k] = cell_shift[3 * orientation + k];
 
   /* Init and fill the particle array. */
   if ((parts = (struct part *)malloc(sizeof(struct part) * N_parts * 2)) ==
@@ -2234,7 +2532,7 @@ void test_direct_neighbour(int N_parts, int orientation) {
   }
 
   /* Do the interactions with sorting */
-  iact_pair_direct_sorted(&left, &right);
+  iact_pair_direct(&left, &right);
 
   message("Sorted interactions done ");
 
@@ -2252,16 +2550,17 @@ void test_direct_neighbour(int N_parts, int orientation) {
   double *position;
   if ((position = (double *)malloc(sizeof(double) * N_parts * 2)) == NULL)
     error("Failed to allocate position buffer.");
-  
-  float midPoint = shift[0]*shift[0] + shift[1]*shift[1] + shift[2]*shift[2];
-  midPoint += ( shift[0] < 0 ? -1 : 0);
-  midPoint += ( shift[1] < 0 ? -1 : 0);
-  midPoint += ( shift[2] < 0 ? -1 : 0);
-  message( "MidPoint: %f", midPoint );
+
+  float midPoint =
+      shift[0] * shift[0] + shift[1] * shift[1] + shift[2] * shift[2];
+  midPoint += (shift[0] < 0 ? -1 : 0);
+  midPoint += (shift[1] < 0 ? -1 : 0);
+  midPoint += (shift[2] < 0 ? -1 : 0);
+  message("MidPoint: %f", midPoint);
 
   for (k = 0; k < 2 * N_parts; ++k)
-    position[k] = parts[k].x[0] * shift[0] + parts[k].x[1] * shift[1] + parts[k].x[2] * shift[2] - midPoint;
-    
+    position[k] = parts[k].x[0] * shift[0] + parts[k].x[1] * shift[1] +
+                  parts[k].x[2] * shift[2] - midPoint;
 
   /* Now, output everything */
   char fileName[100];
@@ -2294,14 +2593,9 @@ void test_direct_neighbour(int N_parts, int orientation) {
   free(parts);
 }
 
-
-
-
-
-
 /**
- * @brief Creates 27 cells and makes the particles in the central one 
- * interact with the other cells 
+ * @brief Creates 27 cells and makes the particles in the central one
+ * interact with the other cells
  * using both the sorted and unsorted interactions
  * Outputs then the two sets of accelerations for accuracy tests.
  * @param N_parts Number of particles in each cell
@@ -2313,12 +2607,10 @@ void test_all_direct_neighbours(int N_parts, int N_test) {
   struct part *parts;
   struct cell cells[27];
 
-
   /* Init and fill the particle array. */
   if ((parts = (struct part *)malloc(sizeof(struct part) * N_parts * 27)) ==
       NULL)
     error("Failed to allocate particle buffer.");
-
 
 #ifdef COUNTERS
   count_direct_unsorted = 0;
@@ -2330,37 +2622,34 @@ void test_all_direct_neighbours(int N_parts, int N_test) {
   int countPairs = 0;
   int countCoMs = 0;
 
-
   /* Loop over the number of tests */
-  for ( i = 0 ; i < N_test ; ++i ) {
+  for (i = 0; i < N_test; ++i) {
 
     /* Loop over the 27 cells */
-    for (j = 0; j < 27 ; ++j) {
-      
+    for (j = 0; j < 27; ++j) {
+
       float shift[3];
-      for ( k = 0 ; k < 3 ; ++k )
-	shift[k] = cell_shift[ 3 * j + k ];
+      for (k = 0; k < 3; ++k) shift[k] = cell_shift[3 * j + k];
 
-      /* Create random set of particles in all cells */  
+      /* Create random set of particles in all cells */
       for (k = 0; k < N_parts; k++) {
-	parts[j*N_parts + k].id = j*N_parts + k;
-      
-	parts[j*N_parts + k].x[0] = ((double)rand()) / RAND_MAX + shift[0];
-	parts[j*N_parts + k].x[1] = ((double)rand()) / RAND_MAX + shift[1];
-	parts[j*N_parts + k].x[2] = ((double)rand()) / RAND_MAX + shift[2];
-      
-	parts[j*N_parts + k].mass = ((double)rand()) / RAND_MAX;
-	parts[j*N_parts + k].a[0] = 0.0;
-	parts[j*N_parts + k].a[1] = 0.0;
-	parts[j*N_parts + k].a[2] = 0.0;
-	parts[j*N_parts + k].a_exact[0] = 0.0;
-	parts[j*N_parts + k].a_exact[1] = 0.0;
-	parts[j*N_parts + k].a_exact[2] = 0.0;
-	parts[j*N_parts + k].a_legacy[0] = 0.0;
-	parts[j*N_parts + k].a_legacy[1] = 0.0;
-	parts[j*N_parts + k].a_legacy[2] = 0.0;
-      }    
+        parts[j * N_parts + k].id = j * N_parts + k;
 
+        parts[j * N_parts + k].x[0] = ((double)rand()) / RAND_MAX + shift[0];
+        parts[j * N_parts + k].x[1] = ((double)rand()) / RAND_MAX + shift[1];
+        parts[j * N_parts + k].x[2] = ((double)rand()) / RAND_MAX + shift[2];
+
+        parts[j * N_parts + k].mass = ((double)rand()) / RAND_MAX;
+        parts[j * N_parts + k].a[0] = 0.0;
+        parts[j * N_parts + k].a[1] = 0.0;
+        parts[j * N_parts + k].a[2] = 0.0;
+        parts[j * N_parts + k].a_exact[0] = 0.0;
+        parts[j * N_parts + k].a_exact[1] = 0.0;
+        parts[j * N_parts + k].a_exact[2] = 0.0;
+        parts[j * N_parts + k].a_legacy[0] = 0.0;
+        parts[j * N_parts + k].a_legacy[1] = 0.0;
+        parts[j * N_parts + k].a_legacy[2] = 0.0;
+      }
 
       /* Get the cell geometry right */
       cells[j].loc[0] = shift[0];
@@ -2385,16 +2674,14 @@ void test_all_direct_neighbours(int N_parts, int N_test) {
       cells[j].sorted = 0;
     }
 
-
     /* Do the interactions without sorting */
-    for (j = 0; j < 26 ; ++j)
-      iact_pair_direct_unsorted(&cells[26], &cells[j]);
+    for (j = 0; j < 26; ++j) iact_pair_direct_unsorted(&cells[26], &cells[j]);
     iact_self_direct(&cells[26]);
 
-    //message("Unsorted interactions done ");
+    // message("Unsorted interactions done ");
 
     /* Store accelerations */
-    for (k = 0; k < 27*N_parts; k++) {
+    for (k = 0; k < 27 * N_parts; k++) {
       parts[k].a_exact[0] = parts[k].a[0];
       parts[k].a_exact[1] = parts[k].a[1];
       parts[k].a_exact[2] = parts[k].a[2];
@@ -2404,52 +2691,48 @@ void test_all_direct_neighbours(int N_parts, int N_test) {
     }
 
     /* Do the interactions with sorting */
-    for (j = 0; j < 26 ; ++j) 
-      iact_pair_direct_sorted(&cells[26], &cells[j]);
+    for (j = 0; j < 26; ++j) iact_pair_direct(&cells[26], &cells[j]);
     iact_self_direct(&cells[26]);
 
-    //message("Sorted interactions done ");
-
+    // message("Sorted interactions done ");
 
     /* Now, do a B-H calculation on the same set of particles */
-    struct cell* root = cell_get();
+    struct cell *root = cell_get();
     root->loc[0] = -1.0;
     root->loc[1] = -1.0;
     root->loc[2] = -1.0;
     root->h = 3.0;
-    root->count = 27*N_parts;
+    root->count = 27 * N_parts;
     root->parts = parts;
     struct qsched s;
     qsched_init(&s, 1, qsched_flag_noreown);
     cell_split(root, &s);
-    legacy_tree_walk(27*N_parts, parts, root, ICHECK, &countMultipoles, &countPairs,
-                     &countCoMs);
+    legacy_tree_walk(27 * N_parts, parts, root, ICHECK, &countMultipoles,
+                     &countPairs, &countCoMs);
 
-    //free(root);
+    // free(root);
     //++countCoMs;
-
 
     /* Now, output everything */
     char fileName[100];
     sprintf(fileName, "interaction_dump_all.dat");
-    //message("Writing file '%s'", fileName);
-    FILE *file = fopen(fileName, ( i == 0 ? "w" :"a" ));
-    if ( i == 0 )
-      fprintf(file,  "# ID m x y z a_u.x   a_u.y    a_u.z    a_s.x    a_s.y    a_s.z"
-	             "   a_bh.x   a_bh.y   a_bh.z\n");
-    for (k = 0; k < 27*N_parts; k++) {
-      if (parts[k].id >= 26*N_parts )
-	fprintf(file, "%d %e %e %e %e %e %e %e %e %e %e %e %e %e\n", parts[k].id,
-	      parts[k].mass, 
-	      parts[k].x[0], parts[k].x[1], parts[k].x[2], 
-	      parts[k].a_exact[0], parts[k].a_exact[1], parts[k].a_exact[2], 
-	      parts[k].a[0], parts[k].a[1], parts[k].a[2], 
-	      parts[k].a_legacy[0], parts[k].a_legacy[1], parts[k].a_legacy[2]);
+    // message("Writing file '%s'", fileName);
+    FILE *file = fopen(fileName, (i == 0 ? "w" : "a"));
+    if (i == 0)
+      fprintf(file,
+              "# ID m x y z a_u.x   a_u.y    a_u.z    a_s.x    a_s.y    a_s.z"
+              "   a_bh.x   a_bh.y   a_bh.z\n");
+    for (k = 0; k < 27 * N_parts; k++) {
+      if (parts[k].id >= 26 * N_parts)
+        fprintf(file, "%d %e %e %e %e %e %e %e %e %e %e %e %e %e\n",
+                parts[k].id, parts[k].mass, parts[k].x[0], parts[k].x[1],
+                parts[k].x[2], parts[k].a_exact[0], parts[k].a_exact[1],
+                parts[k].a_exact[2], parts[k].a[0], parts[k].a[1],
+                parts[k].a[2], parts[k].a_legacy[0], parts[k].a_legacy[1],
+                parts[k].a_legacy[2]);
     }
     fclose(file);
-
   }
-
 
 #ifdef COUNTERS
   message("Unsorted intereactions:           %d", count_direct_unsorted);
@@ -2466,18 +2749,9 @@ void test_all_direct_neighbours(int N_parts, int N_test) {
 // count_direct_sorted_pp, count_direct_sorted_pm_i, count_direct_sorted_pm_j );
 #endif
 
-
-
   /* Clean up */
   free(parts);
-
 }
-
-
-
-
-
-
 
 /**
  * @brief Main function.
@@ -2556,16 +2830,14 @@ int main(int argc, char *argv[]) {
             N_parts);
 
     /* Run the test */
-    for ( k = 0 ; k < 26 ; ++k )
-      test_direct_neighbour(N_parts, k);
+    for (k = 0; k < 26; ++k) test_direct_neighbour(N_parts, k);
 
     /* Dump arguments */
     message("Interacting one cell with %d particles with its 27 neighbours"
-	    " %d times to get the statistics.",
-            N_parts , N_iterations);
+            " %d times to get the statistics.",
+            N_parts, N_iterations);
 
     test_all_direct_neighbours(N_parts, N_iterations);
-
 
   } else {
 
