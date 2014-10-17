@@ -72,9 +72,9 @@ end
 hold off;
 xlabel('time (ms)');
 ylabel('core ID');
-set(gca,'YTick',0:(max(tasks(:,2))))
+set(gca,'YTick',0:8:(max(tasks(:,2))))
 title('QuickSched tiled QR decomposition tasks');
-axis([ 0 , 110 , -0.5 , nr_cores-0.5 ]);
+axis([ 0 , 250 , -0.5 , nr_cores-0.5 ]);
 
 % Print this plot
 set( gcf , 'PaperSize' , 2.3*[ 16 4 ] );
@@ -108,9 +108,9 @@ end
 hold off;
 xlabel('time (ms)');
 ylabel('core ID');
-set(gca,'YTick',0:(max(tasks(:,1))))
+set(gca,'YTick',0:8:(max(tasks(:,1))))
 title('OmpSs tiled QR decomposition tasks');
-axis([ 0 , 110 , -0.5 , nr_cores-0.5 ]);
+axis([ 0 , 250 , -0.5 , nr_cores-0.5 ]);
 
 % Print this plot
 set( gcf , 'PaperSize' , 2.3*[ 16 4 ] );
@@ -123,7 +123,7 @@ print -depsc2 figures/tasks_qr_ompss.eps
 
 %% Plot the task timelines for tasks allocation
 % Load the data
-tasks = importdata( 'test.dump' );
+tasks = dlmread( 'test_bh_sorted.tasks' );
 tasks(:,4) = ( tasks(:,4) - tasks(:,3) ) * tpms;
 start = min( tasks(:,3) );
 tasks(:,3) = ( tasks(:,3) - start ) * tpms;
@@ -132,7 +132,11 @@ nr_cores = max( tasks(:,2) ) + 1;
 % Init the plot
 clf;
 subplot('position',[ 0.05 , 0.1 , 0.9 , 0.8 ]);
-colours = [ 1 0 0 ; 0 1 0 ; 0 0 1 ; 1 1 0 ];
+colours = [ 1 0 0 ; 0 1 0 ; 0 0 1 ; 1 1 0 ; 0 1 1 ];
+xlabel('time (ms)');
+ylabel('core ID');
+title('Barnes-Hut tasks');
+axis([ 0 , max( tasks(:,3) + tasks(:,4) ) , -0.5 , nr_cores-0.5 ]);
 hold on;
 
 % Plot the tasks
@@ -144,11 +148,6 @@ end
 
 % Set the axes and stuff.
 hold off;
-xlabel('time (ms)');
-ylabel('core ID');
-set(gca,'YTick',0:(max(tasks(:,1))))
-title('Barnes-Hut tasks');
-axis([ 0 , max( tasks(:,3) + tasks(:,4) ) , -0.5 , nr_cores-0.5 ]);
 
 % Print this plot
 set( gcf , 'PaperSize' , 2.3*[ 16 4 ] );

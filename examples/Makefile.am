@@ -24,6 +24,9 @@ AM_CFLAGS = -g -O3 -Wall -Werror -I../src -ffast-math -fstrict-aliasing \
     -ftree-vectorize -funroll-loops $(SIMD_FLAGS) $(OPENMP_CFLAGS) \
     -DCPU_TPS=2.67e9 -DTIMERS \
     # -fsanitize=address -fno-omit-frame-pointer
+# AM_CFLAGS = -g -O0 -Wall -Werror -I../src \
+#     -DCPU_TPS=2.67e9 -DTIMERS $(OPENMP_CFLAGS) \
+#     -fsanitize=address -fno-omit-frame-pointer
 
 AM_LDFLAGS = -lm # -fsanitize=address
 

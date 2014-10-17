@@ -417,6 +417,7 @@ void test_qr(int m, int n, int K, int nr_threads, int runs) {
   int k, j, i, r;
   double* A, *A_orig, *tau;
   ticks tic, toc_run, tot_run = 0;
+  double tid[ m * n ];
 
   /* Allocate and fill the original matrix. */
   if ((A = (double*)malloc(sizeof(double)* m* n* K* K)) == NULL ||
@@ -539,7 +540,7 @@ int main(int argc, char* argv[]) {
   /* Dump arguments. */
   message("Computing the tiled QR decomposition of a %ix%i matrix using %i "
           "threads (%i runs).",
-          32 * M, 32 * N, nr_threads, runs);
+          K * M, K * N, nr_threads, runs);
 
   /* Initialize the timers. */
   if ((timers = (struct timer*)malloc(sizeof(struct timer) * M * M * N)) ==

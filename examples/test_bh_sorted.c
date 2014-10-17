@@ -42,7 +42,7 @@
 #define const_G 1    // 6.6738e-8
 #define dist_min 0.5 /* Used for legacy walk only */
 #define dist_cutoff_ratio 1.5
-#define iact_pair_direct iact_pair_direct_sorted_dipole
+#define iact_pair_direct iact_pair_direct_sorted
 
 #define ICHECK -1
 #define NO_SANITY_CHECKS
@@ -116,7 +116,7 @@ struct dipole {
   float axis[3];
   double x[3];
   float mass;
-  double da, da2;
+  float da, da2;
 };
 
 static inline void dipole_init(struct dipole *d, const float *axis) {
@@ -164,7 +164,7 @@ static inline void dipole_iact(const struct dipole *d, const double *x,
 
   /* Compute the first dipole. */
   for (r2 = 0.0f, k = 0; k < 3; k++) {
-    dx[k] = x[k] - d->x[k] * inv_mass + offset * d->axis[k];
+    dx[k] = x[k] - (d->x[k] * inv_mass + offset * d->axis[k]);
     r2 += dx[k] * dx[k];
   }
   ir = 1.0f / sqrtf(r2);
@@ -173,7 +173,7 @@ static inline void dipole_iact(const struct dipole *d, const double *x,
 
   /* Compute the second dipole. */
   for (r2 = 0.0f, k = 0; k < 3; k++) {
-    dx[k] = x[k] - d->x[k] * inv_mass - offset * d->axis[k];
+    dx[k] = x[k] - (d->x[k] * inv_mass - offset * d->axis[k]);
     r2 += dx[k] * dx[k];
   }
   ir = 1.0f / sqrtf(r2);
@@ -377,7 +377,7 @@ void indices_sort(struct index *sort, int N) {
  * @param axis The normalized axis along which to sort.
  * @param aid The axis ID at which to store the indices.
  */
-void cell_sort(struct cell *c, float *axis, int aid) {
+void cell_sort(struct cell *c, const float *axis, int aid) {
 
   /* Has the indices array even been allocated? */
   if (c->indices == NULL) {
@@ -1609,6 +1609,16 @@ static inline void iact_pair_direct_sorted_dipole(struct cell *ci,
     for (k = 0; k < 3; k++) parts_i[i].a[k] += ai[k];
 
   } /* loop over all particles in ci. */
+  
+  /* Dump extensive info on the dipole. */
+  /* message("dip[0] has x=[%e,%e,%e], axis=[%e,%e,%e], da=%e, da2=%e, mass=%e.",
+    dip[0].x[0], dip[0].x[1], dip[0].x[2],
+    dip[0].axis[0], dip[0].axis[1], dip[0].axis[2],
+    dip[0].da, dip[0].da2, dip[0].mass);
+  for (j = count_j; j < cj->count; j++) {
+    message("   particle x=[%e,%e,%e], mass=%e.",
+      parts_j[j].x[0], parts_j[j].x[1], parts_j[j].x[2], parts_j[j].mass);
+  } */
 
   /* Re-init some values. */
   count_j = cj->count;
