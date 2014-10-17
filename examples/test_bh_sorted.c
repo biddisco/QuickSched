@@ -37,7 +37,7 @@
 
 /* Some local constants. */
 #define cell_pool_grow 1000
-#define cell_maxparts 1
+#define cell_maxparts 100
 #define task_limit 1e8
 #define const_G 1    // 6.6738e-8
 #define dist_min 0.5 /* Used for legacy walk only */
@@ -114,7 +114,7 @@ enum task_type {
 /** Dipole stuff. Moment-matching multipole along a given direction. */
 struct dipole {
   float axis[3];
-  double x[3];
+  float x[3];
   float mass;
   float da, da2;
 };
@@ -136,7 +136,7 @@ static inline void dipole_reset(struct dipole *d) {
   d->da2 = 0.0;
 }
 
-static inline void dipole_add(struct dipole *d, const double *x, float mass,
+static inline void dipole_add(struct dipole *d, const float *x, float mass,
                               float da) {
   for (int k = 0; k < 3; k++) d->x[k] += x[k] * mass;
   d->mass += mass;
@@ -144,7 +144,7 @@ static inline void dipole_add(struct dipole *d, const double *x, float mass,
   d->da2 += da * da * mass;
 }
 
-static inline void dipole_iact(const struct dipole *d, const double *x,
+static inline void dipole_iact(const struct dipole *d, const float *x,
                                float *a) {
   // Bail early if no mass.
   if (d->mass == 0.0) return;
@@ -1168,7 +1168,7 @@ static inline void iact_pair_direct_unsorted(struct cell *ci, struct cell *cj) {
 static inline void iact_pair_direct_sorted(struct cell *ci, struct cell *cj) {
 
   struct part_local {
-    double x[3];
+    float x[3];
     float a[3];
     float mass, d;
   };
@@ -1176,8 +1176,8 @@ static inline void iact_pair_direct_sorted(struct cell *ci, struct cell *cj) {
   int i, j, k, l;
   int count_i, count_j;
   struct part_local *parts_i, *parts_j;
-  double cjh = cj->h;
-  double xi[3];
+  float cjh = cj->h;
+  float xi[3];
   float dx[3], ai[3], mi, mj, r2, w, ir;
 
 #ifdef SANITY_CHECKS
@@ -1190,7 +1190,7 @@ static inline void iact_pair_direct_sorted(struct cell *ci, struct cell *cj) {
 
   /* Get the sorted indices and stuff. */
   struct index *ind_i, *ind_j;
-  double com[4][3] = {{0.0, 0.0, 0.0}, {0.0, 0.0, 0.0}, {0.0, 0.0, 0.0},
+  float com[4][3] = {{0.0, 0.0, 0.0}, {0.0, 0.0, 0.0}, {0.0, 0.0, 0.0},
                       {0.0, 0.0, 0.0}};
   float com_mass[4] = {0.0, 0.0, 0.0, 0.0};
   float axis[3], orth1[4], orth2[4];
@@ -1212,7 +1212,7 @@ static inline void iact_pair_direct_sorted(struct cell *ci, struct cell *cj) {
     int pid = ind_i[i].ind;
     parts_i[i].d = ind_i[i].d;
     for (k = 0; k < 3; k++) {
-      parts_i[i].x[k] = ci->parts[pid].x[k];
+      parts_i[i].x[k] = ci->parts[pid].x[k] - cj->loc[k];
       parts_i[i].a[k] = 0.0f;
     }
     parts_i[i].mass = ci->parts[pid].mass;
@@ -1221,7 +1221,7 @@ static inline void iact_pair_direct_sorted(struct cell *ci, struct cell *cj) {
     int pjd = ind_j[j].ind;
     parts_j[j].d = ind_j[j].d;
     for (k = 0; k < 3; k++) {
-      parts_j[j].x[k] = cj->parts[pjd].x[k];
+      parts_j[j].x[k] = cj->parts[pjd].x[k] - cj->loc[k];
       parts_j[j].a[k] = 0.0f;
     }
     parts_j[j].mass = cj->parts[pjd].mass;
@@ -1432,7 +1432,7 @@ static inline void iact_pair_direct_sorted_dipole(struct cell *ci,
                                                   struct cell *cj) {
 
   struct part_local {
-    double x[3];
+    float x[3];
     float a[3];
     float mass, d;
   };
@@ -1440,8 +1440,8 @@ static inline void iact_pair_direct_sorted_dipole(struct cell *ci,
   int i, j, k, l;
   int count_i, count_j;
   struct part_local *parts_i, *parts_j;
-  double cjh = cj->h;
-  double xi[3];
+  float cjh = cj->h;
+  float xi[3];
   float dx[3], ai[3], mi, mj, r2, w, ir;
 
 #ifdef SANITY_CHECKS
@@ -1475,7 +1475,7 @@ static inline void iact_pair_direct_sorted_dipole(struct cell *ci,
     int pid = ind_i[i].ind;
     parts_i[i].d = ind_i[i].d;
     for (k = 0; k < 3; k++) {
-      parts_i[i].x[k] = ci->parts[pid].x[k];
+      parts_i[i].x[k] = ci->parts[pid].x[k] - cj->loc[k];
       parts_i[i].a[k] = 0.0f;
     }
     parts_i[i].mass = ci->parts[pid].mass;
@@ -1484,7 +1484,7 @@ static inline void iact_pair_direct_sorted_dipole(struct cell *ci,
     int pjd = ind_j[j].ind;
     parts_j[j].d = ind_j[j].d;
     for (k = 0; k < 3; k++) {
-      parts_j[j].x[k] = cj->parts[pjd].x[k];
+      parts_j[j].x[k] = cj->parts[pjd].x[k] - cj->loc[k];
       parts_j[j].a[k] = 0.0f;
     }
     parts_j[j].mass = cj->parts[pjd].mass;
