@@ -31,7 +31,7 @@ AM_CFLAGS = -g -O3 -Wall -Werror -I../src -ffast-math -fstrict-aliasing \
 AM_LDFLAGS = -lm # -fsanitize=address
 
 # Set-up the library
-bin_PROGRAMS = test test_qr test_bh test_bh_2 test_bh_3 test_bh_sorted
+bin_PROGRAMS = test test_qr test_bh test_bh_sorted
 
 # Sources for test
 test_SOURCES = test.c
@@ -47,16 +47,6 @@ test_qr_LDADD =  ../src/.libs/libquicksched.a -llapacke -llapacke -lblas
 test_bh_SOURCES = test_bh.c
 test_bh_CFLAGS = $(AM_CFLAGS)
 test_bh_LDADD =  ../src/.libs/libquicksched.a
-
-# Sources for test_bh_2
-test_bh_2_SOURCES = test_bh_2.c
-test_bh_2_CFLAGS = $(AM_CFLAGS)
-test_bh_2_LDADD =  ../src/.libs/libquicksched.a
-
-# Sources for test_bh_3
-test_bh_3_SOURCES = test_bh_3.c
-test_bh_3_CFLAGS = $(AM_CFLAGS)
-test_bh_3_LDADD =  ../src/.libs/libquicksched.a
 
 # Sources for test_bh_sorted
 test_bh_sorted_SOURCES = test_bh_sorted.c
