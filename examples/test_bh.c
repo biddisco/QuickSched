@@ -42,13 +42,11 @@
 #define const_G 1    // 6.6738e-8
 #define dist_min 0.5 /* Used for legacy walk only */
 #define dist_cutoff_ratio 1.5
-#define iact_pair_direct iact_pair_direct_sorted
 
 #define ICHECK -1
 #define NO_SANITY_CHECKS
 #define NO_COM_AS_TASK
-#define COUNTERS
-#define MANY_MULTIPOLES
+#define NO_COUNTERS
 
 /** Data structure for the particles. */
 struct part {
@@ -61,12 +59,6 @@ struct part {
   float mass;
   int id;
 };  // __attribute__((aligned(64)));
-
-/** Data structure for the sorted particle positions. */
-struct index {
-  int ind;
-  float d;
-};
 
 struct multipole {
   double com[3];
@@ -106,7 +98,6 @@ enum task_type {
   task_type_self = 0,
   task_type_pair,
   task_type_self_pc,
-  task_type_pair_direct,
   task_type_com,
   task_type_count
 };
@@ -618,18 +609,6 @@ static inline void iact_self_pc(struct cell *c, struct cell *leaf) {
       if (cp != cps && cps->split) iact_pair_pc(cp, cps, leaf);
     }
   }
-}
-
-/**
- * @brief Starts the recursive tree walk of a given leaf
- */
-void init_multipole_walk(struct cell *root, struct cell *leaf) {
-
-  /* Pre-fetch the leaf's particles */
-  __builtin_prefetch(leaf->parts, 1, 3);
-
-  /* Start the recursion */
-  iact_self_pc(root, leaf);
 }
 
 /**
@@ -1215,11 +1194,8 @@ void test_bh(int N, int nr_threads, int runs, char *fileName) {
       case task_type_pair:
         iact_pair(d[0], d[1]);
         break;
-      case task_type_pair_direct:
-        iact_pair_direct(d[0], d[1]);
-        break;
       case task_type_self_pc:
-        init_multipole_walk(d[0], d[1]);
+        iact_self_pc(d[0], d[1]);
         break;
       case task_type_com:
         comp_com(d[0]);
