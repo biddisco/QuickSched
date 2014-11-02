@@ -187,6 +187,7 @@ struct tripole {
   float x[3];
   float mass;
   float da, da2, db, db2;
+  int count;
 };
 
 static inline void tripole_init(struct tripole *d, const float *axis1, const float *axis2) {
@@ -198,6 +199,7 @@ static inline void tripole_init(struct tripole *d, const float *axis1, const flo
   d->mass = 0.0;
   d->da = 0.0; d->db = 0.0;
   d->da2 = 0.0; d->db2 = 0.0;
+  d->count = 0;
 }
 
 static inline void tripole_reset(struct tripole *d) {
@@ -205,6 +207,7 @@ static inline void tripole_reset(struct tripole *d) {
   d->mass = 0.0;
   d->da = 0.0; d->db = 0.0;
   d->da2 = 0.0; d->db2 = 0.0;
+  d->count = 0;
 }
 
 static inline void tripole_add(struct tripole *d, const float *x, float mass,
@@ -215,6 +218,7 @@ static inline void tripole_add(struct tripole *d, const float *x, float mass,
   d->da2 += da * da * mass;
   d->db += db * mass;
   d->db2 += db * db * mass;
+  d->count++;
 }
 
 static inline void tripole_iact(const struct tripole *d, const float *x,
@@ -228,13 +232,13 @@ static inline void tripole_iact(const struct tripole *d, const float *x,
 
   /* Get the offset along the dipole axis. This looks weird, but negative
      offsets can happen due to rounding error. */
-  float offset1 = (d->da2 - 2 * d->da * d->da * inv_mass) * inv_mass;
+  float offset1 = 2 * (d->da2 - d->da * d->da * inv_mass) * inv_mass;
   if (offset1 > 0) {
     offset1 = sqrtf(offset1);
   } else {
     offset1 = 0.0f;
   }
-  float offset2 = (d->db2 - 2 * d->db * d->db * inv_mass) * inv_mass;
+  float offset2 = 2 * (d->db2 - d->db * d->db * inv_mass) * inv_mass;
   if (offset2 > 0) {
     offset2 = sqrtf(offset2);
   } else {
@@ -343,21 +347,21 @@ const int axis_num_orth[13] = {
   /* (  0 , -1 ,  1 ) */ 1,
   /* (  0 ,  0 , -1 ) */ 2
 };
-/* const int axis_num_orth[13] = { */
-/*   /\* ( -1 , -1 , -1 ) *\/ 2, */
-/*   /\* ( -1 , -1 ,  0 ) *\/ 2, */
-/*   /\* ( -1 , -1 ,  1 ) *\/ 2, */
-/*   /\* ( -1 ,  0 , -1 ) *\/ 2, */
-/*   /\* ( -1 ,  0 ,  0 ) *\/ 2, */
-/*   /\* ( -1 ,  0 ,  1 ) *\/ 2, */
-/*   /\* ( -1 ,  1 , -1 ) *\/ 2, */
-/*   /\* ( -1 ,  1 ,  0 ) *\/ 2, */
-/*   /\* ( -1 ,  1 ,  1 ) *\/ 2, */
-/*   /\* (  0 , -1 , -1 ) *\/ 2, */
-/*   /\* (  0 , -1 ,  0 ) *\/ 2, */
-/*   /\* (  0 , -1 ,  1 ) *\/ 2, */
-/*   /\* (  0 ,  0 , -1 ) *\/ 2 */
-/* }; */
+// const int axis_num_orth[13] = {
+//   /* ( -1 , -1 , -1 ) */ 2, 
+//   /* ( -1 , -1 ,  0 ) */ 2, 
+//   /* ( -1 , -1 ,  1 ) */ 2, 
+//   /* ( -1 ,  0 , -1 ) */ 2, 
+//   /* ( -1 ,  0 ,  0 ) */ 2, 
+//   /* ( -1 ,  0 ,  1 ) */ 2, 
+//   /* ( -1 ,  1 , -1 ) */ 2, 
+//   /* ( -1 ,  1 ,  0 ) */ 2, 
+//   /* ( -1 ,  1 ,  1 ) */ 2, 
+//   /* (  0 , -1 , -1 ) */ 2, 
+//   /* (  0 , -1 ,  0 ) */ 2, 
+//   /* (  0 , -1 ,  1 ) */ 2, 
+//   /* (  0 ,  0 , -1 ) */ 2 
+// };
 
 const char axis_flip[27] = {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0,
                             0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
@@ -654,6 +658,11 @@ void get_axis(struct cell **ci, struct cell **cj, struct index **ind_i,
   }
   orth1[3] = -d1;
   orth2[3] = -d2;
+  
+  /* message("aid=%i, axis=[%e,%e,%e], orth1=[%e,%e,%e,%e], orth2=[%e,%e,%e,%e].",
+    aid, axis[0], axis[1], axis[2],
+    orth1[0], orth1[1], orth1[2], orth1[3],
+    orth2[0], orth2[1], orth2[2], orth2[3]); */
 
   /* message("dx=[%.3e,%.3e,%.3e], axis=[%.3e,%.3e,%.3e]", */
   /* 	  dx[0], dx[1], dx[2], axis[0], axis[1], axis[2]); */
@@ -1946,21 +1955,19 @@ static inline void iact_pair_direct_sorted_tripole(struct cell *ci,
       ++count_direct_sorted_pm_i;
 #endif
     }
-
+    
     /* Store the accumulated acceleration on the ith part. */
     for (k = 0; k < 3; k++) parts_i[i].a[k] += ai[k];
 
   } /* loop over all particles in ci. */
   
   /* Dump extensive info on the dipole. */
-  /* message("dip[0] has x=[%e,%e,%e], axis=[%e,%e,%e], da=%e, da2=%e, mass=%e.",
-    dip[0].x[0], dip[0].x[1], dip[0].x[2],
-    dip[0].axis[0], dip[0].axis[1], dip[0].axis[2],
-    dip[0].da, dip[0].da2, dip[0].mass);
-  for (j = count_j; j < cj->count; j++) {
-    message("   particle x=[%e,%e,%e], mass=%e.",
-      parts_j[j].x[0], parts_j[j].x[1], parts_j[j].x[2], parts_j[j].mass);
-  } */
+  /* for (l = 0; l < (1 << num_orth_planes); l++)
+    message("dip[%i] has com=[%e,%e,%e], mass=%e, %i parts.", l,
+      dip[l].x[0]/dip[l].mass,
+      dip[l].x[1]/dip[l].mass,
+      dip[l].x[2]/dip[l].mass,
+      dip[l].mass, dip[l].count); */
 
   /* Re-init some values. */
   count_j = cj->count;
@@ -2907,12 +2914,14 @@ void test_direct_neighbour(int N_parts, int orientation) {
   if ((position = (double *)malloc(sizeof(double) * N_parts * 2)) == NULL)
     error("Failed to allocate position buffer.");
 
-  float midPoint =
-      shift[0] * shift[0] + shift[1] * shift[1] + shift[2] * shift[2];
-  midPoint += (shift[0] < 0 ? -1 : 0);
-  midPoint += (shift[1] < 0 ? -1 : 0);
-  midPoint += (shift[2] < 0 ? -1 : 0);
+  float w = 1.0f / sqrtf(shift[0]*shift[0] + shift[1]*shift[1] + shift[2]*shift[2]);
+  float midPoint = shift[0] * shift[0] * w + 
+                   shift[1] * shift[1] * w + 
+                   shift[2] * shift[2] * w;
   message("MidPoint: %f", midPoint);
+  shift[0] *= w;
+  shift[1] *= w;
+  shift[2] *= w;
 
   for (k = 0; k < 2 * N_parts; ++k)
     position[k] = parts[k].x[0] * shift[0] + parts[k].x[1] * shift[1] +
