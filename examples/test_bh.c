@@ -37,7 +37,7 @@
 
 /* Some local constants. */
 #define cell_pool_grow 1000
-#define cell_maxparts 1
+#define cell_maxparts 100
 #define task_limit 1e8
 #define const_G 1    // 6.6738e-8
 #define dist_min 0.5 /* Used for legacy walk only */
@@ -386,9 +386,10 @@ void cell_split(struct cell *c, struct qsched *s) {
  */
 static inline void make_interact_pc(struct cell *leaf, struct cell *cj) {
 
-  int j, k;
+  int j, k, count = leaf->count;
   double com[3] = {0.0, 0.0, 0.0};
   float mcom, dx[3] = {0.0, 0.0, 0.0}, r2, ir, w;
+  struct part *parts = leaf->parts;
 
 #ifdef SANITY_CHECKS
 
@@ -413,18 +414,18 @@ static inline void make_interact_pc(struct cell *leaf, struct cell *cj) {
   mcom = cj->new.mass;
 
   /* Loop over every particle in leaf. */
-  for (j = 0; j < leaf->count; j++) {
+  for (j = 0; j < count; j++) {
 
     /* Compute the pairwise distance. */
     for (r2 = 0.0, k = 0; k < 3; k++) {
-      dx[k] = com[k] - leaf->parts[j].x[k];
+      dx[k] = com[k] - parts[j].x[k];
       r2 += dx[k] * dx[k];
     }
 
     /* Apply the gravitational acceleration. */
     ir = 1.0f / sqrtf(r2);
     w = mcom * const_G * ir * ir * ir;
-    for (k = 0; k < 3; k++) leaf->parts[j].a[k] += w * dx[k];
+    for (k = 0; k < 3; k++) parts[j].a[k] += w * dx[k];
 
 #if ICHECK >= 0
     if (leaf->parts[j].id == ICHECK)
@@ -1211,7 +1212,8 @@ void test_bh(int N, int nr_threads, int runs, char *fileName) {
   for (k = 0; k < task_type_count; k++) task_timers[k] = 0;
 
   /* Initialize the scheduler. */
-  qsched_init(&s, nr_threads, qsched_flag_noreown);
+  qsched_init(&s, nr_threads, qsched_flag_noreown |
+                              qsched_flag_pthread);
 
   /* Init and fill the particle array. */
   if ((parts = (struct part *)malloc(sizeof(struct part) * N)) == NULL)
@@ -1349,16 +1351,7 @@ void test_bh(int N, int nr_threads, int runs, char *fileName) {
       parts[i].a[1] = 0.0;
       parts[i].a[2] = 0.0;
     }
-
-    struct cell *finger = root;
-    while (finger != NULL) {
-      finger->sorted = 0;
-      if (finger->split)
-        finger = finger->firstchild;
-      else
-        finger = finger->sibling;
-    }
-
+    
     /* Execute the tasks. */
     tic = getticks();
     qsched_run(&s, nr_threads, runner);
