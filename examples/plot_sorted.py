@@ -88,9 +88,10 @@ for orientation in range( 26 ):
 
     # Build error ------------------------------------------------
     
-    errx_s = (accx_s - accx_u )/sqrt(accx_u**2 + accy_u**2 + accz_u**2) 
-    erry_s = (accy_s - accy_u )/sqrt(accy_u**2 + accy_u**2 + accz_u**2) 
-    errz_s = (accz_s - accz_u )/sqrt(accx_u**2 + accy_u**2 + accz_u**2) 
+    inv_acc_tot = 1.0 / sqrt(accx_u**2 + accy_u**2 + accz_u**2) 
+    errx_s = (accx_s - accx_u ) * inv_acc_tot
+    erry_s = (accy_s - accy_u ) * inv_acc_tot
+    errz_s = (accz_s - accz_u ) * inv_acc_tot
     
     e_errx_s = errx_s#[abs(errx_s) > 0.001]
     e_erry_s = erry_s#[abs(erry_s) > 0.001]
@@ -113,14 +114,14 @@ for orientation in range( 26 ):
     #plot(id[abs(errx_s) > 0.001], e_errx_s , 'ro')
     plot(pos, e_errx_s , 'ro')
     text( 0., 0.1, "axis=( %d %d %d )"%(axis[orientation*3 + 0], axis[orientation*3 + 1], axis[orientation*3 + 2]) , ha='center', backgroundcolor='w', fontsize=14)
-    ylim(-0.2, 0.2)
+    ylim(-0.02, 0.02)
     grid()
     
     subplot(312, title="Acceleration along Y")
     #plot(id[abs(erry_s) > 0.001], e_erry_s , 'ro')
     plot(pos, e_erry_s , 'ro')
     text( 0., 0.1, "axis=( %d %d %d )"%(axis[orientation*3 + 0], axis[orientation*3 + 1], axis[orientation*3 + 2]) , ha='center', backgroundcolor='w', fontsize=14)
-    ylim(-0.2, 0.2)  
+    ylim(-0.02, 0.02)  
     grid()
     
     subplot(313, title="Acceleration along Z")
@@ -130,7 +131,7 @@ for orientation in range( 26 ):
 
     legend(loc="upper right")
     
-    ylim(-0.2, 0.2)
+    ylim(-0.02, 0.02)
     #xlim(0, size(id)-1)
     grid()
 
