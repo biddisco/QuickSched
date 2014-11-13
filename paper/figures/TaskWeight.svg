@@ -14,7 +14,7 @@
    id="svg5074"
    version="1.1"
    inkscape:version="0.48.4 r9939"
-   sodipodi:docname="New document 10">
+   sodipodi:docname="TaskWeight.svg">
   <defs
      id="defs5076">
     <marker
@@ -112,7 +112,7 @@
         <dc:format>image/svg+xml</dc:format>
         <dc:type
            rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
-        <dc:title></dc:title>
+        <dc:title />
       </cc:Work>
     </rdf:RDF>
   </metadata>
@@ -215,26 +215,28 @@
        xml:space="preserve"
        style="font-size:12px;font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;text-align:center;line-height:125%;letter-spacing:0px;word-spacing:0px;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;font-family:Bitstream Vera Sans;-inkscape-font-specification:Bitstream Vera Sans Bold"
        x="-371.12311"
-       y="474.59158"
+       y="478.59158"
        id="text5713"
        sodipodi:linespacing="125%"
        transform="matrix(0,-1,1,0,0,0)"><tspan
          sodipodi:role="line"
          id="tspan5715"
          x="-371.12311"
-         y="474.59158">cost</tspan></text>
+         y="478.59158"
+         style="font-size:20px">cost</tspan></text>
     <text
        xml:space="preserve"
        style="font-size:12px;font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;text-align:center;line-height:125%;letter-spacing:0px;word-spacing:0px;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;font-family:Bitstream Vera Sans;-inkscape-font-specification:Bitstream Vera Sans Bold"
        x="-547.51123"
-       y="529.49603"
+       y="533.49603"
        id="text5717"
        sodipodi:linespacing="125%"
        transform="matrix(0,-1,1,0,0,0)"><tspan
          sodipodi:role="line"
          id="tspan5719"
          x="-547.51123"
-         y="529.49603">weight</tspan></text>
+         y="533.49603"
+         style="font-size:20px">weight</tspan></text>
     <path
        style="fill:none;stroke:#000000;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;marker-end:url(#Arrow2Lend)"
        d="m 228.0315,308.26769 0,478.34646"
@@ -251,6 +253,7 @@
          sodipodi:role="line"
          id="tspan6101"
          x="-547.64691"
-         y="222.03149">time</tspan></text>
+         y="222.03149"
+         style="font-size:20px">time</tspan></text>
   </g>
 </svg>
