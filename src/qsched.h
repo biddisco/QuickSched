@@ -24,6 +24,7 @@
 #define qsched_flag_yield                4
 #define qsched_flag_pthread              8
 #define qsched_flag_noreown              16
+#define qsched_flag_norecost             32
 
 /* Some sched-specific constants. */
 #define qsched_stretch                   2
@@ -33,6 +34,7 @@
 #define qsched_init_usespertask          2
 #define qsched_init_respertask           2
 #define qsched_init_datapertask          8
+#define qsched_init_runners              16
 #define qsched_data_round                16
 #define qsched_res_none                  (-1)
 #define qsched_task_none                 (-1)
@@ -147,10 +149,15 @@ struct qsched {
     /* A lock for the sched itself. */
     lock_type lock;
     
-    /* Pthread stuff for condition variable for yielding threads. */
+    /* Pthread stuff for condition variable for the barrier and for
+       yielding threads. */
     #ifdef HAVE_PTHREAD
-        pthread_cond_t cond;
-        pthread_mutex_t mutex;
+        pthread_cond_t cond, barrier_cond;
+        pthread_mutex_t mutex, barrier_mutex;
+        struct qsched_pthread_runner *runners;
+        int runners_count, runners_size;
+        int barrier_running, barrier_count, barrier_launchcount;
+        qsched_funtype fun;
     #endif
     
     /* Timers. */
@@ -159,6 +166,21 @@ struct qsched {
     #endif
     
     };
+
+/* Data structure passed to pthread_create. */
+struct qsched_pthread_runner {
+
+  /* The scheduler to which this thread is attached. */
+  struct qsched *s;
+  
+  /* The thread itself. */
+  pthread_t thread;
+  
+  /* The thread's ID. */
+  int tid;
+  
+  };
+
 
 
 /* Function prototypes. */
