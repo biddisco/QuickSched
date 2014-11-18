@@ -63,11 +63,11 @@ accz_bh=data[:,13]
 # Build error ------------------------------------------------
     
 errx_s = (accx_s - accx_u ) / sqrt(accx_u**2 + accy_u**2 + accz_u**2) 
-erry_s = (accy_s - accy_u ) / sqrt(accy_u**2 + accy_u**2 + accz_u**2) 
+erry_s = (accy_s - accy_u ) / sqrt(accx_u**2 + accy_u**2 + accz_u**2) 
 errz_s = (accz_s - accz_u ) / sqrt(accx_u**2 + accy_u**2 + accz_u**2) 
 
 errx_bh = (accx_bh - accx_u ) / sqrt(accx_u**2 + accy_u**2 + accz_u**2) 
-erry_bh = (accy_bh - accy_u ) / sqrt(accy_u**2 + accy_u**2 + accz_u**2) 
+erry_bh = (accy_bh - accy_u ) / sqrt(accx_u**2 + accy_u**2 + accz_u**2) 
 errz_bh = (accz_bh - accz_u ) / sqrt(accx_u**2 + accy_u**2 + accz_u**2) 
 
 e_errx_s = errx_s#[abs(errx_s) > 0.001]
