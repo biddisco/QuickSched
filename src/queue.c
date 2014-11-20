@@ -47,7 +47,7 @@
  
 int queue_get ( struct queue *q , struct qsched *s , int insist ) {
 
-    int k, j, temp, tid, *inds, w, count;
+    int k, j, temp, tid, *inds, count;
     struct task *tasks = s->tasks;
 
     /* Should we even try? */
@@ -88,7 +88,7 @@ int queue_get ( struct queue *q , struct qsched *s , int insist ) {
         inds[k] = inds[ count ];
     
         /* Fix the heap. */
-        w = tasks[ inds[k] ].weight;
+        long long int w = tasks[ inds[k] ].weight;
         if ( k > 0 && w > tasks[ inds[(k-1)/2] ].weight )
             while ( k > 0 ) {
                 j = (k - 1) / 2;
@@ -144,7 +144,7 @@ void queue_put ( struct queue *q , struct qsched *s , int tid ) {
 
     int ind, j, temp;
     struct task *tasks = s->tasks;
-    int *inds, *inds_new, w;
+    int *inds, *inds_new;
     
     /* Lock this queue. */
     if ( lock_lock( &q->lock ) != 0 )
@@ -180,7 +180,7 @@ void queue_put ( struct queue *q , struct qsched *s , int tid ) {
     inds[ind] = tid;
     
     /* Bubble up the new entry. */
-    w = tasks[ inds[ind] ].weight;
+    long long int w = tasks[ inds[ind] ].weight;
     while ( ind > 0 ) {
         j = (ind - 1)/2;
         if ( tasks[ inds[j] ].weight < w ) {
