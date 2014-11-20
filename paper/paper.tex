@@ -1053,10 +1053,11 @@ it is in the same cell.
 This operation is performed for each particle, starting
 with the root-level cell containing all the particles.
 
-The particle data is sorted hierarchically, following the
-octree structure.
+In our implementation, the particle data is sorted hierarchically,
+following the octree structure.
 Unlike in many codes, where the leaves store an array of
-pointers to the underlying particles, the cells, at all
+pointers to the underlying particles, which are not necessarily
+contiguous in memory, the cells, at all
 levels, store only a pointer to the first of their own particles,
 and the total number of particles.
 The current approach, illustrated in \fig{CellParts} is not
@@ -1075,16 +1076,16 @@ is in \oh{N\log N}.
     \label{fig:CellParts}
 \end{figure}
 
-The task-based implementation will consist of three
+The task-based implementation consists of three
 types of tasks:
 \begin{itemize}
-    \item {\em Self}-interactions in which all particles
+    \item {\em Self}-interactions, in which all particles
         in a single cell interact with all other particles in the
         same cell,
-    \item {\em Particle-particle} pair interactions in which
+    \item {\em Particle-particle} pair interactions, in which
         all particles in a cell interact with all
         particles in another cell,
-    \item {\em Particle-cell} pair interactions in which
+    \item {\em Particle-cell} pair interactions, in which
         all particles in one cell are interacted with the
         center of mass of all other cells in the tree.
 \end{itemize}
@@ -1093,54 +1094,59 @@ These tasks can be created recursively over the cell hierarchy
 as shown in the function {\tt make\_tasks} in \fig{MakeTasks}.
 The function is called on the root cell with the root cell
 and {\tt NULL} as its two cell parameters.
-The function recurses as follows:
+The function recurses as follows (line numbers refer to \fig{MakeTasks}:
 \begin{itemize}
-    \item If called with a single (line~6), split (line~7) cell,
-        recurse over all the cell's sub-cells (line~9), and all
-        pairs of the cell's sub-cells (line~11),
+    \item If called with a single, split cell (lines~6--7),
+        recurse over all the cell's sub-cells, and all
+        pairs of the cell's sub-cells (lines~8--11),
     \item If called with a single unsplit cell (line~13),
-        create a self-interaction task as well as a particle-cell
-        task on that cell (line~14),
-    \item If called with two non-neighbouring cells (line~21),
-        do nothing, as these interactions
-        will be computed by the particle-cell task,
+        create a self-interaction task (line~14) as well as a particle-cell
+        task on that cell (line~18),
     \item If called with two neighbouring cells and both cells
-        are split (line~33),
+        are split (line~22),
         recurse over all pairs of sub-cells spanning
-        both cells (line~37), and
+        both cells (lines~24--26), and
     \item If called with two neighbouring cells
         and one of the cells are not split, create
-        a particle-particle pair task over both cells.
+        a particle-particle pair task over both cells (line~29),
+    \item If called with two non-neighbouring cells,
+        do nothing, as these interactions
+        will be computed by the particle-cell task.
 \end{itemize}
 \noindent where every interaction task additionally locks
-the cells on which it operates (lines~16, 25, 30, and 42--43).
+the cells on which it operates (lines~17, 20, and 32--33).
 In order to prevent generating
 a large number of very small tasks, the task generation only recurses
 if the cells contain more than a minimum number $n_\mathsf{task}$
-of threads each (lines~7 and~34).
+of threads each (lines~7 and~23).
 
-The particle-particle pair interaction tasks are implemented
+As shown in \fig{BHTasks}, the particle-self and particle-particle pair
+interaction tasks are implemented
 by computing the interactions between all particle pairs spanning
-both cells in a double for-loop.
+both cells in a double for-loop (lines~9--11 and~22-24 therein).
+Some extra logic (lines~2--7 and~15--20) is added to deal with
+split cells that did not contain enough particles to warrant the
+generation of finer tasks.
 The particle-cell interactions for each leaf node are computed by
-traversing the tree recursively starting from the root node:
+traversing the tree recursively starting from the root node and:
 \begin{itemize}
   \item If called with a node that is a hierarchical parent of
     the leaf node, or with a node that is a direct neighbour of
     a hierarchical parent of the leaf node, recurse over the
-    node's sub-cells,
+    node's sub-cells (lines~29--32),
   \item Otherwise, compute the interaction between the leaf node's
-    center of mass and all the particles in the leaf node.
+    center of mass and all the particles in the leaf node (lines~33--35).
 \end{itemize}
 
 This task decomposition differs from the traditional tree-walk
 in the Barnes-Hut algorithm in that the particle-cell interactions
-are grouped per leaf, with each leaf doing its own tree walk.
+are grouped per leaf, with each leaf doing its own tree walk,
+as opposed to doing a tree walk for each individual particle.
 This approach was chosen to maximize the memory locality
 of the particle-cell calculation, as the particles in the leaf,
 which are traversed for each particle-cell interaction, are
 contiguous in memory, and are thus more likely to remain in the
-lowest-level cache.
+lowest-level cache during the entire tree-walk.
 
 This Barnes-Hut tree-code was used to approximate the gravitational
 N-Body problem for 1\,000\,000 particles with uniformly random coordinates
@@ -1148,10 +1154,9 @@ in $[0,1]^3$.
 The parameters $n_\mathsf{max}=100$ and $n_\mathsf{task}=5000$
 were used to generate the tasks.
 Using the above scheme generated 97\,553 tasks, of which
-512 self-interaction tasks, ??? particle-particle interaction
-task, and ??? particle-cell interaction tasks.
-A total of 141\,840 dependencies were generated, along with
-104\,392 locks on 37\,449 resources.
+512 self-interaction tasks, 5\,068 particle-particle interaction
+task, and 32\,768 particle-cell interaction tasks.
+A total of 43\,416 locks on 37\,449 resources were generated.
 
 For these tests, {\tt pthread}s parallelism was used and resource
 re-owning was switched off.
@@ -1171,10 +1176,19 @@ cases, an average of 51.3\,ms.
     \centerline{\epsfig{file=figures/BH_scaling.pdf,width=0.9\textwidth}}
     \caption{Strong scaling and parallel efficiency of the Barnes-Hut tree-code
         computed over 1\,000\,000 particles.
-        Solving the N-Body problem takes 3.3\,s, achieving 60\% parallel
+        Solving the N-Body problem takes 323\,ms, achieving 75\% parallel
         efficiency, over all 64 cores.
         }
     \label{fig:BHResults}
+\end{figure}
+
+\begin{figure}
+    \centerline{\epsfig{file=figures/tasks_bh_dynamic_64.pdf,width=0.9\textwidth}}
+    \caption{Task scheduling of the Barnes-Hut tree-code on 64 cores.
+      The red tasks correspond to particle self-interactions, the green
+      tasks to the particle-particle pair interactions, and the blue
+      tasks to the particle-cell interactions.}
+    \label{fig:BHTasksPlot}
 \end{figure}
 
 Unlike the QR decomposition, the results scale well only to
@@ -1183,27 +1197,26 @@ level off for increasing numbers of cores.
 This, however, is not a problem of the task-based parallel
 algorithm, or of QuickSched, but of the memory bandwidth
 of the underlying hardware.
-\fig{BHTasks} shows the accumulated cost of each task type and of 
+\fig{BHTimes} shows the accumulated cost of each task type and of 
 QuickSched over the number of cores.
-At 64 cores, the scheduler overheads account for only 4.7\% of
+At 64 cores, the scheduler overheads account for only $\sim 1$\% of
 the total computational cost, whereas,
-as of 30 cores, the cost of both pair types grow by up to
-50\%.
+as of 32 cores, the cost of both pair types grow by up to
+40\%.
 This is most probably due to memory bandwidth restrictions, as
-the cost of the self interaction tasks, which do twice as much
-computation per memory access, only grow by up to 15\%.
+the cost of the particle-cell interaction tasks, which do significantly more
+computation per memory access, only grow by up to 10\%.
 
 \begin{figure}
     \centerline{\epsfig{file=figures/BH_times.pdf,width=0.8\textwidth}}
     \caption{Accumulated cost of each task type and of the overheads
-        associated with {\tt qsched\_gettask}.
-        As of $\sim 30$ cores, the cost of both pair interaction task
-        types grow by up to 50\%.
-        The cost of the self interactions, which entail twice as much
-        computation per memory access, grow only by at most 15\%.
-        The scheduler overheads make up less than 5\% of the total
-        time.
-        }
+        associated with {\tt qsched\_gettask}, summed over all cores.
+        As of 32 cores, the cost of both pair interaction task
+        types grow by up to 40\%.
+        The cost of the particle-cell interactions, which entail significantly more
+        computation per memory access, grow only by at most 10\%.
+        The scheduler overheads, i.e.~{\tt qsched\_gettask},
+        make up less than 1\% of the total time.}
     \label{fig:BHTimes}
 \end{figure}
 
@@ -1248,6 +1261,10 @@ The QuickSched library itself is remarkably simple, consisting of
 less than 3\,000 lines of code, including comments.
 Both examples, which are distributed with QuickSched,
 require less than 1\,000 lines of code each.
+For a more complex, large-scale example of a task-based computation
+based on the same algorithms, we refer to \cite{ref:Gonnet2014},
+for which the scheduler was originally designed, and from
+which QuickSched was back-ported.
 
 In both examples, QuickSched performs extremely well, even
 on a large number of shared-memory cores.
@@ -1265,7 +1282,11 @@ The most obvious of which are the following:
 \begin{itemize}
     \item {\em Priorities}: The current implementation of
         QuickSched does not take the resource locks into
-        account when selecting tasks in the queues,
+        account when selecting tasks in the queues, e.g.~it
+        may be advantageous, in some settings, to avoid tasks
+        which are involved in too many potential conflicts
+        and would therefore restrict the maximum degree of
+        parallelism when scheduled.
     \item {\em Work-stealing}: During work-stealing, the
         queues are probed in a random order although
         the total relative cost of the tasks in the queue,
@@ -1284,10 +1305,7 @@ v\,3.0 and is available for download via
 
 % Acknowledgments
 \section*{Acknowledgments}
-The author would like to thank Sam Townsend for implementing the
-kernels in the task-based QR decomposition as part of his MSc Thesis
-at Durham University.
-The author also thanks Lydia Heck of the Institute for
+The authors would like to thank Lydia Heck of the Institute for
 Computational Cosmology at Durham University for providing access
 to, and expertise on, the COSMA cluster used in the performance
 evaluation.
@@ -1303,12 +1321,8 @@ This work was supported by a Durham University Seedcorn Grant.
 \appendix
 \section{User Interface}
 
-The algorithms, as described in the previous section, have
-all been implemented as part of the Open-Source C-language
-QuickSched library.\footnote{\url{http://sourceforge.net/projects/quicksched/}}
-This section describes the interface functions and how they
-are called, and the following section contains
-examples of how QuickSched can be used.
+This section describes the QuickSched interface functions and how they
+are called.
 
 As mentioned previously, the {\tt qsched} object is the main
 interface to the task scheduler.
@@ -1321,7 +1335,7 @@ and {\tt qsched\_res\_t} are used instead.
 
 The main functions for setting up the scheduler are:
 \begin{itemize}
-    \item {\tt void qsched\_init( struct qsched *s , int nr\_queues , int flags )} \\
+    \item {\tt void qsched\_init(struct qsched *s, int nr\_queues, int flags)} \\
         Initializes a {\tt qsched} object with the given number of queues.
         The {\tt flags} parameter can be set to any bitwise or combination
         of {\tt qsched\_flag\_none},
@@ -1330,18 +1344,18 @@ The main functions for setting up the scheduler are:
         This function must be called before any of the other
         functions are used.
         \vspace{1mm}
-    \item {\tt void qsched\_free( struct qsched *s )} \\
+    \item {\tt void qsched\_free(struct qsched *s)} \\
         Releases all the memory and other resources allocated by the
         given {\tt qsched} object.
         After this function has been called, the {\tt qsched} will
         need to be re-initialized for reuse.
         \vspace{1mm}
-    \item {\tt void qsched\_reset( struct qsched *s )} \\
+    \item {\tt void qsched\_reset(struct qsched *s)} \\
         Clears the tasks and resources in the given {\tt qsched},
         but does not release the allocated memory or change
         the number of queues.
         \vspace{1mm}
-    \item {\tt qsched\_task\_t qsched\_addtask( struct qsched *s , int type , unsigned int flags , void *data , int data\_size , int cost )} \\
+    \item {\tt qsched\_task\_t qsched\_addtask(struct qsched *s, int type, unsigned int flags, void *data, int data\_size, int cost)} \\
         Creates a new task within the given {\tt qsched} and returns
         its handle.
         The {\tt type} and {\tt data} field are copied into the {\tt qsched}
@@ -1352,7 +1366,7 @@ The main functions for setting up the scheduler are:
         e.g. they are used only to group or otherwise dependencies, and
         are not passed to the execution function in {\tt qsched\_run}.
         \vspace{1mm}
-    \item {\tt qsched\_res\_t qsched\_addres( struct qsched *s , int owner , qsched\_res\_t parent )} \\
+    \item {\tt qsched\_res\_t qsched\_addres(struct qsched *s, int owner, qsched\_res\_t parent)} \\
         Creates a new resource within the given {\tt qsched} and returns
         its handle.
         The owner field is the initial queue ID to which this resource
@@ -1361,24 +1375,24 @@ The main functions for setting up the scheduler are:
         the new resource or {\tt qsched\_res\_none} if the resource
         has no hierarchical parent.
         \vspace{1mm}
-    \item {\tt void qsched\_addlock( struct qsched *s , qsched\_task\_t t , qsched\_res\_t res )} \\
+    \item {\tt void qsched\_addlock(struct qsched *s, qsched\_task\_t t, qsched\_res\_t res)} \\
         Append the resource {\tt res} to the task {\tt t}'s list of
         locks.
         The task {\tt t} will then conflict with any other task that
         also locks the resource {\tt res}, its hierarchical parents, or
         any resource hierarchically below it.
         \vspace{1mm}
-    \item {\tt void qsched\_adduse( struct qsched *s , qsched\_task\_t t , qsched\_res\_t res )} \\
+    \item {\tt void qsched\_adduse(struct qsched *s, qsched\_task\_t t, qsched\_res\_t res)} \\
         Similar to {\tt qsched\_addlock}, yet the resource is only used and
         is not part of a conflict.
         This information is used when assigning tasks to specific queues.
         \vspace{1mm}
-    \item {\tt void qsched\_addunlock( struct qsched *s , qsched\_task\_t ta , qsched\_task\_t tb )} \\
+    \item {\tt void qsched\_addunlock(struct qsched *s, qsched\_task\_t ta, qsched\_task\_t tb)} \\
         Appends the task {\tt tb} to the list of tasks that the task {\tt ta}
         unlocks.
         The task {\tt tb} then depends on the task {\tt ta}.
         \vspace{1mm}
-    \item {\tt void qsched\_run( struct qsched *s , int nr\_threads , qsched\_funtype fun )} \\
+    \item {\tt void qsched\_run(struct qsched *s, int nr\_threads, qsched\_funtype fun)} \\
         Executes the tasks in the given {\tt qsched} using {\tt nr\_threads}
         threads via the execution function {\tt fun}, as described in the
         previous section.
@@ -1404,7 +1418,7 @@ any mechanism for yielding a thread if no tasks are available,
 i.e. the main loop in {\tt qsched\_gettask}, described in the
 previous section, will spin until a task becomes available.
 This may be a problem if other parts of the user application
-are running concurrently in the background.
+are running concurrently in the background outside of QuickSched.
 Calling {\tt qsched\_init} with the {\tt qsched\_flag\_yield}
 forces the use of {\tt pthreads} and uses conditional variables
 to wait for a new task to be enqueued if obtaining a task
@@ -1505,26 +1519,26 @@ The execution function for these tasks simply calls the appropriate
 kernels on the matrix tiles given by the task data:
 \begin{center}\begin{minipage}{0.9\textwidth}
     \begin{lstlisting}
-void exec_fun ( int type , void *data ) {
+void exec_fun(int type, void *data) {
   int *idata = (int *)data;
   int i = idata[0], j = idata[1], k = idata[2];
-  switch ( type ) {
+  switch (type) {
     case tDGEQRF:
-      DGEQRF( A[i,j] , ... );
+      DGEQRF(A[i, j], ...);
       break;
     case tDLARFT:
-      DLARFT( A[i,j] , A[i,i] , ... );
+      DLARFT(A[i, j], A[i, i], ...);
       break;
     case tDTSQRF:
-      DTSQRF( A[i,j] , A[j,j]... );
+      DTSQRF(A[i, j], A[j, j], ...);
       break;
     case tDSSRFT:
-      DSSRFT( A[i,j] , A[i,k] , A[k,j] , ... );
+      DSSRFT(A[i, j], A[i, k], A[k, j], ...);
       break;
     default:
-      error( "Unknown task type." );
-    }
+      error("Unknown task type.");
   }
+}
     \end{lstlisting}
 \end{minipage}\end{center}
 \noindent where {\tt A} is the matrix over which the QR
@@ -1576,16 +1590,17 @@ and ID, respectively.
 \begin{center}\begin{minipage}{0.9\textwidth}
     \begin{lstlisting}[basicstyle=\scriptsize\tt]
 void comp_self(struct cell *c) {
-  if (c->split)
+  if (c->split) {
     for (int j = 0; j < 8; j++) {
       comp_self(c->progeny[j]);
       for (int k = j + 1; k < 8; k++)
         comp_pair(c->progeny[j], c->progeny[k]);
     }
-  else
+  } else {
     for (int j = 0; j < c->count; j++)
       for (int k = j + 1; k < c->count; k++)
         interact c->parts[j] and c->parts[k].
+  }
 }
 
 void comp_pair(struct cell *ci, struct cell *cj) {
@@ -1621,19 +1636,19 @@ void comp_pair_cp(struct cell *leaf, struct cell *c) {
 \begin{figure}
 \begin{center}\begin{minipage}{0.9\textwidth}
     \begin{lstlisting}[basicstyle=\scriptsize\tt]
-enum { tSELF , tPAIR_PP , tPAIR_PC };
+enum { tSELF, tPAIR_PP, tPAIR_PC };
 void make_tasks(struct qsched *s, struct cell *ci, struct cell *cj) {
   int j, k;
   qsched_task_t tid;
   struct cell *data[2];
   if (cj == NULL) {
-    if (ci->split && ci->count > n_task)
+    if (ci->split && ci->count > n_task) {
       for (j = 0; j < 8; j++) {
         make_tasks(s, ci->progeny[j], NULL);
         for (k = j + 1; k < 8; k++)
           make_tasks(s, ci->progeny[j], ci->progeny[k]);
       }
-    else {
+    } else {
       tid = qsched_addtask(s, tSELF, qsched_flags_none, &ci,
                            sizeof(struct cell *),
                            ci->count * ci->count);
@@ -1643,21 +1658,17 @@ void make_tasks(struct qsched *s, struct cell *ci, struct cell *cj) {
       qsched_addlock(s, tid, ci->res);
     }
   } else if (ci->split && cj->split &&
-             ci->count * cj->count > n_task * n_task)
+             ci->count * cj->count > n_task * n_task) {
     for (j = 0; j < 8; j++)
       for (k = 0; k < 8; k++)
         make_tasks(s, ci->progeny[j], cj->progeny[k]);
-  else {
+  } else {
     data[0] = ci; data[1] = cj;
     tid = qsched_addtask(s, tPAIR_PP, qsched_flags_none, data,
                          sizeof(struct cell *) * 2,
                          ci->count * cj->count);
     qsched_addlock(s, tid, ci->res);
     qsched_addlock(s, tid, cj->res);
-    if (ci->split && cj->split) {
-      qsched_addunlock(s, ci->com, tid);
-      qsched_addunlock(s, cj->com, tid);
-    }
   }
 }
     \end{lstlisting}
@@ -1672,25 +1683,25 @@ straight-forward and shown in \fig{BHTasks}, and the
 execution function can be written as:
 \begin{center}\begin{minipage}{0.9\textwidth}
     \begin{lstlisting}
-void exec_fun ( int type , void *data ) {
+void exec_fun(int type, void *data) {
   struct cell **cells = (struct cell **)data;
-  switch ( type ) {
+  switch (type) {
     case tSELF:
-      comp_self( cells[0] );
+      comp_self(cells[0]);
       break;
     case tPAIR_PP:
-      comp_pair( cells[0] , cells[1] );
+      comp_pair(cells[0], cells[1]);
       break;
     case tPAIR_PC:
-      comp_pair_pc( cells[0] , root );
+      comp_pair_pc(cells[0], root);
       break;
     case tCOM:
-      comp_com( cells[0] );
+      comp_com(cells[0]);
       break;
     default:
-      error( "Unknown task type." );
-    }
+      error("Unknown task type.");
   }
+}
     \end{lstlisting}
 \end{minipage}\end{center}
 
