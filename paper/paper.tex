@@ -1172,12 +1172,32 @@ The timings are for {\tt qsched\_run}, including the cost of
 Setting up the scheduler, tasks, and resources took, in all
 cases, an average of 51.3\,ms.
 
+For comparison, the same computations were run using the popular
+astrophysics simulation software Gadget-2 \cite{ref:Springel2005},
+using a traditional Barnes-Hut implementation based on octrees
+and distributed-memory parallelism based on domain decompositions
+and MPI \cite{ref:Snir1998}.
+To achieve the same accuracy, an opening angle of 0.5 was used.
+On a single core, the task-based tree traversal is already 1.9$\times$
+faster than Gadget-2, due to the cache efficiency of the task-based
+computations, which, by design, maximize the amount of computation
+per memory access.
+At 59 cores, where Gadget-2 performs best, the task-based tree traversal is
+2.51$\times$ faster, and at the full 64 cores it is 4$\times$ faster,
+due to the better strong scaling of the task-based approach as opposed
+to the MPI-based parallelism in Gadget-2.
+
 \begin{figure}
     \centerline{\epsfig{file=figures/BH_scaling.pdf,width=0.9\textwidth}}
     \caption{Strong scaling and parallel efficiency of the Barnes-Hut tree-code
         computed over 1\,000\,000 particles.
         Solving the N-Body problem takes 323\,ms, achieving 75\% parallel
         efficiency, over all 64 cores.
+        For comparison, timings are shown for the same computation using
+        the popular astrophysics code Gadget-2.
+        The scaling for Gadget-2 (left) is shown relative to the performance of
+        QuickSched, whereas the parallel efficiency (right) is computed relative
+        to Gadget-2 on a single core.
         }
     \label{fig:BHResults}
 \end{figure}
