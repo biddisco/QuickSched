@@ -193,7 +193,7 @@ This paper presents QuickSched, a framework for task-based
 parallel programming with constraints, which aims to achieve
 the following goals:
 \begin{itemize}
-    \item {\em Correctnes}: All constraints, i.e.~dependencies and
+    \item {\em Correctness}: All constraints, i.e.~dependencies and
         conflicts, must be correctly enforced,
     \item {\em Speed}: The overheads associated with task management
         should be as small as possible,
@@ -271,7 +271,7 @@ and thus implicitly all their spawned tasks, before executing
 $E$ and $K$.
 
 \begin{figure}
-    \centerline{\epsfig{file=figures/Spawn.pdf,width=0.7\textwidth}}
+    \centerline{\epsfig{file=figures/Spawn.pdf,width=0.9\textwidth}}
     \caption{Two different task graphs and how they can be implemented
       using spawning and waiting.
       For the task graph on the left, each task spawns its dependent
@@ -358,7 +358,7 @@ decomposition is too coarse, then good parallelism
 and load-balancing will be difficult to achieve.
 Converseley, if the tasks are too small, the costs of selecting and
 scheduling tasks, which is usually constant per task, will
-quickly destory any performance gains from parallelism.
+quickly destroy any performance gains from parallelism.
 Starting from a per-statement set of tasks, it is therefore
 reasonable to group them by their dependencies and shared resources.
 
@@ -388,7 +388,7 @@ how the work is done, i.e. which tasks get scheduled
 where and when, respectively.
 
 \begin{figure}
-    \centerline{\epsfig{file=figures/QSched.pdf,width=0.7\textwidth}}
+    \centerline{\epsfig{file=figures/QSched.pdf,width=0.8\textwidth}}
     \caption{Schematic of the QuickSched task scheduler.
         The tasks (circles) are stored in the scheduler (left).
         Once a task's dependencies have been resolved, the task
@@ -547,7 +547,7 @@ Likewise, if a resource is locked, it cannot be held
 (see \fig{Resources}).
 
 \begin{figure}
-    \centerline{\epsfig{file=figures/Resources.pdf,width=0.6\textwidth}}
+    \centerline{\epsfig{file=figures/Resources.pdf,width=0.7\textwidth}}
     \caption{A hierarchy of cells (left) and the hierarchy of
         corresponding hierarchical resources at each level.
         Each square on the right represents a single resource, and
@@ -737,7 +737,7 @@ two tasks attempt, simultaneously, to lock the resources $A$ and $B$;
 and $B$ and $A$, respectively, via separate queues, their respective calls
 to {\tt queue\_get} will potentially fail perpetually.
 This type of deadlock, however, is easily avoided by sorting the
-resources in each task according to some global creiteria, e.g.~the
+resources in each task according to some global criteria, e.g.~the
 resource ID or the address in memory of the resource.
 
 \subsection{Scheduler}
@@ -918,7 +918,7 @@ designed for this specific task, while the latter currently uses
 the StarPU task scheduler \cite{ref:Agullo2011}.
 
 \begin{figure}
-    \centerline{\epsfig{file=figures/QR.pdf,width=0.8\textwidth}}
+    \centerline{\epsfig{file=figures/QR.pdf,width=0.9\textwidth}}
     \caption{Task-based QR decomposition of a matrix consisting
         of $4\times 4$ tiles.
         Each circle represents a tile, and its color represents
@@ -958,6 +958,11 @@ previous level, i.e.~the task $(i,j,k)$ always depends on
 $(i,j,k-1)$ for $k>1$.
 Each task also modifies its own tile $(i,j)$, and the DTSQRF
 task additionally modifies the lower triangular part of the $(j,j)$th tile.
+Although the tile-based QR decomposition requires only dependencies,
+i.e.~no additional conflicts are needed to avoid concurrent access to
+the matrix tiles, we still model each tile as a separate resource
+in QuickSched such that the scheduler can preferrentially assign
+tasks using the same tiles to the same thread.
 
 The QR decomposition was computed for a $2048\times 2048$
 random matrix using tiles of size $64\times 64$ floats using QuickSched
@@ -980,7 +985,7 @@ calling the kernels directly using {\tt \#pragma omp task}
 annotations with the respective dependencies, and
 the runtime parameters
 \begin{quote}
-    \tt --disable-yield --schedule=socket --cores-per-socket=16 --num-sockets=4
+    \tt --disable-yield --schedule=socket --cores-per-socket=16 \\--num-sockets=4
 \end{quote}
 \noindent The scaling and efficiency relative to QuickSched are 
 shown in \fig{QRResults}.
@@ -1002,7 +1007,7 @@ OmpSs, does not exploit this knowledge, resulting in the less efficient
 scheduling seen in \fig{QRTasks}.
 
 \begin{figure}
-    \centerline{\epsfig{file=figures/QR_scaling.pdf,width=0.9\textwidth}}
+    \centerline{\epsfig{file=figures/QR_scaling.pdf,width=\textwidth}}
     \caption{Strong scaling and parallel efficiency of the tiled QR decomposition
         computed over a $2048\times 2048$ matrix with tiles of size
         $64\times 64$.
@@ -1014,8 +1019,8 @@ scheduling seen in \fig{QRTasks}.
 \end{figure}
 
 \begin{figure}
-    \centerline{\epsfig{file=figures/tasks_qr.pdf,width=0.9\textwidth}}
-    \centerline{\epsfig{file=figures/tasks_qr_ompss.pdf,width=0.9\textwidth}}
+    \centerline{\epsfig{file=figures/tasks_qr.pdf,width=\textwidth}}
+    \centerline{\epsfig{file=figures/tasks_qr_ompss.pdf,width=\textwidth}}
     \caption{Task scheduling in QuickSched (above) and OmpSs (below)
         for a $2048\times 2048$ matrix on 64 cores.
         The task colors correspond to those in \fig{QR}.}
@@ -1025,7 +1030,8 @@ scheduling seen in \fig{QRTasks}.
 
 \subsection{Task-Based Barnes-Hut N-Body Solver}
 
-The Barnes-Hut tree-code is an algorithm to approximate the
+The Barnes-Hut tree-code \cite{ref:Barnes1986}
+is an algorithm to approximate the
 solution of an $N$-body problem, i.e.~computing all the
 pairwise interactions between a set of $N$ particles,
 in \oh{N\log N} operations, as opposed to the \oh{N^2}
@@ -1188,7 +1194,7 @@ due to the better strong scaling of the task-based approach as opposed
 to the MPI-based parallelism in Gadget-2.
 
 \begin{figure}
-    \centerline{\epsfig{file=figures/BH_scaling.pdf,width=0.9\textwidth}}
+    \centerline{\epsfig{file=figures/BH_scaling.pdf,width=\textwidth}}
     \caption{Strong scaling and parallel efficiency of the Barnes-Hut tree-code
         computed over 1\,000\,000 particles.
         Solving the N-Body problem takes 323\,ms, achieving 75\% parallel
@@ -1203,7 +1209,7 @@ to the MPI-based parallelism in Gadget-2.
 \end{figure}
 
 \begin{figure}
-    \centerline{\epsfig{file=figures/tasks_bh_dynamic_64.pdf,width=0.9\textwidth}}
+    \centerline{\epsfig{file=figures/tasks_bh_dynamic_64.pdf,width=\textwidth}}
     \caption{Task scheduling of the Barnes-Hut tree-code on 64 cores.
       The red tasks correspond to particle self-interactions, the green
       tasks to the particle-particle pair interactions, and the blue
@@ -1223,7 +1229,7 @@ At 64 cores, the scheduler overheads account for only $\sim 1$\% of
 the total computational cost, whereas,
 as of 32 cores, the cost of both pair types grow by up to
 40\%.
-This is most probably due to memory bandwidth restrictions, as
+This is due to memory bandwidth restrictions, as
 the cost of the particle-cell interaction tasks, which do significantly more
 computation per memory access, only grow by up to 10\%.
 
