@@ -114,14 +114,14 @@ for orientation in range( 26 ):
     #plot(id[abs(errx_s) > 0.001], e_errx_s , 'ro')
     plot(pos, e_errx_s , 'ro')
     text( 0., 0.1, "axis=( %d %d %d )"%(axis[orientation*3 + 0], axis[orientation*3 + 1], axis[orientation*3 + 2]) , ha='center', backgroundcolor='w', fontsize=14)
-    ylim(-0.02, 0.02)
+    ylim(-0.05, 0.05)
     grid()
     
     subplot(312, title="Acceleration along Y")
     #plot(id[abs(erry_s) > 0.001], e_erry_s , 'ro')
     plot(pos, e_erry_s , 'ro')
     text( 0., 0.1, "axis=( %d %d %d )"%(axis[orientation*3 + 0], axis[orientation*3 + 1], axis[orientation*3 + 2]) , ha='center', backgroundcolor='w', fontsize=14)
-    ylim(-0.02, 0.02)  
+    ylim(-0.05, 0.05)  
     grid()
     
     subplot(313, title="Acceleration along Z")
@@ -131,11 +131,11 @@ for orientation in range( 26 ):
 
     legend(loc="upper right")
     
-    ylim(-0.02, 0.02)
+    ylim(-0.05, 0.05)
     #xlim(0, size(id)-1)
     grid()
 
-    savefig("accelerations_relative_%d.png"%orientation)
+    savefig("matthieu_accelerations_relative_%d.png"%orientation)
     close()
 
 

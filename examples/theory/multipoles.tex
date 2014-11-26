@@ -1,0 +1,177 @@
+\documentclass[a4paper,10pt]{article}
+\usepackage[utf8]{inputenc}
+\usepackage{amsmath}
+\usepackage{amssymb}
+
+\newcommand{\rr}{\mathbf{r}}
+\newcommand{\dd}{\mathbf{d}}
+\newcommand{\vv}{\mathbf{v}}
+\newcommand{\p}[1]{\mathbf{p}_#1}
+\newcommand{\acc}{\mathbf{a}}
+\newcommand{\muu}{\boldsymbol{\mu}}
+
+\title{Multipole expansion}
+
+\begin{document}
+
+\maketitle
+
+Bold quantities are vectors. The indices $u,v,w$ run over the directions $x,y,z$.
+
+Let's consider the gravitational acceleration $\acc=(a_x,a_y,a_z)$ that a set of point masses at position 
+$\p{i}=(p_{i,x}, p_{i,y}, p_{i,z})$ with masses $m_i$ generate at position $\rr=(r_x, r_y, r_z)$:
+
+\begin{equation}
+ \acc(\rr) = \sum_i \frac{Gm_i}{|\rr - \p{i}|^3}(\rr - \p{i})
+\end{equation}
+
+This expression can split in one expression for each of the three spatial coordinates $u=x,y,z$:
+
+\begin{equation}
+ a_u (\rr) = \sum_i \frac{m_i G}{|\rr-\p{i}|^3} ( r_u - p_{i,u}) = \sum_i m_i f_u(\rr - \p{i}),
+\end{equation}
+
+with 
+
+\begin{equation}
+ f_u (\vv) = \frac{G}{|\vv|^3} v_u.
+\end{equation}
+
+We define two quantities to simplify the notations: the total mass $M$ of the set of point masses and the centre of 
+mass $\muu=(\mu_x, \mu_y, \mu_z)$ of this set:
+
+\begin{equation}
+ M = \sum_{i=1}^N m_i, \qquad \muu = \frac{1}{M} \sum_{i=1}^N m_i\p{i}.
+\end{equation}
+
+
+We can now expand the functions $f_u$ around the vector linking the particle to the centre of mass $\rr-\muu$:
+
+\begin{eqnarray}
+ a_u(\rr) &\approx& \sum_i m_i f_u(\rr - \muu) \\
+  & & + \sum_i m_i (\p{i}-\muu) \cdot \nabla f_u(\rr - \muu)\\
+  & & + \frac{1}{2}\sum_i m_i (\p{i}-\muu)\cdot \nabla^2 f_u(\rr-\muu)\cdot (\p{i} - \muu).
+\end{eqnarray}
+
+The first order term is identically zero and can hence be dropped. Re-arranging some of the terms, introducing the 
+vector $\dd=\rr-\muu=(d_x,d_y,d_z)$ and using the fact that the Hessian matrix of $f_u$ is symmetric, we get:
+\begin{eqnarray}
+ a_u(\rr) &=& Mf_u(\dd) \\
+           & & + \frac{1}{2} \sum_i m_i \p{i}\cdot \nabla^2f_u(\dd)\cdot \p{i}  \\
+           & & + \frac{1}{2} M \muu\cdot \nabla^2f_u(\dd)\cdot \muu \\
+           & & - \sum_i m_i \p{i}\cdot \nabla^2f_u(\dd)\cdot \muu \\
+           &=& Mf_u(\dd) \\
+           & & + \frac{1}{2} \sum_i m_i \p{i}\cdot \nabla^2f_u(\dd)\cdot \p{i} \\
+           & &- \frac{1}{2} M \muu\cdot \nabla^2f_u(\dd)\cdot \muu
+\end{eqnarray}
+
+The gradient of $f_u$ reads
+\begin{equation}
+ \nabla f_u(\dd) = \frac{-3Gd_u}{|\dd|^5}\dd + \frac{G}{|\dd|^3}\hat{\mathbf{e}}_u,
+\end{equation}
+
+with $\hat{\mathbf{e}}_u$ a unit vector along the $u$-axis. The different components of the Hessian matrix then read:
+
+\begin{eqnarray}
+ \nabla^2f_u(\dd)_{uu} &=& \frac{15Gd_u^3}{|\dd|^7} - \frac{9Gd_u}{|\dd|^5} \\
+ \nabla^2f_u(\dd)_{uv} &=& \frac{15Gd_u^2d_v}{|\dd|^7} - \frac{3Gd_v}{|\dd|^5}\\
+ \nabla^2f_u(\dd)_{vv} &=& \frac{15Gd_u^2d_v}{|\dd|^7} - \frac{3Gd_u}{|\dd|^5} \\
+ \nabla^2f_u(\dd)_{vw} &=& \frac{15Gd_ud_vd_w}{|\dd|^7} 
+\end{eqnarray}
+
+Keeping only the $xx$ term of the Hessian matrix in the Taylor expansion and introducing $\sigma_{xx}^2 = 
+\sum_im_ip_{i,x}^2$, we get for the accelerations:
+
+\begin{equation}
+ a_u(\rr) = Mf_u(\rr-\muu) + \frac{1}{2}(\sigma_{xx}^2 - M\mu_x)\nabla^2f_u(\dd)_{vv},
+\end{equation}
+
+with both $v=u$ or $v\neq u$. Expanding this coordinate by coordinate, we get:
+
+\begin{eqnarray}
+ a_x(\rr) &=& M\frac{G}{|\dd|^3} d_x + \frac{1}{2}\left(\sigma_{xx}^2 - M\mu_x\right)\left(\frac{15Gd_x^3}{|\dd|^7} - 
+\frac{9Gd_x}{|\dd|^5}\right)\\
+ a_y(\rr) &=& M\frac{G}{|\dd|^3} d_y + \frac{1}{2}\left(\sigma_{xx}^2 - M\mu_x\right)\left(\frac{15Gd_xd_y^2}{|\dd|^7}- 
+\frac{3Gd_x}{|\dd|^5}\right) \\
+ a_z(\rr) &=& M\frac{G}{|\dd|^3} d_z + \frac{1}{2}\left(\sigma_{xx}^2 - M\mu_x\right)\left(\frac{15Gd_xd_z^2}{|\dd|^7}- 
+\frac{3Gd_x}{|\dd|^5}\right)
+\end{eqnarray}
+
+The quantities $M$, $\muu$ and $\sigma_{xx}^2$ can be constructed on-the-fly by adding particles to the previous total.
+
+% \begin{equation}
+%  \phi(\rr) = - \sum_{i=1}^N \frac{Gm_i}{|\rr - \p{i}|} = - \sum_{i=1}^N m_i f(\rr - \p{i}),
+% \end{equation}
+% 
+% with the function $f(\rr)=G/|\rr|$. The gradient and Hessian matrix of $f$ read:
+% 
+% \begin{equation}
+%  \nabla f(\rr) = \frac{G}{|\rr|^3}\rr, \quad \nabla^2 f(\rr) = G\left(
+%  \begin{array}{ccc}
+%   \frac{3r_x^2}{|\rr|^5} - \frac{1}{|\rr|^3} & \frac{3r_xr_y}{|\rr|^5} & \frac{3r_xr_z}{|\rr|^5} \\
+%   \frac{3r_yr_x}{|\rr|^5} & \frac{3r_y^2}{|\rr|^5} - \frac{1}{|\rr|^3} & \frac{3r_yr_z}{|\rr|^5} \\
+%   \frac{3r_zr_x}{|\rr|^5} &\frac{3r_zr_y}{|\rr|^5}&\frac{3r_z^2}{|\rr|^5} - \frac{1}{|\rr|^3} \\
+%  \end{array}
+%  \right)
+% \end{equation}
+% 
+% 
+% 
+% We define two quantities to simplify the notations: the total mass $M$ of the set of point masses and the centre of 
+% mass $\muu=(\mu_x, \mu_y, \mu_z)$ of this set:
+% 
+% \begin{equation}
+%  M = \sum_{i=1}^N m_i, \qquad \muu = \frac{1}{M} \sum_{i=1}^N m_i\p{i}
+% \end{equation}
+% 
+% Expanding the potential around $\muu$, we find
+% 
+% \begin{equation}
+%   \phi(\rr) \approx -\sum_{i=1}^N m_i f(\rr - \muu) -  \sum_{i=1}^N \frac{m_i}{2} (\p{i} - \muu) \cdot \nabla^2 
+% f(\rr - \muu) \cdot (\p{i} - \muu)
+% \end{equation}
+% 
+% Note that the first order term, the ``dipole'', is identically zero and not shown here. Re-arranging the terms, we 
+% get:
+% 
+% \begin{equation}
+%   \phi(\rr) \approx -Mf(\rr - \muu) - \frac{1}{2}\sum_{i=1}^N m_i \p{i}\cdot \nabla^2 
+% f(\rr - \muu) \cdot \p{i} + \frac{M}{2} \muu\cdot \nabla^2 
+% f(\rr - \muu) \cdot \muu \nonumber
+% \end{equation}
+% 
+% 
+% Let's now assume that on average $|x_{i,x} - \mu_x| \gg |x_{i,y} - \mu_y| \approx |x_{i,z} - \mu_z|$, then the only 
+% term in the matrix that needs to be computed is $\nabla^2 f(\rr-\muu)_{xx}$. The expression then reduces to
+% 
+% \begin{equation}
+%  \phi(\rr) \approx -Mf(\rr - \muu) - \frac{1}{2}\sum_{i=1}^N m_i x_{i,x}^2 \nabla^2f(\rr - \muu)_{xx} + 
+% \frac{M}{2} \mu_x^2 \nabla^2f(\rr - \muu)_{xx}
+% \end{equation}
+% 
+% We can introduce the quantity $d=\sum_{i=1}^N m_i x_{i,x}^2$ to simplify the expression even more:
+% 
+% \begin{equation}
+%  \phi(\rr) \approx -Mf(\rr - \muu) - \left(\frac{d}{2} - \frac{M\mu_x^2}{2}\right) \nabla^2f(\rr - \muu)_{xx}
+% \end{equation}
+% 
+% Using the definition of $f$, we get:
+% 
+% \begin{equation}
+%  \phi(\rr) \approx -\frac{GM}{|\rr - \muu|} - G\left(\frac{d}{2} - \frac{M\mu_x^2}{2}\right) \left(
+% \frac{3(r_x-\mu_x)^2}{|\rr-\muu|^5} - \frac{1}{|\rr-\muu|^3}\right).
+% \end{equation}
+% 
+% The acceleration created by the set of particles on a test particle at position $\rr$ is then
+% 
+% \begin{eqnarray}
+%  \mathbf{a}(\rr)&=& -\nabla\phi(\rr) \nonumber \\
+%  &\approx& - \frac{GM}{|\rr - \muu|^3}(\rr-\muu) \nonumber \\
+%  & &- G\left(\frac{d}{2} - \frac{M\mu_x^2}{2}\right)\left(\frac{15(r_x-\mu_x)^2}{|\rr-\muu|^7} - 
+% \frac{1}{|\rr-\muu|^5}\right) (\rr -\muu) \nonumber \\
+% & & + G\left(\frac{d}{2} - \frac{M\mu_x^2}{2}\right) \frac{6(r_x-\mu_x)^2}{|\rr-\muu|^7} \mathbf{e}_x,
+% \end{eqnarray}
+% 
+% where $\mathbf{e}_x$ is a unit vector along the x-axis. The quantities $M$, $\muu$ and $d$ can be constructed 
+% on-the-fly by adding particles to the previous total.
+\end{document}
