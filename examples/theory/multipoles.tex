@@ -83,17 +83,19 @@ Keeping only the $xx$ term of the Hessian matrix in the Taylor expansion and int
 \sum_im_ip_{i,x}^2$, we get for the accelerations:
 
 \begin{equation}
- a_u(\rr) = Mf_u(\rr-\muu) + \frac{1}{2}(\sigma_{xx}^2 - M\mu_x)\nabla^2f_u(\dd)_{vv},
+ a_u(\rr) = Mf_u(\rr-\muu) + \frac{1}{2}(\sigma_{xx}^2 - M\mu_x^2)\nabla^2f_u(\dd)_{vv},
 \end{equation}
 
 with both $v=u$ or $v\neq u$. Expanding this coordinate by coordinate, we get:
 
 \begin{eqnarray}
- a_x(\rr) &=& M\frac{G}{|\dd|^3} d_x + \frac{1}{2}\left(\sigma_{xx}^2 - M\mu_x\right)\left(\frac{15Gd_x^3}{|\dd|^7} - 
+ a_x(\rr) &=& M\frac{G}{|\dd|^3} d_x + \frac{1}{2}\left(\sigma_{xx}^2 - M\mu_x^2\right)\left(\frac{15Gd_x^3}{|\dd|^7} - 
 \frac{9Gd_x}{|\dd|^5}\right)\\
- a_y(\rr) &=& M\frac{G}{|\dd|^3} d_y + \frac{1}{2}\left(\sigma_{xx}^2 - M\mu_x\right)\left(\frac{15Gd_xd_y^2}{|\dd|^7}- 
+ a_y(\rr) &=& M\frac{G}{|\dd|^3} d_y + \frac{1}{2}\left(\sigma_{xx}^2 - 
+M\mu_x^2\right)\left(\frac{15Gd_xd_y^2}{|\dd|^7}- 
 \frac{3Gd_x}{|\dd|^5}\right) \\
- a_z(\rr) &=& M\frac{G}{|\dd|^3} d_z + \frac{1}{2}\left(\sigma_{xx}^2 - M\mu_x\right)\left(\frac{15Gd_xd_z^2}{|\dd|^7}- 
+ a_z(\rr) &=& M\frac{G}{|\dd|^3} d_z + \frac{1}{2}\left(\sigma_{xx}^2 - 
+M\mu_x^2\right)\left(\frac{15Gd_xd_z^2}{|\dd|^7}- 
 \frac{3Gd_x}{|\dd|^5}\right)
 \end{eqnarray}
 
