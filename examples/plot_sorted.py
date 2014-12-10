@@ -74,7 +74,8 @@ for orientation in range( 26 ):
     data=loadtxt( "interaction_dump_%d.dat"%orientation )
     id = data[:,0]
     pos = data[:,2]
-    
+    pos -= mean(pos)
+        
     accx_u=data[:,6]
     accy_u=data[:,7]
     accz_u=data[:,8]
@@ -114,6 +115,7 @@ for orientation in range( 26 ):
     #plot(id[abs(errx_s) > 0.001], e_errx_s , 'ro')
     plot(pos, e_errx_s , 'ro')
     text( 0., 0.1, "axis=( %d %d %d )"%(axis[orientation*3 + 0], axis[orientation*3 + 1], axis[orientation*3 + 2]) , ha='center', backgroundcolor='w', fontsize=14)
+    xlim(-1.2*max(abs(pos)), 1.2*max(abs(pos)))
     ylim(-0.05, 0.05)
     grid()
     
@@ -121,6 +123,7 @@ for orientation in range( 26 ):
     #plot(id[abs(erry_s) > 0.001], e_erry_s , 'ro')
     plot(pos, e_erry_s , 'ro')
     text( 0., 0.1, "axis=( %d %d %d )"%(axis[orientation*3 + 0], axis[orientation*3 + 1], axis[orientation*3 + 2]) , ha='center', backgroundcolor='w', fontsize=14)
+    xlim(-1.2*max(abs(pos)), 1.2*max(abs(pos)))
     ylim(-0.05, 0.05)  
     grid()
     
@@ -130,76 +133,76 @@ for orientation in range( 26 ):
     text( 0., 0.1, "axis=( %d %d %d )"%(axis[orientation*3 + 0], axis[orientation*3 + 1], axis[orientation*3 + 2]) , ha='center', backgroundcolor='w', fontsize=14)
 
     legend(loc="upper right")
-    
+    xlim(-1.2*max(abs(pos)), 1.2*max(abs(pos)))
     ylim(-0.05, 0.05)
     #xlim(0, size(id)-1)
     grid()
 
-    savefig("matthieu_accelerations_relative_%d.png"%orientation)
+    savefig("1quadrupole_accelerations_relative_%d.png"%orientation)
     close()
 
 
-    # Plot -------------------------------------------------------
-    figure(frameon=True)
+    # # Plot -------------------------------------------------------
+    # figure(frameon=True)
     
-    subplot(311, title="Acceleration along X")
-    #plot(id[abs(errx_s) > 0.001], e_errx_s , 'ro')
-    plot(pos, accx_u , 'bx')
-    plot(pos, accx_s , 'ro')
-    text( 0., 0.1, "axis=( %d %d %d )"%(axis[orientation*3 + 0], axis[orientation*3 + 1], axis[orientation*3 + 2]) , ha='center', backgroundcolor='w', fontsize=14)
-    ylim(-700, 700)
-    grid()
+    # subplot(311, title="Acceleration along X")
+    # #plot(id[abs(errx_s) > 0.001], e_errx_s , 'ro')
+    # plot(pos, accx_u , 'bx')
+    # plot(pos, accx_s , 'ro')
+    # text( 0., 0.1, "axis=( %d %d %d )"%(axis[orientation*3 + 0], axis[orientation*3 + 1], axis[orientation*3 + 2]) , ha='center', backgroundcolor='w', fontsize=14)
+    # ylim(-700, 700)
+    # grid()
     
-    subplot(312, title="Acceleration along Y")
-    #plot(id[abs(erry_s) > 0.001], e_erry_s , 'ro')
-    plot(pos, accy_u , 'bx')
-    plot(pos, accy_s , 'ro')
-    text( 0., 0.1, "axis=( %d %d %d )"%(axis[orientation*3 + 0], axis[orientation*3 + 1], axis[orientation*3 + 2]) , ha='center', backgroundcolor='w', fontsize=14)
-    ylim(-700, 700) 
-    grid()
+    # subplot(312, title="Acceleration along Y")
+    # #plot(id[abs(erry_s) > 0.001], e_erry_s , 'ro')
+    # plot(pos, accy_u , 'bx')
+    # plot(pos, accy_s , 'ro')
+    # text( 0., 0.1, "axis=( %d %d %d )"%(axis[orientation*3 + 0], axis[orientation*3 + 1], axis[orientation*3 + 2]) , ha='center', backgroundcolor='w', fontsize=14)
+    # ylim(-700, 700) 
+    # grid()
     
-    subplot(313, title="Acceleration along Z")
-    #plot(id[abs(errz_s) > 0.001], e_errz_s , 'ro', label="Sorted")
-    plot(pos, accz_u , 'bx', label="Unsorted")
-    plot(pos, accz_s , 'ro', label="Sorted")
+    # subplot(313, title="Acceleration along Z")
+    # #plot(id[abs(errz_s) > 0.001], e_errz_s , 'ro', label="Sorted")
+    # plot(pos, accz_u , 'bx', label="Unsorted")
+    # plot(pos, accz_s , 'ro', label="Sorted")
 
-    text( 0., 0.1, "axis=( %d %d %d )"%(axis[orientation*3 + 0], axis[orientation*3 + 1], axis[orientation*3 + 2]) , ha='center', backgroundcolor='w', fontsize=14)
+    # text( 0., 0.1, "axis=( %d %d %d )"%(axis[orientation*3 + 0], axis[orientation*3 + 1], axis[orientation*3 + 2]) , ha='center', backgroundcolor='w', fontsize=14)
 
-    legend(loc="upper right")
+    # legend(loc="upper right")
     
-    ylim(-700, 700)
-    grid()
+    # ylim(-700, 700)
+    # grid()
 
-    savefig("accelerations_absolute_%d.png"%orientation)
-    close()
+    # savefig("accelerations_absolute_%d.png"%orientation)
+    # close()
     
     
     
-    # Plot -------------------------------------------------------
-    bins = linspace(-3, 3, 10000)
+    # # Plot -------------------------------------------------------
+    # bins = linspace(-3, 3, 10000)
     
-    e_errx_s = errx_s[(abs(errx_s) >= 0.000) & (abs(errx_s) < 1.)]
-    e_erry_s = erry_s[(abs(erry_s) >= 0.000) & (abs(erry_s) < 1.)]
-    e_errz_s = errz_s[(abs(errz_s) >= 0.000) & (abs(errz_s) < 1.)]
+    # e_errx_s = errx_s[(abs(errx_s) >= 0.000) & (abs(errx_s) < 1.)]
+    # e_erry_s = erry_s[(abs(erry_s) >= 0.000) & (abs(erry_s) < 1.)]
+    # e_errz_s = errz_s[(abs(errz_s) >= 0.000) & (abs(errz_s) < 1.)]
     
     
     
-    figure(frameon=True)
-    subplot(311, title="Acceleration along X")
-    hist(e_errx_s, bins=bins, normed=1, histtype='step', rwidth=0.01, color='r', label="Sorted")
-    legend(loc="upper right")
-    xlim(-0.12, 0.12)
+    # figure(frameon=True)
+    # subplot(311, title="Acceleration along X")
+    # hist(e_errx_s, bins=bins, normed=1, histtype='step', rwidth=0.01, color='r', label="Sorted")
+    # legend(loc="upper right")
+    # xlim(-0.12, 0.12)
     
-    subplot(312, title="Acceleration along Y")
-    hist(e_erry_s, bins=bins, normed=1, histtype='step', rwidth=0.01, color='r')
-    xlim(-0.12, 0.12)
+    # subplot(312, title="Acceleration along Y")
+    # hist(e_erry_s, bins=bins, normed=1, histtype='step', rwidth=0.01, color='r')
+    # xlim(-0.12, 0.12)
 
-    subplot(313, title="Acceleration along Z")
-    hist(e_errz_s, bins=bins, normed=1, histtype='step', rwidth=0.01, color='r')
-    xlim(-0.12, 0.12)
+    # subplot(313, title="Acceleration along Z")
+    # hist(e_errz_s, bins=bins, normed=1, histtype='step', rwidth=0.01, color='r')
+    # xlim(-0.12, 0.12)
     
-    savefig("histogram_%d.png"%orientation)
-    close()
+    # savefig("histogram_%d.png"%orientation)
+    # close()
 
 
 

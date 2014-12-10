@@ -42,13 +42,13 @@
 #define const_G 1    // 6.6738e-8
 #define dist_min 0.5 /* Used for legacy walk only */
 #define dist_cutoff_ratio 1.5
-#define iact_pair_direct iact_pair_direct_sorted_tripole
+#define iact_pair_direct iact_pair_direct_sorted_multipole
 
 #define ICHECK -1
 #define NO_SANITY_CHECKS
 #define NO_COM_AS_TASK
 #define COUNTERS
-#define MANY_MULTIPOLES
+//#define MANY_MULTIPOLES
 
 /** Data structure for the particles. */
 struct part {
@@ -68,7 +68,7 @@ struct index {
   float d;
 };
 
-struct multipole {
+struct monopole {
   double com[3];
   float mass;
 };
@@ -90,10 +90,10 @@ struct cell {
   union {
 
     /* Information for the legacy walk */
-    struct multipole legacy;
+    struct monopole legacy;
 
     /* Information for the QuickShed walk */
-    struct multipole new;
+    struct monopole new;
   };
 
   int res, com_tid;
@@ -183,108 +183,128 @@ static inline void dipole_iact(const struct dipole *d, const float *x,
   for (k = 0; k < 3; k++) a[k] -= w * dx[k];
 }
 
-/** Tripole stuff. Moment-matching multipole along a given direction. */
-struct tripole {
-  float axis1[3], axis2[3];
+
+
+
+/** Multipole stuff. */
+struct multipole {
   float x[3];
   float mass;
-  float da, da2, db, db2;
-  int count;
+  float Q[3][3];
 };
 
-static inline void tripole_init(struct tripole *d, const float *axis1, const float *axis2) {
+
+static inline void multipole_init(struct multipole *d) {
   for (int k = 0; k < 3; k++) {
-    d->axis1[k] = axis1[k];
-    d->axis2[k] = axis2[k];
     d->x[k] = 0.0;
   }
+  for (int i = 0; i < 3; i++) {
+    for (int j = 0; j < 3; j++) {
+      d->Q[i][j] = 0.0;
+    }
+  }
+
   d->mass = 0.0;
-  d->da = 0.0; d->db = 0.0;
-  d->da2 = 0.0; d->db2 = 0.0;
-  d->count = 0;
 }
 
-static inline void tripole_reset(struct tripole *d) {
+static inline void multipole_reset(struct multipole *d) {
   for (int k = 0; k < 3; k++) d->x[k] = 0.0;
+  for (int i = 0; i < 3; i++) {
+    for (int j = 0; j < 3; j++) {
+      d->Q[i][j] = 0.0;
+    }
+  }
+
   d->mass = 0.0;
-  d->da = 0.0; d->db = 0.0;
-  d->da2 = 0.0; d->db2 = 0.0;
-  d->count = 0;
 }
 
-static inline void tripole_add(struct tripole *d, const float *x, float mass,
-                              float da, float db) {
+static inline void multipole_add_com(struct multipole *d, const float *x, float mass) {
   for (int k = 0; k < 3; k++) d->x[k] += x[k] * mass;
   d->mass += mass;
-  d->da += da * mass;
-  d->da2 += da * da * mass;
-  d->db += db * mass;
-  d->db2 += db * db * mass;
-  d->count++;
 }
 
-static inline void tripole_iact(const struct tripole *d, const float *x,
-                               float *a) {
-  // Bail early if no mass.
-  if (d->mass == 0.0) return;
+static inline void multipole_add_matrix(struct multipole *d, const float *x, float mass) {
 
-  float inv_mass = 1.0f / d->mass;
-  float dx[3], r2, ir, w;
+  float r2, dx[3];
   int k;
+  
+  /* Distance from CoM */
+  for ( k = 0; k < 3; ++k) 
+    dx[k] = x[k] - d->x[k] / d->mass;
+  
+  r2 = dx[0] * dx[0] + dx[1] * dx[1] + dx[2] * dx[2];
 
-  /* Get the offset along the dipole axis. This looks weird, but negative
-     offsets can happen due to rounding error. */
-  float offset1 = 2 * (d->da2 - d->da * d->da * inv_mass) * inv_mass;
-  if (offset1 > 0) {
-    offset1 = sqrtf(offset1);
-  } else {
-    offset1 = 0.0f;
-  }
-  float offset2 = 2 * (d->db2 - d->db * d->db * inv_mass) * inv_mass;
-  if (offset2 > 0) {
-    offset2 = sqrtf(offset2);
-  } else {
-    offset2 = 0.0f;
-  }
+  /* Now fill in the matrix */
+  d->Q[0][0] += ((3. * mass * dx[0] * dx[0]) - (mass * r2)); 
+  d->Q[1][1] += ((3. * mass * dx[1] * dx[1]) - (mass * r2)); 
+  d->Q[2][2] += ((3. * mass * dx[2] * dx[2]) - (mass * r2)); 
 
-  //offset1 = offset2 = 0.;
+  d->Q[0][1] += 3. * mass * dx[0] * dx[1];
+  d->Q[0][2] += 3. * mass * dx[0] * dx[2];
 
-  /* Compute the first dipole. */
-  for (r2 = 0.0f, k = 0; k < 3; k++) {
-    dx[k] = x[k] - (d->x[k] * inv_mass + offset1 * d->axis1[k]);
-    r2 += dx[k] * dx[k];
-  }
-  ir = 1.0f / sqrtf(r2);
-  w = const_G * ir * ir * ir * d->mass * 0.25f;
-  for (k = 0; k < 3; k++) a[k] -= w * dx[k];
+  d->Q[1][0] += 3. * mass * dx[1] * dx[0];
+  d->Q[1][2] += 3. * mass * dx[1] * dx[2];
 
-  /* Compute the second dipole. */
-  for (r2 = 0.0f, k = 0; k < 3; k++) {
-    dx[k] = x[k] - (d->x[k] * inv_mass - offset1 * d->axis1[k]);
-    r2 += dx[k] * dx[k];
-  }
-  ir = 1.0f / sqrtf(r2);
-  w = const_G * ir * ir * ir * d->mass * 0.25f;
-  for (k = 0; k < 3; k++) a[k] -= w * dx[k];
-
-  /* Compute the first dipole. */
-  for (r2 = 0.0f, k = 0; k < 3; k++) {
-    dx[k] = x[k] - (d->x[k] * inv_mass + offset2 * d->axis2[k]);
-    r2 += dx[k] * dx[k];
-  }
-  ir = 1.0f / sqrtf(r2);
-  w = const_G * ir * ir * ir * d->mass * 0.25f;
-  for (k = 0; k < 3; k++) a[k] -= w * dx[k];
-
-  /* Compute the second dipole. */
-  for (r2 = 0.0f, k = 0; k < 3; k++) {
-    dx[k] = x[k] - (d->x[k] * inv_mass - offset2 * d->axis2[k]);
-    r2 += dx[k] * dx[k];
-  }
-  ir = 1.0f / sqrtf(r2);
-  w = const_G * ir * ir * ir * d->mass * 0.25f;
-  for (k = 0; k < 3; k++) a[k] -= w * dx[k];
+  d->Q[2][0] += 3. * mass * dx[2] * dx[0];
+  d->Q[2][1] += 3. * mass * dx[2] * dx[1];
 }
+
+static inline void multipole_print(struct multipole* d) {
+  
+  /* early abort */
+  if (d->mass == 0.) return;
+  
+  message("M : %f", d->mass);
+  message("CoM: %f %f %f", d->x[0] / d->mass, d->x[1] / d->mass, d->x[2] / d->mass);
+  message("Q: %f %f %f", d->Q[0][0], d->Q[0][1], d->Q[0][2] );
+  message("   %f %f %f", d->Q[1][0], d->Q[1][1], d->Q[1][2] );
+  message("   %f %f %f", d->Q[2][0], d->Q[2][1], d->Q[2][2] );
+
+}
+
+static inline void multipole_iact(struct multipole *d, const float *x, float* a) {
+
+  int i,j,k;
+  float r2,ir,w, dx[3];
+
+  /* early abort */
+  if (d->mass == 0.) return;
+
+  float inv_mass = 1. / d->mass;
+
+  /* Compute the distance. */
+  for (r2 = 0.0f, k = 0; k < 3; k++) {
+    dx[k] = x[k] - d->x[k] * inv_mass;
+    r2 += dx[k] * dx[k];
+  }
+  ir = 1.0f / sqrtf(r2);
+
+  
+  /* Compute the acceleration from the monopole */
+  w = const_G * ir * ir * ir * d->mass;
+  for (k = 0; k < 3; k++) a[k] -= w * dx[k];
+
+  //return;
+
+  /* Compute the acceleration from the quadrupole */
+  w = const_G * ir * ir * ir * ir * ir * ir * ir * 0.5f;
+  for (i=0 ; i<3 ; ++i) {
+    for (j=0 ; j<3 ; ++j) {
+
+      a[0] += w * dx[i]*dx[j]*(2.*dx[j] - 5.*dx[0]) * d->Q[i][j];
+      a[1] += w * dx[i]*dx[j]*(2.*dx[j] - 5.*dx[1]) * d->Q[i][j];
+      a[2] += w * dx[i]*dx[j]*(2.*dx[j] - 5.*dx[2]) * d->Q[i][j];
+	
+    }
+  }
+
+
+}
+
+
+
+
+
 
 #ifdef COUNTERS
 int count_direct_unsorted;
@@ -1508,7 +1528,7 @@ static inline void iact_pair_direct_sorted(struct cell *ci, struct cell *cj) {
         }
       }
 #endif
-      message("P[%3d].pos= %f %f %f %d", i, parts_i[i].x[0], parts_i[i].x[1], parts_i[i].x[2], l);
+      //message("P[%3d].pos= %f %f %f %d", i, parts_i[i].x[0], parts_i[i].x[1], parts_i[i].x[2], l);
 
 
       com[l][0] += parts_i[i].x[0] * mi;
@@ -1795,8 +1815,14 @@ static inline void iact_pair_direct_sorted_dipole(struct cell *ci,
   }
 }
 
-static inline void iact_pair_direct_sorted_tripole(struct cell *ci,
-                                                  struct cell *cj) {
+
+
+
+
+
+
+static inline void iact_pair_direct_sorted_multipole(struct cell *ci,
+						     struct cell *cj) {
 
   struct part_local {
     float x[3];
@@ -1819,14 +1845,21 @@ static inline void iact_pair_direct_sorted_tripole(struct cell *ci,
 
 #endif
 
+  //message("start");
+
   /* Get the sorted indices and stuff. */
   struct index *ind_i, *ind_j;
-  struct tripole dip[4];
+  struct multipole dip[4];
   float axis[3], orth1[4], orth2[4];
   int num_orth_planes = 0;
   get_axis(&ci, &cj, &ind_i, &ind_j, axis, &num_orth_planes, orth1, orth2);
-  for (k = 0; k < (1 << num_orth_planes); k++) tripole_init(&dip[k], orth1, orth2);
+  for (k = 0; k < 3; k++) axis[k] = M_SQRT1_2 * (orth1[k] + orth2[k]);
+  //m_orth_planes = 0;
+  for (k = 0; k < (1 << num_orth_planes); k++) multipole_init(&dip[k]);
   cjh = cj->h;
+
+
+  //message("init OK");
 
   /* Allocate and fill-in the local parts. */
   count_i = ci->count;
@@ -1856,6 +1889,8 @@ static inline void iact_pair_direct_sorted_tripole(struct cell *ci,
     }
     parts_j[j].mass = cj->parts[pjd].mass;
   }
+
+  //message("fill in ok");
 
 #if ICHECK >= 0
   for (k = 0; k < count_i; k++)
@@ -1930,6 +1965,13 @@ static inline void iact_pair_direct_sorted_tripole(struct cell *ci,
 
     } /* loop over every other particle. */
 
+    /* Reset the multipole */
+    for (l = 0; l < (1 << num_orth_planes); ++l) {
+      multipole_reset(&dip[l]);
+    }
+
+    //message(" i=%d m-pole reset", i)
+
     /* Add any remaining particles to the COM. */
     for (int jj = j; jj < count_j; jj++) {
 
@@ -1947,53 +1989,74 @@ static inline void iact_pair_direct_sorted_tripole(struct cell *ci,
       }
 #endif
 
-      float da = 0.0f, db = 0.0f;
-      for (k = 0; k < 3; k++) {
-        da += parts_j[jj].x[k] * orth1[k];
-        db += parts_j[jj].x[k] * orth2[k];
+      /* float da = 0.0f; */
+      /* for (k = 0; k < 3; k++) da += parts_j[jj].x[k] * axis[k]; */
+      multipole_add_com(&dip[l], parts_j[jj].x, parts_j[jj].mass);
+    }
+
+    for (int jj = j; jj < count_j; jj++) {
+
+      l = 0;
+#ifdef MANY_MULTIPOLES
+      if (num_orth_planes > 0) {
+        float n1 = parts_j[jj].x[0] * orth1[0] + parts_j[jj].x[1] * orth1[1] +
+                   parts_j[jj].x[2] * orth1[2] + orth1[3];
+        l = 2 * l + ((n1 < 0.0) ? 0 : 1);
+        if (num_orth_planes > 1) {
+          float n2 = parts_j[jj].x[0] * orth2[0] + parts_j[jj].x[1] * orth2[1] +
+                     parts_j[jj].x[2] * orth2[2] + orth2[3];
+          l = 2 * l + ((n2 < 0.0) ? 0 : 1);
+        }
       }
-      tripole_add(&dip[l], parts_j[jj].x, parts_j[jj].mass, da, db);
+#endif
+
+      multipole_add_matrix(&dip[l], parts_j[jj].x, parts_j[jj].mass);
+    }
+
+    for (l = 0; l < (1 << num_orth_planes); ++l) {
+      //multipole_print(&dip[l]);
     }
 
     /* Shrink count_j to the latest valid particle. */
-    count_j = j;
+    //count_j = j;
+
+    //message(" i=%d ready to interact", i)
 
     /* Interact part_i with the center of mass. */
     for (l = 0; l < (1 << num_orth_planes); ++l) {
-      tripole_iact(&dip[l], xi, ai);
-#if ICHECK >= 0
-      if (parts_i[i].id == ICHECK)
-        message("Interaction with multipole");  //, parts_j[j].id );
-#endif
+      multipole_iact(&dip[l], xi, ai);
+/* #if ICHECK >= 0 */
+/*       if (parts_i[i].id == ICHECK) */
+/*         message("Interaction with multipole");  //, parts_j[j].id ); */
+/* #endif */
 
 #ifdef COUNTERS
       ++count_direct_sorted_pm_i;
 #endif
+
+      //message(" i=%d done", i)
     }
-    
+
     /* Store the accumulated acceleration on the ith part. */
     for (k = 0; k < 3; k++) parts_i[i].a[k] += ai[k];
 
   } /* loop over all particles in ci. */
-  
-  /* Dump extensive info on the dipole. */
-  /* for (l = 0; l < (1 << num_orth_planes); l++)
-    message("dip[%i] has com=[%e,%e,%e], mass=%e, %i parts.", l,
-      dip[l].x[0]/dip[l].mass,
-      dip[l].x[1]/dip[l].mass,
-      dip[l].x[2]/dip[l].mass,
-      dip[l].mass, dip[l].count); */
+
+  //message( "OK i");
 
   /* Re-init some values. */
   count_j = cj->count;
   int last_i = 0;
   for (l = 0; l < (1 << num_orth_planes); ++l) {
-    tripole_reset(&dip[l]);
+    multipole_reset(&dip[l]);
   }
 
   /* Loop over the particles in cj, catch the COM interactions. */
   for (j = 0; j < count_j; j++) {
 
+    for (l = 0; l < (1 << num_orth_planes); ++l) {
+      multipole_reset(&dip[l]);
+    }
     /* Get the sorted index. */
     float dj = parts_j[j].d;
 
@@ -2012,20 +2075,34 @@ static inline void iact_pair_direct_sorted_tripole(struct cell *ci,
         }
       }
 #endif
-      float da = 0.0f, db = 0.0f;
-      for (k = 0; k < 3; k++) {
-        da += parts_i[i].x[k] * orth1[k];
-        db += parts_i[i].x[k] * orth2[k];
-      }
-      tripole_add(&dip[l], parts_i[i].x, parts_i[i].mass, da, db);
+      multipole_add_com(&dip[l], parts_i[i].x, parts_i[i].mass);
     }
 
+    for (i = last_i; i < count_i && (dj - parts_i[i].d) > d_max; i++) {
+      l = 0;
+#ifdef MANY_MULTIPOLES
+      if (num_orth_planes > 0) {
+        float n1 = parts_i[i].x[0] * orth1[0] + parts_i[i].x[1] * orth1[1] +
+                   parts_i[i].x[2] * orth1[2] + orth1[3];
+        l = 2 * l + ((n1 < 0) ? 0 : 1);
+        if (num_orth_planes > 1) {
+          float n2 = parts_i[i].x[0] * orth2[0] + parts_i[i].x[1] * orth2[1] +
+                     parts_i[i].x[2] * orth2[2] + orth2[3];
+          l = 2 * l + ((n2 < 0) ? 0 : 1);
+        }
+      }
+#endif
+      multipole_add_matrix(&dip[l], parts_i[i].x, parts_i[i].mass);
+    }
+
+
+
     /* Set the new last_i to the last particle checked. */
-    last_i = i;
+    //last_i = i;
 
     /* Interact part_j with the COM. */
     for (l = 0; l < (1 << num_orth_planes); ++l) {
-      tripole_iact(&dip[l], parts_j[j].x, parts_j[j].a);
+      multipole_iact(&dip[l], parts_j[j].x, parts_j[j].a);
 #ifdef COUNTERS
       ++count_direct_sorted_pm_j;
 #endif
@@ -2042,6 +2119,10 @@ static inline void iact_pair_direct_sorted_tripole(struct cell *ci,
     for (k = 0; k < 3; k++) cj->parts[pjd].a[k] += parts_j[j].a[k];
   }
 }
+
+
+
+
 
 /**
  * @brief Decides whether two cells use the direct summation interaction or the
@@ -2816,7 +2897,7 @@ const float cell_shift[27 * 3] = {1.0, 1.0, 1.0,    /* 0 */
  */
 void test_direct_neighbour(int N_parts, int orientation) {
 
-  int k;
+  int i,j,k;
   struct part *parts;
   struct cell left, right;
 
@@ -2832,24 +2913,60 @@ void test_direct_neighbour(int N_parts, int orientation) {
     error("Failed to allocate particle buffer.");
 
   /* Create random set of particles in both cells */
-  for (k = 0; k < 2 * N_parts; k++) {
-    parts[k].id = k;
+  /* for (k = 0; k < 2 * N_parts; k++) { */
+  /*   parts[k].id = k; */
 
-    parts[k].x[0] = ((double)rand()) / RAND_MAX;
-    parts[k].x[1] = ((double)rand()) / RAND_MAX;
-    parts[k].x[2] = ((double)rand()) / RAND_MAX;
+  /*   parts[k].x[0] = ((double)rand()) / RAND_MAX; */
+  /*   parts[k].x[1] = ((double)rand()) / RAND_MAX; */
+  /*   parts[k].x[2] = ((double)rand()) / RAND_MAX; */
 
-    /* Shift the second cell */
-    if (k >= N_parts) {
-      parts[k].x[0] += shift[0];
-      parts[k].x[1] += shift[1];
-      parts[k].x[2] += shift[2];
+  /*   /\* Shift the second cell *\/ */
+  /*   if (k >= N_parts) { */
+  /*     parts[k].x[0] += shift[0]; */
+  /*     parts[k].x[1] += shift[1]; */
+  /*     parts[k].x[2] += shift[2]; */
+  /*   } */
+
+  /*   parts[k].mass = ((double)rand()) / RAND_MAX; */
+  /*   parts[k].a[0] = 0.0; */
+  /*   parts[k].a[1] = 0.0; */
+  /*   parts[k].a[2] = 0.0; */
+  /* } */
+  /* i=j; */
+  /* j=i; */
+  int id;
+  int size = 10;
+  float delta = 1. / (size);
+  float offset = delta * 0.5;
+  for (i = 0; i < size; ++i){
+    for (j = 0; j < size; ++j){
+      for (k = 0; k < size; ++k){
+  	id = i*size*size + j*size + k;
+  	parts[id].id = id;
+  	parts[id].x[0] = offset + delta * i + ((double)rand() / RAND_MAX) * delta * 0.01;
+  	parts[id].x[1] = offset + delta * j + ((double)rand() / RAND_MAX) * delta * 0.01;
+  	parts[id].x[2] = offset + delta * k + ((double)rand() / RAND_MAX) * delta * 0.01;
+  	parts[id].mass = 1.;
+  	parts[id].a[0] = 0.0;
+  	parts[id].a[1] = 0.0;
+  	parts[id].a[2] = 0.0;
+      }
     }
-
-    parts[k].mass = ((double)rand()) / RAND_MAX;
-    parts[k].a[0] = 0.0;
-    parts[k].a[1] = 0.0;
-    parts[k].a[2] = 0.0;
+  }
+  for (i = 0; i < size; ++i){
+    for (j = 0; j < size; ++j){
+      for (k = 0; k < size; ++k){
+  	id = i*size*size + j*size + k + size*size*size;
+  	parts[id].id = id;
+  	parts[id].x[0] = offset + delta * i + shift[0] + ((double)rand() / RAND_MAX) * delta * 0.01;
+  	parts[id].x[1] = offset + delta * j + shift[1] + ((double)rand() / RAND_MAX) * delta * 0.01;
+  	parts[id].x[2] = offset + delta * k + shift[2] + ((double)rand() / RAND_MAX) * delta * 0.01;
+  	parts[id].mass = 1.;
+  	parts[id].a[0] = 0.0;
+  	parts[id].a[1] = 0.0;
+  	parts[id].a[2] = 0.0;
+      }
+    }
   }
 
   /* Get the cell geometry right */
@@ -2940,7 +3057,7 @@ void test_direct_neighbour(int N_parts, int orientation) {
 
   for (k = 0; k < 2 * N_parts; ++k)
     position[k] = parts[k].x[0] * shift[0] + parts[k].x[1] * shift[1] +
-                  parts[k].x[2] * shift[2] - midPoint;
+      parts[k].x[2] * shift[2];
 
   /* Now, output everything */
   char fileName[100];
