@@ -43,7 +43,6 @@
 #define dist_min 0.5 /* Used for legacy walk only */
 #define dist_cutoff_ratio 1.5
 #define iact_pair_direct iact_pair_direct_sorted_multipole
-
 #define ICHECK -1
 #define NO_SANITY_CHECKS
 #define NO_COM_AS_TASK
@@ -232,6 +231,8 @@ static inline void multipole_add_matrix(struct multipole *d, const float *x, flo
   for ( k = 0; k < 3; ++k) 
     dx[k] = x[k] - d->x[k] / d->mass;
   
+  //  message("x_i: %f %f %f    dx: %f %f %f", x[0], x[1], x[2], dx[0], dx[1], dx[2]);
+
   r2 = dx[0] * dx[0] + dx[1] * dx[1] + dx[2] * dx[2];
 
   /* Now fill in the matrix */
@@ -282,23 +283,37 @@ static inline void multipole_iact(struct multipole *d, const float *x, float* a)
   
   /* Compute the acceleration from the monopole */
   w = const_G * ir * ir * ir * d->mass;
-  for (k = 0; k < 3; k++) a[k] -= w * dx[k];
+  float a_m[3] = {0., 0., 0.};
+  for (k = 0; k < 3; k++) a_m[k] -= w * dx[k];
 
+  
   //return;
 
   /* Compute the acceleration from the quadrupole */
-  w = const_G * ir * ir * ir * ir * ir * ir * ir * 0.5f;
-  for (i=0 ; i<3 ; ++i) {
-    for (j=0 ; j<3 ; ++j) {
-
-      a[0] += w * dx[i]*dx[j]*(2.*dx[j] - 5.*dx[0]) * d->Q[i][j];
-      a[1] += w * dx[i]*dx[j]*(2.*dx[j] - 5.*dx[1]) * d->Q[i][j];
-      a[2] += w * dx[i]*dx[j]*(2.*dx[j] - 5.*dx[2]) * d->Q[i][j];
-	
+  float a_q[3] = {0., 0., 0.};
+  float w1 = 0.5f * const_G * ir * ir * ir * ir * ir; 
+  float w2 = -2.5f * const_G * ir * ir * ir * ir * ir * ir * ir;
+  float sum = 0.;
+  for (i = 0; i < 3; i++) {
+    for (j = 0; j < 3; j++) {
+      sum += dx[i] * d->Q[i][j] * dx[j];
     }
   }
+  a_q[0] = w2 * sum * dx[0] + w1 * (2.*dx[0]*d->Q[0][0] + 2.*dx[1]*d->Q[0][1] + 2.*dx[2]*d->Q[0][2]);
+  a_q[1] = w2 * sum * dx[1] + w1 * (2.*dx[0]*d->Q[1][0] + 2.*dx[1]*d->Q[1][1] + 2.*dx[2]*d->Q[1][2]);
+  a_q[2] = w2 * sum * dx[2] + w1 * (2.*dx[0]*d->Q[2][0] + 2.*dx[1]*d->Q[2][1] + 2.*dx[2]*d->Q[2][2]);
 
 
+  float a_t[3] = {0., 0., 0.};
+  for (k = 0; k < 3; k++) a_t[k] = a_m[k] + a_q[k];
+
+  /* message("x: %f %f %f ", x[0], x[1], x[2]); */
+  /* message("d: %f %f %f ", dx[0], dx[1], dx[2]); */
+  /* message("a_m: %f %f %f (%f)", a_m[0], a_m[1], a_m[2], sqrtf(a_m[0]*a_m[0] + a_m[1]*a_m[1] + a_m[2]*a_m[2])); */
+  /* message("a_q: %f %f %f (%f)", a_q[0], a_q[1], a_q[2], sqrtf(a_q[0]*a_q[0] + a_q[1]*a_q[1] + a_q[2]*a_q[2])); */
+  /* message("a_t: %f %f %f (%f)", a_t[0], a_t[1], a_t[2], sqrtf(a_t[0]*a_t[0] + a_t[1]*a_t[1] + a_t[2]*a_t[2])); */
+  
+  for (k = 0; k < 3; k++) a[k] += a_t[k];
 }
 
 
@@ -365,36 +380,36 @@ const float axis_orth_second[13 * 3] = {
   0.0, 7.071067811865475e-01, 7.071067811865475e-01, 
   0.0, 1.0, 0.0
 };
-/* const int axis_num_orth[13] = { */
-/*   /\* ( -1 , -1 , -1 ) *\/ 0, */
-/*   /\* ( -1 , -1 ,  0 ) *\/ 1, */
-/*   /\* ( -1 , -1 ,  1 ) *\/ 0, */
-/*   /\* ( -1 ,  0 , -1 ) *\/ 1, */
-/*   /\* ( -1 ,  0 ,  0 ) *\/ 2, */
-/*   /\* ( -1 ,  0 ,  1 ) *\/ 1, */
-/*   /\* ( -1 ,  1 , -1 ) *\/ 0, */
-/*   /\* ( -1 ,  1 ,  0 ) *\/ 1, */
-/*   /\* ( -1 ,  1 ,  1 ) *\/ 0, */
-/*   /\* (  0 , -1 , -1 ) *\/ 1, */
-/*   /\* (  0 , -1 ,  0 ) *\/ 2, */
-/*   /\* (  0 , -1 ,  1 ) *\/ 1, */
-/*   /\* (  0 ,  0 , -1 ) *\/ 2 */
-/* }; */
 const int axis_num_orth[13] = {
-  /* ( -1 , -1 , -1 ) */ 2, 
-  /* ( -1 , -1 ,  0 ) */ 2, 
-  /* ( -1 , -1 ,  1 ) */ 2, 
-  /* ( -1 ,  0 , -1 ) */ 2, 
-  /* ( -1 ,  0 ,  0 ) */ 2, 
-  /* ( -1 ,  0 ,  1 ) */ 2, 
-  /* ( -1 ,  1 , -1 ) */ 2, 
-  /* ( -1 ,  1 ,  0 ) */ 2, 
-  /* ( -1 ,  1 ,  1 ) */ 2, 
-  /* (  0 , -1 , -1 ) */ 2, 
-  /* (  0 , -1 ,  0 ) */ 2, 
-  /* (  0 , -1 ,  1 ) */ 2, 
-  /* (  0 ,  0 , -1 ) */ 2 
+  /* ( -1 , -1 , -1 ) */ 0,
+  /* ( -1 , -1 ,  0 ) */ 1,
+  /* ( -1 , -1 ,  1 ) */ 0,
+  /* ( -1 ,  0 , -1 ) */ 1,
+  /* ( -1 ,  0 ,  0 ) */ 2,
+  /* ( -1 ,  0 ,  1 ) */ 1,
+  /* ( -1 ,  1 , -1 ) */ 0,
+  /* ( -1 ,  1 ,  0 ) */ 1,
+  /* ( -1 ,  1 ,  1 ) */ 0,
+  /* (  0 , -1 , -1 ) */ 1,
+  /* (  0 , -1 ,  0 ) */ 2,
+  /* (  0 , -1 ,  1 ) */ 1,
+  /* (  0 ,  0 , -1 ) */ 2
 };
+/* const int axis_num_orth[13] = { */
+/*   /\* ( -1 , -1 , -1 ) *\/ 2,  */
+/*   /\* ( -1 , -1 ,  0 ) *\/ 2,  */
+/*   /\* ( -1 , -1 ,  1 ) *\/ 2,  */
+/*   /\* ( -1 ,  0 , -1 ) *\/ 2,  */
+/*   /\* ( -1 ,  0 ,  0 ) *\/ 2,  */
+/*   /\* ( -1 ,  0 ,  1 ) *\/ 2,  */
+/*   /\* ( -1 ,  1 , -1 ) *\/ 2,  */
+/*   /\* ( -1 ,  1 ,  0 ) *\/ 2,  */
+/*   /\* ( -1 ,  1 ,  1 ) *\/ 2,  */
+/*   /\* (  0 , -1 , -1 ) *\/ 2,  */
+/*   /\* (  0 , -1 ,  0 ) *\/ 2,  */
+/*   /\* (  0 , -1 ,  1 ) *\/ 2,  */
+/*   /\* (  0 ,  0 , -1 ) *\/ 2  */
+/* }; */
 
 const char axis_flip[27] = {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0,
                             0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
@@ -1828,6 +1843,7 @@ static inline void iact_pair_direct_sorted_multipole(struct cell *ci,
     float x[3];
     float a[3];
     float mass, d;
+    int id;
   };
 
   int i, j, k, l;
@@ -1854,7 +1870,6 @@ static inline void iact_pair_direct_sorted_multipole(struct cell *ci,
   int num_orth_planes = 0;
   get_axis(&ci, &cj, &ind_i, &ind_j, axis, &num_orth_planes, orth1, orth2);
   for (k = 0; k < 3; k++) axis[k] = M_SQRT1_2 * (orth1[k] + orth2[k]);
-  //m_orth_planes = 0;
   for (k = 0; k < (1 << num_orth_planes); k++) multipole_init(&dip[k]);
   cjh = cj->h;
 
@@ -1878,6 +1893,7 @@ static inline void iact_pair_direct_sorted_multipole(struct cell *ci,
       parts_i[i].x[k] = ci->parts[pid].x[k] - cj->loc[k];
       parts_i[i].a[k] = 0.0f;
     }
+    parts_i[i].id = ci->parts[pid].id;
     parts_i[i].mass = ci->parts[pid].mass;
   }
   for (j = 0; j < count_j; j++) {
@@ -1887,6 +1903,7 @@ static inline void iact_pair_direct_sorted_multipole(struct cell *ci,
       parts_j[j].x[k] = cj->parts[pjd].x[k] - cj->loc[k];
       parts_j[j].a[k] = 0.0f;
     }
+    parts_j[j].id = cj->parts[pjd].id;
     parts_j[j].mass = cj->parts[pjd].mass;
   }
 
@@ -2014,7 +2031,8 @@ static inline void iact_pair_direct_sorted_multipole(struct cell *ci,
     }
 
     for (l = 0; l < (1 << num_orth_planes); ++l) {
-      //multipole_print(&dip[l]);
+      /* message("Multipole for part %d:", parts_i[i].id); */
+      /* multipole_print(&dip[l]); */
     }
 
     /* Shrink count_j to the latest valid particle. */
@@ -2095,6 +2113,11 @@ static inline void iact_pair_direct_sorted_multipole(struct cell *ci,
       multipole_add_matrix(&dip[l], parts_i[i].x, parts_i[i].mass);
     }
 
+
+    for (l = 0; l < (1 << num_orth_planes); ++l) {
+      /* message("Multipole for part %d:", parts_j[j].id); */
+      /* multipole_print(&dip[l]); */
+    }
 
 
     /* Set the new last_i to the last particle checked. */
@@ -2913,61 +2936,61 @@ void test_direct_neighbour(int N_parts, int orientation) {
     error("Failed to allocate particle buffer.");
 
   /* Create random set of particles in both cells */
-  /* for (k = 0; k < 2 * N_parts; k++) { */
-  /*   parts[k].id = k; */
+  for (k = 0; k < 2 * N_parts; k++) {
+    parts[k].id = k;
 
-  /*   parts[k].x[0] = ((double)rand()) / RAND_MAX; */
-  /*   parts[k].x[1] = ((double)rand()) / RAND_MAX; */
-  /*   parts[k].x[2] = ((double)rand()) / RAND_MAX; */
+    parts[k].x[0] = ((double)rand()) / RAND_MAX;
+    parts[k].x[1] = ((double)rand()) / RAND_MAX;
+    parts[k].x[2] = ((double)rand()) / RAND_MAX;
 
-  /*   /\* Shift the second cell *\/ */
-  /*   if (k >= N_parts) { */
-  /*     parts[k].x[0] += shift[0]; */
-  /*     parts[k].x[1] += shift[1]; */
-  /*     parts[k].x[2] += shift[2]; */
+    /* Shift the second cell */
+    if (k >= N_parts) {
+      parts[k].x[0] += shift[0];
+      parts[k].x[1] += shift[1];
+      parts[k].x[2] += shift[2];
+    }
+
+    parts[k].mass = ((double)rand()) / RAND_MAX;
+    parts[k].a[0] = 0.0;
+    parts[k].a[1] = 0.0;
+    parts[k].a[2] = 0.0;
+  }
+  i=j;
+  j=i;
+  /* int id; */
+  /* int size = 2; */
+  /* float delta = 1. / (size); */
+  /* float offset = delta * 0.5; */
+  /* for (i = 0; i < size; ++i){ */
+  /*   for (j = 0; j < size; ++j){ */
+  /*     for (k = 0; k < size; ++k){ */
+  /* 	id = i*size*size + j*size + k; */
+  /* 	parts[id].id = id; */
+  /* 	parts[id].x[0] = offset + delta * i + ((double)rand() / RAND_MAX) * delta * 0.; */
+  /* 	parts[id].x[1] = offset + delta * j + ((double)rand() / RAND_MAX) * delta * 0.; */
+  /* 	parts[id].x[2] = offset + delta * k + ((double)rand() / RAND_MAX) * delta * 0.; */
+  /* 	parts[id].mass = 1.; */
+  /* 	parts[id].a[0] = 0.0; */
+  /* 	parts[id].a[1] = 0.0; */
+  /* 	parts[id].a[2] = 0.0; */
+  /*     } */
   /*   } */
-
-  /*   parts[k].mass = ((double)rand()) / RAND_MAX; */
-  /*   parts[k].a[0] = 0.0; */
-  /*   parts[k].a[1] = 0.0; */
-  /*   parts[k].a[2] = 0.0; */
   /* } */
-  /* i=j; */
-  /* j=i; */
-  int id;
-  int size = 10;
-  float delta = 1. / (size);
-  float offset = delta * 0.5;
-  for (i = 0; i < size; ++i){
-    for (j = 0; j < size; ++j){
-      for (k = 0; k < size; ++k){
-  	id = i*size*size + j*size + k;
-  	parts[id].id = id;
-  	parts[id].x[0] = offset + delta * i + ((double)rand() / RAND_MAX) * delta * 0.01;
-  	parts[id].x[1] = offset + delta * j + ((double)rand() / RAND_MAX) * delta * 0.01;
-  	parts[id].x[2] = offset + delta * k + ((double)rand() / RAND_MAX) * delta * 0.01;
-  	parts[id].mass = 1.;
-  	parts[id].a[0] = 0.0;
-  	parts[id].a[1] = 0.0;
-  	parts[id].a[2] = 0.0;
-      }
-    }
-  }
-  for (i = 0; i < size; ++i){
-    for (j = 0; j < size; ++j){
-      for (k = 0; k < size; ++k){
-  	id = i*size*size + j*size + k + size*size*size;
-  	parts[id].id = id;
-  	parts[id].x[0] = offset + delta * i + shift[0] + ((double)rand() / RAND_MAX) * delta * 0.01;
-  	parts[id].x[1] = offset + delta * j + shift[1] + ((double)rand() / RAND_MAX) * delta * 0.01;
-  	parts[id].x[2] = offset + delta * k + shift[2] + ((double)rand() / RAND_MAX) * delta * 0.01;
-  	parts[id].mass = 1.;
-  	parts[id].a[0] = 0.0;
-  	parts[id].a[1] = 0.0;
-  	parts[id].a[2] = 0.0;
-      }
-    }
-  }
+  /* for (i = 0; i < size; ++i){ */
+  /*   for (j = 0; j < size; ++j){ */
+  /*     for (k = 0; k < size; ++k){ */
+  /* 	id = i*size*size + j*size + k + size*size*size; */
+  /* 	parts[id].id = id; */
+  /* 	parts[id].x[0] = offset + delta * i + shift[0] + ((double)rand() / RAND_MAX) * delta * 0.; */
+  /* 	parts[id].x[1] = offset + delta * j + shift[1] + ((double)rand() / RAND_MAX) * delta * 0.; */
+  /* 	parts[id].x[2] = offset + delta * k + shift[2] + ((double)rand() / RAND_MAX) * delta * 0.; */
+  /* 	parts[id].mass = 1.; */
+  /* 	parts[id].a[0] = 0.0; */
+  /* 	parts[id].a[1] = 0.0; */
+  /* 	parts[id].a[2] = 0.0; */
+  /*     } */
+  /*   } */
+  /* } */
 
   /* Get the cell geometry right */
   left.loc[0] = 0.;
@@ -3330,6 +3353,10 @@ int main(int argc, char *argv[]) {
 
     /* Run the test */
     for (k = 0; k < 26; ++k) test_direct_neighbour(N_parts, k);
+    /* k++; */
+    /* test_direct_neighbour(N_parts, 0); */
+    /* test_direct_neighbour(N_parts, 8); */
+
 
     /* Dump arguments */
     message("Interacting one cell with %d particles with its 27 neighbours"
