@@ -16,90 +16,156 @@
 
 \maketitle
 
-Bold quantities are vectors. The indices $u,v,w$ run over the directions $x,y,z$.
+Bold quantities are vectors. The indices $\alpha,\beta$ run over the directions $x,y,z$.
 
-Let's consider the gravitational acceleration $\acc=(a_x,a_y,a_z)$ that a set of point masses at position 
-$\p{i}=(p_{i,x}, p_{i,y}, p_{i,z})$ with masses $m_i$ generate at position $\rr=(r_x, r_y, r_z)$:
-
-\begin{equation}
- \acc(\rr) = \sum_i \frac{Gm_i}{|\rr - \p{i}|^3}(\rr - \p{i})
-\end{equation}
-
-This expression can split in one expression for each of the three spatial coordinates $u=x,y,z$:
-
-\begin{equation}
- a_u (\rr) = \sum_i \frac{m_i G}{|\rr-\p{i}|^3} ( r_u - p_{i,u}) = \sum_i m_i f_u(\rr - \p{i}),
-\end{equation}
-
-with 
-
-\begin{equation}
- f_u (\vv) = \frac{G}{|\vv|^3} v_u.
-\end{equation}
-
-We define two quantities to simplify the notations: the total mass $M$ of the set of point masses and the centre of 
-mass $\muu=(\mu_x, \mu_y, \mu_z)$ of this set:
+For a set of particles at position $\p{i}=(x_i, y_i, z_i)$ with mass $m_i$, we can construct the total mass of the set 
+$M$ and its centre of mass $\muu=(\mu_x, \mu_y, \mu_z)$:
 
 \begin{equation}
  M = \sum_{i=1}^N m_i, \qquad \muu = \frac{1}{M} \sum_{i=1}^N m_i\p{i}.
 \end{equation}
 
-
-We can now expand the functions $f_u$ around the vector linking the particle to the centre of mass $\rr-\muu$:
-
-\begin{eqnarray}
- a_u(\rr) &\approx& \sum_i m_i f_u(\rr - \muu) \\
-  & & + \sum_i m_i (\p{i}-\muu) \cdot \nabla f_u(\rr - \muu)\\
-  & & + \frac{1}{2}\sum_i m_i (\p{i}-\muu)\cdot \nabla^2 f_u(\rr-\muu)\cdot (\p{i} - \muu).
-\end{eqnarray}
-
-The first order term is identically zero and can hence be dropped. Re-arranging some of the terms, introducing the 
-vector $\dd=\rr-\muu=(d_x,d_y,d_z)$ and using the fact that the Hessian matrix of $f_u$ is symmetric, we get:
-\begin{eqnarray}
- a_u(\rr) &=& Mf_u(\dd) \\
-           & & + \frac{1}{2} \sum_i m_i \p{i}\cdot \nabla^2f_u(\dd)\cdot \p{i}  \\
-           & & + \frac{1}{2} M \muu\cdot \nabla^2f_u(\dd)\cdot \muu \\
-           & & - \sum_i m_i \p{i}\cdot \nabla^2f_u(\dd)\cdot \muu \\
-           &=& Mf_u(\dd) \\
-           & & + \frac{1}{2} \sum_i m_i \p{i}\cdot \nabla^2f_u(\dd)\cdot \p{i} \\
-           & &- \frac{1}{2} M \muu\cdot \nabla^2f_u(\dd)\cdot \muu
-\end{eqnarray}
-
-The gradient of $f_u$ reads
-\begin{equation}
- \nabla f_u(\dd) = \frac{-3Gd_u}{|\dd|^5}\dd + \frac{G}{|\dd|^3}\hat{\mathbf{e}}_u,
-\end{equation}
-
-with $\hat{\mathbf{e}}_u$ a unit vector along the $u$-axis. The different components of the Hessian matrix then read:
+For each particle, we can define $r_i= \sqrt{(x_i-\mu_x)^2 + (y_i-\mu_y)^2 + (z_i-\mu_z)^2}$, the distance to the 
+centre of mass.\\
+The quadrupole moment $\overline{\overline{Q}}$ of this mass distribution is then written as
 
 \begin{eqnarray}
- \nabla^2f_u(\dd)_{uu} &=& \frac{15Gd_u^3}{|\dd|^7} - \frac{9Gd_u}{|\dd|^5} \\
- \nabla^2f_u(\dd)_{uv} &=& \frac{15Gd_u^2d_v}{|\dd|^7} - \frac{3Gd_v}{|\dd|^5}\\
- \nabla^2f_u(\dd)_{vv} &=& \frac{15Gd_u^2d_v}{|\dd|^7} - \frac{3Gd_u}{|\dd|^5} \\
- \nabla^2f_u(\dd)_{vw} &=& \frac{15Gd_ud_vd_w}{|\dd|^7} 
+ Q_{11} &=& \sum_i m_i \left( 3(x_i-\mu_x)^2 - r_i^2\right) \\
+ Q_{12} &=& \sum_i m_i 3(x_i-\mu_x)(y_i-\mu_y) \\
+ Q_{13} &=& \sum_i m_i 3(x_i-\mu_x)(z_i-\mu_z) \\
+ ~& & \nonumber\\
+ Q_{21} &=& \sum_i m_i 3(y_i-\mu_y)(x_i-\mu_x) \\
+ Q_{22} &=& \sum_i m_i \left( 3(y_i-\mu_y)^2 - r_i^2\right) \\
+ Q_{23} &=& \sum_i m_i 3(y_i-\mu_y)(z_i-\mu_z) \\
+ ~& &\nonumber\\
+ Q_{31} &=& \sum_i m_i 3(z_i-\mu_z)(x_i-\mu_x)  \\
+ Q_{32} &=& \sum_i m_i 3(z_i-\mu_z)(y_i-\mu_y) \\
+ Q_{33} &=& \sum_i m_i \left( 3(z_i-\mu_z)^2 - r_i^2\right)
 \end{eqnarray}
+Note that this matrix is symmetric and traceless ($Q_{11}+Q_{22}+Q_{33}=0$), so only $5$ components need to be 
+computed. \\
 
-Keeping only the $xx$ term of the Hessian matrix in the Taylor expansion and introducing $\sigma_{xx}^2 = 
-\sum_im_ip_{i,x}^2$, we get for the accelerations:
+\pagebreak
+
+The potential created by this distribution of mass on a point at position $\rr=(r_x,r_y,r_z)$ from the centre of mass 
+$\muu$ is then:
 
 \begin{equation}
- a_u(\rr) = Mf_u(\rr-\muu) + \frac{1}{2}(\sigma_{xx}^2 - M\mu_x^2)\nabla^2f_u(\dd)_{vv},
+ \phi(\rr) = -\frac{G}{|\rr|}M + \frac{1}{2}\frac{G}{|\rr|^5}\sum_{\alpha,\beta} r_\alpha r_\beta Q_{\alpha\beta}
 \end{equation}
 
-with both $v=u$ or $v\neq u$. Expanding this coordinate by coordinate, we get:
+Taking the gradient of this expression to get the acceleration, we obtain:
+
+\begin{equation}
+ -\nabla_\gamma\phi(\rr)= -\frac{GM}{|\rr|^3} r_\gamma + 
+\frac{1}{2}G\sum_{\alpha,\beta}\left(\frac{\delta_{\alpha\gamma}r_\beta}{|\rr|^5} + 
+\frac{\delta_{\gamma\beta}r_\alpha}{|\rr|^5} -5\frac{r_\alpha r_\beta r_\gamma}{|\rr|^7}\right)Q_{\alpha\beta}
+\end{equation}
+
+Writing this explicitly for each coordinate (using the symmetry of $\overline{\overline{Q}}$), we get:
 
 \begin{eqnarray}
- a_x(\rr) &=& M\frac{G}{|\dd|^3} d_x + \frac{1}{2}\left(\sigma_{xx}^2 - M\mu_x^2\right)\left(\frac{15Gd_x^3}{|\dd|^7} - 
-\frac{9Gd_x}{|\dd|^5}\right)\\
- a_y(\rr) &=& M\frac{G}{|\dd|^3} d_y + \frac{1}{2}\left(\sigma_{xx}^2 - 
-M\mu_x^2\right)\left(\frac{15Gd_xd_y^2}{|\dd|^7}- 
-\frac{3Gd_x}{|\dd|^5}\right) \\
- a_z(\rr) &=& M\frac{G}{|\dd|^3} d_z + \frac{1}{2}\left(\sigma_{xx}^2 - 
-M\mu_x^2\right)\left(\frac{15Gd_xd_z^2}{|\dd|^7}- 
-\frac{3Gd_x}{|\dd|^5}\right)
+ a_x &=& -\frac{Gr_x}{|\rr|^3}M + \frac{1}{2} \frac{G}{|\rr|^5}\left[2r_x Q_{11} + 2r_yQ_{12} + 2r_z Q_{13}\right] - 
+\frac{5}{2} \frac{G r_x}{|\rr|^7} \Xi, \\
+ a_y &=& -\frac{Gr_y}{|\rr|^3}M + \frac{1}{2} \frac{G}{|\rr|^5}\left[2r_x Q_{21} + 2r_yQ_{22} + 2r_z Q_{23}\right] - 
+\frac{5}{2} \frac{G r_y}{|\rr|^7} \Xi, \\
+ a_y &=& -\frac{Gr_z}{|\rr|^3}M + \frac{1}{2} \frac{G}{|\rr|^5}\left[2r_x Q_{31} + 2r_yQ_{32} + 2r_z Q_{33}\right] - 
+\frac{5}{2} \frac{G r_z}{|\rr|^7} \Xi, \\
 \end{eqnarray}
+with the common coefficient $\Xi$ defined as:
 
-The quantities $M$, $\muu$ and $\sigma_{xx}^2$ can be constructed on-the-fly by adding particles to the previous total.
+\begin{equation*}
+ \Xi = \rr\cdot(\overline{\overline{Q}}\cdot \rr) = r_x^2Q_{11} + r_y^2Q_{22} + r_z^2Q_{33} + 2r_xr_yQ_{12} + 
+2r_xr_zQ_{13} + 2r_yr_zQ_{23}
+\end{equation*}
+
+
+
+% 
+% Let's consider the gravitational acceleration $\acc=(a_x,a_y,a_z)$ that a set of point masses at position 
+% $\p{i}=(p_{i,x}, p_{i,y}, p_{i,z})$ with masses $m_i$ generate at position $\rr=(r_x, r_y, r_z)$:
+% 
+% \begin{equation}
+%  \acc(\rr) = \sum_i \frac{Gm_i}{|\rr - \p{i}|^3}(\rr - \p{i})
+% \end{equation}
+% 
+% This expression can split in one expression for each of the three spatial coordinates $u=x,y,z$:
+% 
+% \begin{equation}
+%  a_u (\rr) = \sum_i \frac{m_i G}{|\rr-\p{i}|^3} ( r_u - p_{i,u}) = \sum_i m_i f_u(\rr - \p{i}),
+% \end{equation}
+% 
+% with 
+% 
+% \begin{equation}
+%  f_u (\vv) = \frac{G}{|\vv|^3} v_u.
+% \end{equation}
+% 
+% We define two quantities to simplify the notations: the total mass $M$ of the set of point masses and the centre of 
+% mass $\muu=(\mu_x, \mu_y, \mu_z)$ of this set:
+% 
+% \begin{equation}
+%  M = \sum_{i=1}^N m_i, \qquad \muu = \frac{1}{M} \sum_{i=1}^N m_i\p{i}.
+% \end{equation}
+% 
+% 
+% We can now expand the functions $f_u$ around the vector linking the particle to the centre of mass $\rr-\muu$:
+% 
+% \begin{eqnarray}
+%  a_u(\rr) &\approx& \sum_i m_i f_u(\rr - \muu) \\
+%   & & + \sum_i m_i (\p{i}-\muu) \cdot \nabla f_u(\rr - \muu)\\
+%   & & + \frac{1}{2}\sum_i m_i (\p{i}-\muu)\cdot \nabla^2 f_u(\rr-\muu)\cdot (\p{i} - \muu).
+% \end{eqnarray}
+% 
+% The first order term is identically zero and can hence be dropped. Re-arranging some of the terms, introducing the 
+% vector $\dd=\rr-\muu=(d_x,d_y,d_z)$ and using the fact that the Hessian matrix of $f_u$ is symmetric, we get:
+% \begin{eqnarray}
+%  a_u(\rr) &=& Mf_u(\dd) \\
+%            & & + \frac{1}{2} \sum_i m_i \p{i}\cdot \nabla^2f_u(\dd)\cdot \p{i}  \\
+%            & & + \frac{1}{2} M \muu\cdot \nabla^2f_u(\dd)\cdot \muu \\
+%            & & - \sum_i m_i \p{i}\cdot \nabla^2f_u(\dd)\cdot \muu \\
+%            &=& Mf_u(\dd) \\
+%            & & + \frac{1}{2} \sum_i m_i \p{i}\cdot \nabla^2f_u(\dd)\cdot \p{i} \\
+%            & &- \frac{1}{2} M \muu\cdot \nabla^2f_u(\dd)\cdot \muu
+% \end{eqnarray}
+% 
+% The gradient of $f_u$ reads
+% \begin{equation}
+%  \nabla f_u(\dd) = \frac{-3Gd_u}{|\dd|^5}\dd + \frac{G}{|\dd|^3}\hat{\mathbf{e}}_u,
+% \end{equation}
+% 
+% with $\hat{\mathbf{e}}_u$ a unit vector along the $u$-axis. The different components of the Hessian matrix then read:
+% 
+% \begin{eqnarray}
+%  \nabla^2f_u(\dd)_{uu} &=& \frac{15Gd_u^3}{|\dd|^7} - \frac{9Gd_u}{|\dd|^5} \\
+%  \nabla^2f_u(\dd)_{uv} &=& \frac{15Gd_u^2d_v}{|\dd|^7} - \frac{3Gd_v}{|\dd|^5}\\
+%  \nabla^2f_u(\dd)_{vv} &=& \frac{15Gd_u^2d_v}{|\dd|^7} - \frac{3Gd_u}{|\dd|^5} \\
+%  \nabla^2f_u(\dd)_{vw} &=& \frac{15Gd_ud_vd_w}{|\dd|^7} 
+% \end{eqnarray}
+% 
+% Keeping only the $xx$ term of the Hessian matrix in the Taylor expansion and introducing $\sigma_{xx}^2 = 
+% \sum_im_ip_{i,x}^2$, we get for the accelerations:
+% 
+% \begin{equation}
+%  a_u(\rr) = Mf_u(\rr-\muu) + \frac{1}{2}(\sigma_{xx}^2 - M\mu_x^2)\nabla^2f_u(\dd)_{vv},
+% \end{equation}
+% 
+% with both $v=u$ or $v\neq u$. Expanding this coordinate by coordinate, we get:
+% 
+% \begin{eqnarray}
+%  a_x(\rr) &=& M\frac{G}{|\dd|^3} d_x + \frac{1}{2}\left(\sigma_{xx}^2 - M\mu_x^2\right)\left(\frac{15Gd_x^3}{|\dd|^7} - 
+% \frac{9Gd_x}{|\dd|^5}\right)\\
+%  a_y(\rr) &=& M\frac{G}{|\dd|^3} d_y + \frac{1}{2}\left(\sigma_{xx}^2 - 
+% M\mu_x^2\right)\left(\frac{15Gd_xd_y^2}{|\dd|^7}- 
+% \frac{3Gd_x}{|\dd|^5}\right) \\
+%  a_z(\rr) &=& M\frac{G}{|\dd|^3} d_z + \frac{1}{2}\left(\sigma_{xx}^2 - 
+% M\mu_x^2\right)\left(\frac{15Gd_xd_z^2}{|\dd|^7}- 
+% \frac{3Gd_x}{|\dd|^5}\right)
+% \end{eqnarray}
+% 
+% The quantities $M$, $\muu$ and $\sigma_{xx}^2$ can be constructed on-the-fly by adding particles to the previous total.
+
+%-------------------------------------------------------------------------------------------------
 
 % \begin{equation}
 %  \phi(\rr) = - \sum_{i=1}^N \frac{Gm_i}{|\rr - \p{i}|} = - \sum_{i=1}^N m_i f(\rr - \p{i}),
