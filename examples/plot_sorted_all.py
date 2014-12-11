@@ -167,28 +167,46 @@ close()
 # Plot -------------------------------------------------------
 bins = linspace(-3, 3, 10000)
 
-e_errx_s = errx_s[(abs(errx_s) >= 0.000) & (abs(errx_s) < 1.)]
-e_erry_s = erry_s[(abs(erry_s) >= 0.000) & (abs(erry_s) < 1.)]
-e_errz_s = errz_s[(abs(errz_s) >= 0.000) & (abs(errz_s) < 1.)]
+e_errx_s1 = errx_s[ pos_x < 0.5 ]
+e_erry_s1 = erry_s[ pos_y < 0.5 ]
+e_errz_s1 = errz_s[ pos_z < 0.5 ]
+
+e_errx_s2 = errx_s[ pos_x > 0.5 ]
+e_erry_s2 = erry_s[ pos_y > 0.5 ]
+e_errz_s2 = errz_s[ pos_z > 0.5 ]
+
+e_errx_bh1 = errx_bh[ pos_x < 0.5 ]
+e_erry_bh1 = erry_bh[ pos_y < 0.5 ]
+e_errz_bh1 = errz_bh[ pos_z < 0.5 ]
+
+e_errx_bh2 = errx_bh[ pos_x > 0.5 ]
+e_erry_bh2 = erry_bh[ pos_y > 0.5 ]
+e_errz_bh2 = errz_bh[ pos_z > 0.5 ]
 
 
 
 figure(frameon=True)
 subplot(311, title="Acceleration along X")
-hist(e_errx_s, bins=bins, normed=1, histtype='step', rwidth=0.01, color='r', label="Sorted")
-hist(e_errx_bh, bins=bins, normed=1, histtype='step', rwidth=0.01, color='g', label="B-H")
+hist(e_errx_s1, bins=bins, normed=1, histtype='step', rwidth=0.01, color='r', label="Sorted")
+hist(e_errx_s2, bins=bins, normed=1, histtype='step', rwidth=0.01, color='r', ls='dashed')
+hist(e_errx_bh1, bins=bins, normed=1, histtype='step', rwidth=0.01, color='b', label="B-H")
+hist(e_errx_bh2, bins=bins, normed=1, histtype='step', rwidth=0.01, color='b', ls='dashed')
 legend(loc="upper right")
-xlim(-0.15, 0.15)
+xlim(-0.05, 0.05)
 
 subplot(312, title="Acceleration along Y")
-hist(e_erry_s, bins=bins, normed=1, histtype='step', rwidth=0.01, color='r')
-hist(e_erry_bh, bins=bins, normed=1, histtype='step', rwidth=0.01, color='g')
-xlim(-0.15, 0.15)
+hist(e_erry_s1, bins=bins, normed=1, histtype='step', rwidth=0.01, color='r')
+hist(e_erry_s2, bins=bins, normed=1, histtype='step', rwidth=0.01, color='r', ls='dashed')
+hist(e_erry_bh1, bins=bins, normed=1, histtype='step', rwidth=0.01, color='b', label="B-H")
+hist(e_erry_bh2, bins=bins, normed=1, histtype='step', rwidth=0.01, color='b', ls='dashed')
+xlim(-0.05, 0.05)
 
 subplot(313, title="Acceleration along Z")
-hist(e_errz_s, bins=bins, normed=1, histtype='step', rwidth=0.01, color='r')
-hist(e_errz_bh, bins=bins, normed=1, histtype='step', rwidth=0.01, color='g')
-xlim(-0.15, 0.15)
+hist(e_errz_s1, bins=bins, normed=1, histtype='step', rwidth=0.01, color='r')
+hist(e_errz_s2, bins=bins, normed=1, histtype='step', rwidth=0.01, color='r', ls='dashed')
+hist(e_errz_bh1, bins=bins, normed=1, histtype='step', rwidth=0.01, color='b', label="B-H")
+hist(e_errz_bh2, bins=bins, normed=1, histtype='step', rwidth=0.01, color='b', ls='dashed')
+xlim(-0.05, 0.05)
 
 savefig("histogram_all.png")
 close()
