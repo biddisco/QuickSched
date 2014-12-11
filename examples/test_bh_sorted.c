@@ -231,8 +231,6 @@ static inline void multipole_add_matrix(struct multipole *d, const float *x, flo
   for ( k = 0; k < 3; ++k) 
     dx[k] = x[k] - d->x[k] / d->mass;
   
-  //  message("x_i: %f %f %f    dx: %f %f %f", x[0], x[1], x[2], dx[0], dx[1], dx[2]);
-
   r2 = dx[0] * dx[0] + dx[1] * dx[1] + dx[2] * dx[2];
 
   /* Now fill in the matrix */
@@ -273,7 +271,7 @@ static inline void multipole_iact(struct multipole *d, const float *x, float* a)
 
   float inv_mass = 1. / d->mass;
 
-  /* Compute the distance. */
+  /* Compute the distance to the CoM. */
   for (r2 = 0.0f, k = 0; k < 3; k++) {
     dx[k] = x[k] - d->x[k] * inv_mass;
     r2 += dx[k] * dx[k];
@@ -286,8 +284,6 @@ static inline void multipole_iact(struct multipole *d, const float *x, float* a)
   float a_m[3] = {0., 0., 0.};
   for (k = 0; k < 3; k++) a_m[k] -= w * dx[k];
 
-  
-  //return;
 
   /* Compute the acceleration from the quadrupole */
   float a_q[3] = {0., 0., 0.};
@@ -303,7 +299,8 @@ static inline void multipole_iact(struct multipole *d, const float *x, float* a)
   a_q[1] = w2 * sum * dx[1] + w1 * (2.*dx[0]*d->Q[1][0] + 2.*dx[1]*d->Q[1][1] + 2.*dx[2]*d->Q[1][2]);
   a_q[2] = w2 * sum * dx[2] + w1 * (2.*dx[0]*d->Q[2][0] + 2.*dx[1]*d->Q[2][1] + 2.*dx[2]*d->Q[2][2]);
 
-
+  
+  /* Get the total acceleration */
   float a_t[3] = {0., 0., 0.};
   for (k = 0; k < 3; k++) a_t[k] = a_m[k] + a_q[k];
 
@@ -1861,8 +1858,6 @@ static inline void iact_pair_direct_sorted_multipole(struct cell *ci,
 
 #endif
 
-  //message("start");
-
   /* Get the sorted indices and stuff. */
   struct index *ind_i, *ind_j;
   struct multipole dip[4];
@@ -1872,9 +1867,6 @@ static inline void iact_pair_direct_sorted_multipole(struct cell *ci,
   for (k = 0; k < 3; k++) axis[k] = M_SQRT1_2 * (orth1[k] + orth2[k]);
   for (k = 0; k < (1 << num_orth_planes); k++) multipole_init(&dip[k]);
   cjh = cj->h;
-
-
-  //message("init OK");
 
   /* Allocate and fill-in the local parts. */
   count_i = ci->count;
@@ -1906,8 +1898,6 @@ static inline void iact_pair_direct_sorted_multipole(struct cell *ci,
     parts_j[j].id = cj->parts[pjd].id;
     parts_j[j].mass = cj->parts[pjd].mass;
   }
-
-  //message("fill in ok");
 
 #if ICHECK >= 0
   for (k = 0; k < count_i; k++)
@@ -1986,8 +1976,6 @@ static inline void iact_pair_direct_sorted_multipole(struct cell *ci,
     for (l = 0; l < (1 << num_orth_planes); ++l) {
       multipole_reset(&dip[l]);
     }
-
-    //message(" i=%d m-pole reset", i)
 
     /* Add any remaining particles to the COM. */
     for (int jj = j; jj < count_j; jj++) {

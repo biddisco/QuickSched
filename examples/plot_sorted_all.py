@@ -61,14 +61,14 @@ accz_bh=data[:,13]
     
 
 # Build error ------------------------------------------------
-    
-errx_s = (accx_s - accx_u ) / sqrt(accx_u**2 + accy_u**2 + accz_u**2) 
-erry_s = (accy_s - accy_u ) / sqrt(accx_u**2 + accy_u**2 + accz_u**2) 
-errz_s = (accz_s - accz_u ) / sqrt(accx_u**2 + accy_u**2 + accz_u**2) 
+inv_acc_tot = 1.0 / sqrt(accx_u**2 + accy_u**2 + accz_u**2)     
+errx_s = (accx_s - accx_u ) * inv_acc_tot
+erry_s = (accy_s - accy_u ) * inv_acc_tot
+errz_s = (accz_s - accz_u ) * inv_acc_tot
 
-errx_bh = (accx_bh - accx_u ) / sqrt(accx_u**2 + accy_u**2 + accz_u**2) 
-erry_bh = (accy_bh - accy_u ) / sqrt(accx_u**2 + accy_u**2 + accz_u**2) 
-errz_bh = (accz_bh - accz_u ) / sqrt(accx_u**2 + accy_u**2 + accz_u**2) 
+errx_bh = (accx_bh - accx_u ) * inv_acc_tot
+erry_bh = (accy_bh - accy_u ) * inv_acc_tot
+errz_bh = (accz_bh - accz_u ) * inv_acc_tot
 
 e_errx_s = errx_s#[abs(errx_s) > 0.001]
 e_erry_s = erry_s#[abs(erry_s) > 0.001]
@@ -94,10 +94,10 @@ figure(frameon=True)
 
 subplot(311, title="Acceleration along X")
 #plot(id[abs(errx_s) > 0.001], e_errx_s , 'ro')
-plot(pos_x, e_errx_s , 'ro')
 plot(pos_x, e_errx_bh , 'bx', label='B-H')
+plot(pos_x, e_errx_s , 'ro')
 #text( 0., 0.1, "axis=( %d %d %d )"%(axis[orientation*3 + 0], axis[orientation*3 + 1], axis[orientation*3 + 2]) , ha='center', backgroundcolor='w', fontsize=14)
-ylim(-0.2, 0.2)
+ylim(-0.1, 0.1)
 grid()
 
 subplot(312, title="Acceleration along Y")
@@ -105,7 +105,7 @@ subplot(312, title="Acceleration along Y")
 plot(pos_x, e_erry_bh , 'bx', label='B-H')
 plot(pos_y, e_erry_s , 'ro')
 #text( 0., 0.1, "axis=( %d %d %d )"%(axis[orientation*3 + 0], axis[orientation*3 + 1], axis[orientation*3 + 2]) , ha='center', backgroundcolor='w', fontsize=14)
-ylim(-0.2, 0.2)  
+ylim(-0.1, 0.1)  
 grid()
 
 subplot(313, title="Acceleration along Z")
@@ -116,7 +116,7 @@ plot(pos_z, e_errz_s , 'ro', label="Sorted")
 
 legend(loc="upper right")
 
-ylim(-0.2, 0.2)
+ylim(-0.1, 0.1)
 #xlim(0, size(id)-1)
 grid()
 
@@ -129,7 +129,7 @@ figure(frameon=True)
 
 subplot(311, title="Acceleration along X")
 #plot(id[abs(errx_s) > 0.001], e_errx_s , 'ro')
-plot(pos_x, accx_u, 'bx')
+plot(pos_x, accx_bh, 'bx')
 plot(pos_x, accx_s , 'ro')
 #text( 0., 0.1, "axis=( %d %d %d )"%(axis[orientation*3 + 0], axis[orientation*3 + 1], axis[orientation*3 + 2]) , ha='center', backgroundcolor='w', fontsize=14)
 ylim(-250, 250)
@@ -137,9 +137,9 @@ grid()
 
 subplot(312, title="Acceleration along Y")
 #plot(id[abs(erry_s) > 0.001], e_erry_s , 'ro')
-plot(pos_y, accy_u , 'gs')
+#plot(pos_y, accy_u , 'gs')
 plot(pos_y, accy_s , 'ro')
-plot(pos_z, accz_bh , 'bx', label="B-H")
+plot(pos_y, accz_bh , 'bx', label="B-H")
 #text( 0., 0.1, "axis=( %d %d %d )"%(axis[orientation*3 + 0], axis[orientation*3 + 1], axis[orientation*3 + 2]) , ha='center', backgroundcolor='w', fontsize=14)
 #ylim(-70, 70)
 ylim(-250, 250)
@@ -149,7 +149,7 @@ subplot(313, title="Acceleration along Z")
 #plot(id[abs(errz_s) > 0.001], e_errz_s , 'ro', label="Sorted")
 plot(pos_z, accz_bh , 'bx', label="B-H")
 plot(pos_z, accz_s , 'ro', label="Sorted")
-plot(pos_z, accz_u , 'gs', label="Unsorted")
+#plot(pos_z, accz_u , 'gs', label="Unsorted")
 
 #text( 0., 0.1, "axis=( %d %d %d )"%(axis[orientation*3 + 0], axis[orientation*3 + 1], axis[orientation*3 + 2]) , ha='center', backgroundcolor='w', fontsize=14)
 
