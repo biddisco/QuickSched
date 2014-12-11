@@ -187,38 +187,26 @@ static inline void dipole_iact(const struct dipole *d, const float *x,
 
 /** Multipole stuff. */
 struct multipole {
-  float x[3];
   float mass;
-  float Q[3][3];
+  float mu[3]; /* Centre of Mass */
+  float Q_00, Q_11, Q_22, Q_01, Q_12, Q_02;
 };
 
-
-static inline void multipole_init(struct multipole *d) {
-  for (int k = 0; k < 3; k++) {
-    d->x[k] = 0.0;
-  }
-  for (int i = 0; i < 3; i++) {
-    for (int j = 0; j < 3; j++) {
-      d->Q[i][j] = 0.0;
-    }
-  }
-
-  d->mass = 0.0;
-}
-
 static inline void multipole_reset(struct multipole *d) {
-  for (int k = 0; k < 3; k++) d->x[k] = 0.0;
-  for (int i = 0; i < 3; i++) {
-    for (int j = 0; j < 3; j++) {
-      d->Q[i][j] = 0.0;
-    }
-  }
+  for (int k = 0; k < 3; k++) d->mu[k] = 0.0;
+
+  d->Q_00 = 0.;
+  d->Q_11 = 0.;
+  d->Q_22 = 0.;
+  d->Q_01 = 0.;
+  d->Q_02 = 0.;
+  d->Q_12 = 0.;
 
   d->mass = 0.0;
 }
 
 static inline void multipole_add_com(struct multipole *d, const float *x, float mass) {
-  for (int k = 0; k < 3; k++) d->x[k] += x[k] * mass;
+  for (int k = 0; k < 3; k++) d->mu[k] += x[k] * mass;
   d->mass += mass;
 }
 
@@ -229,23 +217,19 @@ static inline void multipole_add_matrix(struct multipole *d, const float *x, flo
   
   /* Distance from CoM */
   for ( k = 0; k < 3; ++k) 
-    dx[k] = x[k] - d->x[k] / d->mass;
+    dx[k] = x[k] - d->mu[k] / d->mass;
   
   r2 = dx[0] * dx[0] + dx[1] * dx[1] + dx[2] * dx[2];
 
   /* Now fill in the matrix */
-  d->Q[0][0] += ((3. * mass * dx[0] * dx[0]) - (mass * r2)); 
-  d->Q[1][1] += ((3. * mass * dx[1] * dx[1]) - (mass * r2)); 
-  d->Q[2][2] += ((3. * mass * dx[2] * dx[2]) - (mass * r2)); 
+  d->Q_00 += ((3. * mass * dx[0] * dx[0]) - (mass * r2)); 
+  d->Q_11 += ((3. * mass * dx[1] * dx[1]) - (mass * r2)); 
+  d->Q_22 += ((3. * mass * dx[2] * dx[2]) - (mass * r2)); 
 
-  d->Q[0][1] += 3. * mass * dx[0] * dx[1];
-  d->Q[0][2] += 3. * mass * dx[0] * dx[2];
+  d->Q_01 += 3. * mass * dx[0] * dx[1];
+  d->Q_02 += 3. * mass * dx[0] * dx[2];
+  d->Q_12 += 3. * mass * dx[1] * dx[2];
 
-  d->Q[1][0] += 3. * mass * dx[1] * dx[0];
-  d->Q[1][2] += 3. * mass * dx[1] * dx[2];
-
-  d->Q[2][0] += 3. * mass * dx[2] * dx[0];
-  d->Q[2][1] += 3. * mass * dx[2] * dx[1];
 }
 
 static inline void multipole_print(struct multipole* d) {
@@ -254,16 +238,16 @@ static inline void multipole_print(struct multipole* d) {
   if (d->mass == 0.) return;
   
   message("M : %f", d->mass);
-  message("CoM: %f %f %f", d->x[0] / d->mass, d->x[1] / d->mass, d->x[2] / d->mass);
-  message("Q: %f %f %f", d->Q[0][0], d->Q[0][1], d->Q[0][2] );
-  message("   %f %f %f", d->Q[1][0], d->Q[1][1], d->Q[1][2] );
-  message("   %f %f %f", d->Q[2][0], d->Q[2][1], d->Q[2][2] );
+  message("CoM: %f %f %f", d->mu[0] / d->mass, d->mu[1] / d->mass, d->mu[2] / d->mass);
+  message("Q: %f %f %f", d->Q_00, d->Q_01, d->Q_02 );
+  message("   %f %f %f", d->Q_01, d->Q_11, d->Q_12 );
+  message("   %f %f %f", d->Q_02, d->Q_12, d->Q_22 );
 
 }
 
 static inline void multipole_iact(struct multipole *d, const float *x, float* a) {
 
-  int i,j,k;
+  int k;
   float r2,ir,w, dx[3];
 
   /* early abort */
@@ -273,7 +257,7 @@ static inline void multipole_iact(struct multipole *d, const float *x, float* a)
 
   /* Compute the distance to the CoM. */
   for (r2 = 0.0f, k = 0; k < 3; k++) {
-    dx[k] = x[k] - d->x[k] * inv_mass;
+    dx[k] = x[k] - d->mu[k] * inv_mass;
     r2 += dx[k] * dx[k];
   }
   ir = 1.0f / sqrtf(r2);
@@ -281,36 +265,24 @@ static inline void multipole_iact(struct multipole *d, const float *x, float* a)
   
   /* Compute the acceleration from the monopole */
   w = const_G * ir * ir * ir * d->mass;
-  float a_m[3] = {0., 0., 0.};
-  for (k = 0; k < 3; k++) a_m[k] -= w * dx[k];
-
+  for (k = 0; k < 3; k++) a[k] -= w * dx[k];
 
   /* Compute the acceleration from the quadrupole */
-  float a_q[3] = {0., 0., 0.};
-  float w1 = 0.5f * const_G * ir * ir * ir * ir * ir; 
+  float w1 = const_G * ir * ir * ir * ir * ir; 
   float w2 = -2.5f * const_G * ir * ir * ir * ir * ir * ir * ir;
-  float sum = 0.;
-  for (i = 0; i < 3; i++) {
-    for (j = 0; j < 3; j++) {
-      sum += dx[i] * d->Q[i][j] * dx[j];
-    }
-  }
-  a_q[0] = w2 * sum * dx[0] + w1 * (2.*dx[0]*d->Q[0][0] + 2.*dx[1]*d->Q[0][1] + 2.*dx[2]*d->Q[0][2]);
-  a_q[1] = w2 * sum * dx[1] + w1 * (2.*dx[0]*d->Q[1][0] + 2.*dx[1]*d->Q[1][1] + 2.*dx[2]*d->Q[1][2]);
-  a_q[2] = w2 * sum * dx[2] + w1 * (2.*dx[0]*d->Q[2][0] + 2.*dx[1]*d->Q[2][1] + 2.*dx[2]*d->Q[2][2]);
+  float xi = 0.;
 
-  
-  /* Get the total acceleration */
-  float a_t[3] = {0., 0., 0.};
-  for (k = 0; k < 3; k++) a_t[k] = a_m[k] + a_q[k];
+  xi += dx[0] * dx[0] * d->Q_00;
+  xi += dx[1] * dx[1] * d->Q_11;
+  xi += dx[2] * dx[2] * d->Q_22;
+  xi += 2.f * dx[0] * dx[1] * d->Q_01;
+  xi += 2.f * dx[0] * dx[2] * d->Q_02;
+  xi += 2.f * dx[1] * dx[2] * d->Q_12;
+    
+  a[0] += w2 * xi * dx[0] + w1 * (dx[0]*d->Q_00 + dx[1]*d->Q_01 + dx[2]*d->Q_02);
+  a[1] += w2 * xi * dx[1] + w1 * (dx[0]*d->Q_01 + dx[1]*d->Q_11 + dx[2]*d->Q_12);
+  a[2] += w2 * xi * dx[2] + w1 * (dx[0]*d->Q_02 + dx[1]*d->Q_12 + dx[2]*d->Q_22);
 
-  /* message("x: %f %f %f ", x[0], x[1], x[2]); */
-  /* message("d: %f %f %f ", dx[0], dx[1], dx[2]); */
-  /* message("a_m: %f %f %f (%f)", a_m[0], a_m[1], a_m[2], sqrtf(a_m[0]*a_m[0] + a_m[1]*a_m[1] + a_m[2]*a_m[2])); */
-  /* message("a_q: %f %f %f (%f)", a_q[0], a_q[1], a_q[2], sqrtf(a_q[0]*a_q[0] + a_q[1]*a_q[1] + a_q[2]*a_q[2])); */
-  /* message("a_t: %f %f %f (%f)", a_t[0], a_t[1], a_t[2], sqrtf(a_t[0]*a_t[0] + a_t[1]*a_t[1] + a_t[2]*a_t[2])); */
-  
-  for (k = 0; k < 3; k++) a[k] += a_t[k];
 }
 
 
@@ -1840,10 +1812,9 @@ static inline void iact_pair_direct_sorted_multipole(struct cell *ci,
     float x[3];
     float a[3];
     float mass, d;
-    int id;
   };
 
-  int i, j, k, l;
+  int i, j, k;
   int count_i, count_j;
   struct part_local *parts_i, *parts_j;
   float cjh = cj->h;
@@ -1860,12 +1831,11 @@ static inline void iact_pair_direct_sorted_multipole(struct cell *ci,
 
   /* Get the sorted indices and stuff. */
   struct index *ind_i, *ind_j;
-  struct multipole dip[4];
-  float axis[3], orth1[4], orth2[4];
+  struct multipole multi;
+  float  axis[3], orth1[4], orth2[4];
   int num_orth_planes = 0;
   get_axis(&ci, &cj, &ind_i, &ind_j, axis, &num_orth_planes, orth1, orth2);
-  for (k = 0; k < 3; k++) axis[k] = M_SQRT1_2 * (orth1[k] + orth2[k]);
-  for (k = 0; k < (1 << num_orth_planes); k++) multipole_init(&dip[k]);
+  multipole_reset(&multi);
   cjh = cj->h;
 
   /* Allocate and fill-in the local parts. */
@@ -1885,7 +1855,6 @@ static inline void iact_pair_direct_sorted_multipole(struct cell *ci,
       parts_i[i].x[k] = ci->parts[pid].x[k] - cj->loc[k];
       parts_i[i].a[k] = 0.0f;
     }
-    parts_i[i].id = ci->parts[pid].id;
     parts_i[i].mass = ci->parts[pid].mass;
   }
   for (j = 0; j < count_j; j++) {
@@ -1895,7 +1864,6 @@ static inline void iact_pair_direct_sorted_multipole(struct cell *ci,
       parts_j[j].x[k] = cj->parts[pjd].x[k] - cj->loc[k];
       parts_j[j].a[k] = 0.0f;
     }
-    parts_j[j].id = cj->parts[pjd].id;
     parts_j[j].mass = cj->parts[pjd].mass;
   }
 
@@ -1973,64 +1941,26 @@ static inline void iact_pair_direct_sorted_multipole(struct cell *ci,
     } /* loop over every other particle. */
 
     /* Reset the multipole */
-    for (l = 0; l < (1 << num_orth_planes); ++l) {
-      multipole_reset(&dip[l]);
-    }
+    multipole_reset(&multi);
 
     /* Add any remaining particles to the COM. */
     for (int jj = j; jj < count_j; jj++) {
-
-      l = 0;
-#ifdef MANY_MULTIPOLES
-      if (num_orth_planes > 0) {
-        float n1 = parts_j[jj].x[0] * orth1[0] + parts_j[jj].x[1] * orth1[1] +
-                   parts_j[jj].x[2] * orth1[2] + orth1[3];
-        l = 2 * l + ((n1 < 0.0) ? 0 : 1);
-        if (num_orth_planes > 1) {
-          float n2 = parts_j[jj].x[0] * orth2[0] + parts_j[jj].x[1] * orth2[1] +
-                     parts_j[jj].x[2] * orth2[2] + orth2[3];
-          l = 2 * l + ((n2 < 0.0) ? 0 : 1);
-        }
-      }
-#endif
-
-      /* float da = 0.0f; */
-      /* for (k = 0; k < 3; k++) da += parts_j[jj].x[k] * axis[k]; */
-      multipole_add_com(&dip[l], parts_j[jj].x, parts_j[jj].mass);
+      multipole_add_com(&multi, parts_j[jj].x, parts_j[jj].mass);
     }
 
     for (int jj = j; jj < count_j; jj++) {
-
-      l = 0;
-#ifdef MANY_MULTIPOLES
-      if (num_orth_planes > 0) {
-        float n1 = parts_j[jj].x[0] * orth1[0] + parts_j[jj].x[1] * orth1[1] +
-                   parts_j[jj].x[2] * orth1[2] + orth1[3];
-        l = 2 * l + ((n1 < 0.0) ? 0 : 1);
-        if (num_orth_planes > 1) {
-          float n2 = parts_j[jj].x[0] * orth2[0] + parts_j[jj].x[1] * orth2[1] +
-                     parts_j[jj].x[2] * orth2[2] + orth2[3];
-          l = 2 * l + ((n2 < 0.0) ? 0 : 1);
-        }
-      }
-#endif
-
-      multipole_add_matrix(&dip[l], parts_j[jj].x, parts_j[jj].mass);
+      multipole_add_matrix(&multi, parts_j[jj].x, parts_j[jj].mass);
     }
 
-    for (l = 0; l < (1 << num_orth_planes); ++l) {
-      /* message("Multipole for part %d:", parts_i[i].id); */
-      /* multipole_print(&dip[l]); */
-    }
+    /* message("Multipole for part %d:", parts_i[i].id); */
+    /* multipole_print(&dip[l]); */
 
     /* Shrink count_j to the latest valid particle. */
     //count_j = j;
 
-    //message(" i=%d ready to interact", i)
-
     /* Interact part_i with the center of mass. */
-    for (l = 0; l < (1 << num_orth_planes); ++l) {
-      multipole_iact(&dip[l], xi, ai);
+    multipole_iact(&multi, xi, ai);
+
 /* #if ICHECK >= 0 */
 /*       if (parts_i[i].id == ICHECK) */
 /*         message("Interaction with multipole");  //, parts_j[j].id ); */
@@ -2041,7 +1971,6 @@ static inline void iact_pair_direct_sorted_multipole(struct cell *ci,
 #endif
 
       //message(" i=%d done", i)
-    }
 
     /* Store the accumulated acceleration on the ith part. */
     for (k = 0; k < 3; k++) parts_i[i].a[k] += ai[k];
@@ -2053,71 +1982,39 @@ static inline void iact_pair_direct_sorted_multipole(struct cell *ci,
   /* Re-init some values. */
   count_j = cj->count;
   int last_i = 0;
-  for (l = 0; l < (1 << num_orth_planes); ++l) {
-    multipole_reset(&dip[l]);
-  }
+  multipole_reset(&multi);
 
   /* Loop over the particles in cj, catch the COM interactions. */
   for (j = 0; j < count_j; j++) {
 
-    for (l = 0; l < (1 << num_orth_planes); ++l) {
-      multipole_reset(&dip[l]);
-    }
+    multipole_reset(&multi);
+
     /* Get the sorted index. */
     float dj = parts_j[j].d;
 
     /* Fill the COM with any new particles. */
     for (i = last_i; i < count_i && (dj - parts_i[i].d) > d_max; i++) {
-      l = 0;
-#ifdef MANY_MULTIPOLES
-      if (num_orth_planes > 0) {
-        float n1 = parts_i[i].x[0] * orth1[0] + parts_i[i].x[1] * orth1[1] +
-                   parts_i[i].x[2] * orth1[2] + orth1[3];
-        l = 2 * l + ((n1 < 0) ? 0 : 1);
-        if (num_orth_planes > 1) {
-          float n2 = parts_i[i].x[0] * orth2[0] + parts_i[i].x[1] * orth2[1] +
-                     parts_i[i].x[2] * orth2[2] + orth2[3];
-          l = 2 * l + ((n2 < 0) ? 0 : 1);
-        }
-      }
-#endif
-      multipole_add_com(&dip[l], parts_i[i].x, parts_i[i].mass);
+      multipole_add_com(&multi, parts_i[i].x, parts_i[i].mass);
     }
 
     for (i = last_i; i < count_i && (dj - parts_i[i].d) > d_max; i++) {
-      l = 0;
-#ifdef MANY_MULTIPOLES
-      if (num_orth_planes > 0) {
-        float n1 = parts_i[i].x[0] * orth1[0] + parts_i[i].x[1] * orth1[1] +
-                   parts_i[i].x[2] * orth1[2] + orth1[3];
-        l = 2 * l + ((n1 < 0) ? 0 : 1);
-        if (num_orth_planes > 1) {
-          float n2 = parts_i[i].x[0] * orth2[0] + parts_i[i].x[1] * orth2[1] +
-                     parts_i[i].x[2] * orth2[2] + orth2[3];
-          l = 2 * l + ((n2 < 0) ? 0 : 1);
-        }
-      }
-#endif
-      multipole_add_matrix(&dip[l], parts_i[i].x, parts_i[i].mass);
+      multipole_add_matrix(&multi, parts_i[i].x, parts_i[i].mass);
     }
 
-
-    for (l = 0; l < (1 << num_orth_planes); ++l) {
-      /* message("Multipole for part %d:", parts_j[j].id); */
-      /* multipole_print(&dip[l]); */
-    }
+    /* message("Multipole for part %d:", parts_j[j].id); */
+    /* multipole_print(&multi); */
 
 
     /* Set the new last_i to the last particle checked. */
     //last_i = i;
 
     /* Interact part_j with the COM. */
-    for (l = 0; l < (1 << num_orth_planes); ++l) {
-      multipole_iact(&dip[l], parts_j[j].x, parts_j[j].a);
+    multipole_iact(&multi, parts_j[j].x, parts_j[j].a);
+
 #ifdef COUNTERS
       ++count_direct_sorted_pm_j;
 #endif
-    }
+    
   }
 
   /* Copy the accelerations back to the original particles. */
