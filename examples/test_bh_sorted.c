@@ -226,36 +226,34 @@ static inline void multipole_add(struct multipole *d, const float *x, float mass
 static inline void multipole_iact(struct multipole *d, const float *x, float* a) {
 
   int k;
-  float r2,ir,w, dx[3], mu[3];
-  float Q_00, Q_11, Q_22, Q_01, Q_02, Q_12;
+  float r2,ir,w, dx[3];
 
   /* early abort */
   if (d->mass == 0.) return;
 
   float inv_mass = 1. / d->mass;
   
-  /* Construct CoM */
-  for ( k = 0 ; k < 3 ; ++k ) mu[k] = d->mu[k] * inv_mass;
-
   /* Temporary quantity */
-  dx[0] = d->sigma_00 - d->mass*mu[0]*mu[0];  /* Abusing a so far unused */
-  dx[1] = d->sigma_11 - d->mass*mu[1]*mu[1];  /* variable temporarily... */
-  dx[2] = d->sigma_22 - d->mass*mu[2]*mu[2];
+  dx[0] = d->sigma_00 - inv_mass*d->mu[0]*d->mu[0];  /* Abusing a so far unused */
+  dx[1] = d->sigma_11 - inv_mass*d->mu[1]*d->mu[1];  /* variable temporarily... */
+  dx[2] = d->sigma_22 - inv_mass*d->mu[2]*d->mu[2];
 
   /* Construct quadrupole matrix */
-  Q_00 = 2.f*dx[0] - dx[1] - dx[2]; 
-  Q_11 = 2.f*dx[1] - dx[0] - dx[2]; 
-  Q_22 = 2.f*dx[2] - dx[0] - dx[1]; 
-  Q_01 = d->sigma_01 - d->mass*mu[0]*mu[1];
-  Q_02 = d->sigma_02 - d->mass*mu[0]*mu[2];
-  Q_12 = d->sigma_12 - d->mass*mu[1]*mu[2];
-  Q_01 *= 3.f;
-  Q_02 *= 3.f;
-  Q_12 *= 3.f;
+  float Q_00 = 2.0f*dx[0] - dx[1] - dx[2]; 
+  float Q_11 = 2.0f*dx[1] - dx[0] - dx[2]; 
+  float Q_22 = Q_00 + Q_11; /* Q_ij is traceless */
+  Q_22 *= -1.0f;
+
+  float Q_01 = d->sigma_01 - inv_mass*d->mu[0]*d->mu[1];
+  float Q_02 = d->sigma_02 - inv_mass*d->mu[0]*d->mu[2];
+  float Q_12 = d->sigma_12 - inv_mass*d->mu[1]*d->mu[2];
+  Q_01 *= 3.0f;
+  Q_02 *= 3.0f;
+  Q_12 *= 3.0f;
 
   /* Compute the distance to the CoM. */
   for (r2 = 0.0f, k = 0; k < 3; k++) {
-    dx[k] = x[k] - mu[k];
+    dx[k] = x[k] - d->mu[k] * inv_mass;
     r2 += dx[k] * dx[k];
   }
   ir = 1.0f / sqrtf(r2);
