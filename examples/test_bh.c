@@ -619,13 +619,13 @@ static inline void iact_self_pc(struct cell *c, struct cell *leaf) {
  * @param ci The #cell containing the particles.
  * @param cj The #cell containing the other particles
  */
-static inline void iact_pair_direct(struct cell *ci, struct cell *cj) {
+static inline void iact_pair_direct_dp(struct cell *ci, struct cell *cj) {
 
   int i, j, k;
   int count_i = ci->count, count_j = cj->count;
-  struct part *parts_i = ci->parts, *parts_j = cj->parts;
   double xi[3];
   float dx[3], ai[3], mi, mj, r2, w, ir;
+  struct part *parts_i = ci->parts, *parts_j = cj->parts;
 
 #ifdef SANITY_CHECKS
 
@@ -688,6 +688,112 @@ static inline void iact_pair_direct(struct cell *ci, struct cell *cj) {
   } /* loop over all particles. */
 }
 
+static inline void iact_pair_direct(struct cell *ci, struct cell *cj) {
+
+  int i, j, k;
+  int count_i = ci->count, count_j = cj->count;
+  float xi[3];
+  float dx[3], ai[3], mi, mj, r2, w, ir;
+  double com[3];
+  struct part_local {
+    float x[3];
+    float a[3];
+    float mass;
+  } parts_i[count_i], parts_j[count_j] __attribute__((aligned(64)));;
+
+
+#ifdef SANITY_CHECKS
+
+  /* Bad stuff will happen if cell sizes are different */
+  if (ci->h != cj->h)
+    error("Non matching cell sizes !! h_i=%f h_j=%f\n", ci->h, cj->h);
+
+#endif
+
+  /* Find the center point of the interaction. */
+  for (k = 0; k < 3; k++) {
+    com[k] = 0.5 * (ci->loc[k] + cj->loc[k] + ci->h);
+  }
+
+  /* Init the local copies of the particles. */
+  for (k = 0; k < count_i; k++) {
+    for (j = 0; j < 3; j++) {
+      parts_i[k].x[j] = ci->parts[k].x[j] - com[j];
+      parts_i[k].a[j] = 0.0f;
+    }
+    parts_i[k].mass = ci->parts[k].mass;
+  }
+  for (k = 0; k < count_j; k++) {
+    for (j = 0; j < 3; j++) {
+      parts_j[k].x[j] = cj->parts[k].x[j] - com[j];
+      parts_j[k].a[j] = 0.0f;
+    }
+    parts_j[k].mass = ci->parts[k].mass;
+  }
+  
+  /* Loop over all particles in ci... */
+  for (i = 0; i < count_i; i++) {
+
+    /* Init the ith particle's data. */
+    for (k = 0; k < 3; k++) {
+      xi[k] = parts_i[i].x[k];
+      ai[k] = 0.0f;
+    }
+    mi = parts_i[i].mass;
+
+    /* Loop over every particle in the other cell. */
+    for (j = 0; j < count_j; j++) {
+
+      /* Compute the pairwise distance. */
+      for (r2 = 0.0, k = 0; k < 3; k++) {
+        dx[k] = xi[k] - parts_j[j].x[k];
+        r2 += dx[k] * dx[k];
+      }
+
+      /* Apply the gravitational acceleration. */
+      ir = 1.0f / sqrtf(r2);
+      w = const_G * ir * ir * ir;
+      mj = parts_j[j].mass;
+      for (k = 0; k < 3; k++) {
+        float wdx = w * dx[k];
+        parts_j[j].a[k] += wdx * mi;
+        ai[k] -= wdx * mj;
+      }
+
+#ifdef COUNTERS
+      ++count_direct_unsorted;
+#endif
+
+#if ICHECK >= 0 && 0
+      if (parts_i[i].id == ICHECK)
+        printf(
+            "[NEW] Interaction with particle id= %d (pair i) a=( %e %e %e )\n",
+            parts_j[j].id, -mi * w * dx[0], -mi * w * dx[1], -mi * w * dx[2]);
+
+      if (parts_j[j].id == ICHECK)
+        printf(
+            "[NEW] Interaction with particle id= %d (pair j) a=( %e %e %e )\n",
+            parts_i[i].id, mj * w * dx[0], mj * w * dx[1], mj * w * dx[2]);
+#endif
+
+    } /* loop over every other particle. */
+
+    /* Store the accumulated acceleration on the ith part. */
+    for (k = 0; k < 3; k++) parts_i[i].a[k] += ai[k];
+
+  } /* loop over all particles. */
+  
+  /* Copy the local particle data back. */
+  for (k = 0; k < count_i; k++) {
+    for (j = 0; j < 3; j++)
+      ci->parts[k].a[j] = parts_i[k].a[j];
+  }
+  for (k = 0; k < count_j; k++) {
+    for (j = 0; j < 3; j++)
+      cj->parts[k].a[j] = parts_j[k].a[j];
+  }
+}
+
 /**
  * @brief Decides whether two cells use the direct summation interaction or the
  * multipole interactions
@@ -742,12 +848,12 @@ void iact_pair(struct cell *ci, struct cell *cj) {
  *
  * @param c The #cell.
  */
-void iact_self_direct(struct cell *c) {
+void iact_self_direct_dp(struct cell *c) {
   int i, j, k, count = c->count;
   double xi[3] = {0.0, 0.0, 0.0};
   float ai[3] = {0.0, 0.0, 0.0}, mi, mj, dx[3] = {0.0, 0.0, 0.0}, r2, ir, w;
-  struct part *parts = c->parts;
   struct cell *cp, *cps;
+  struct part *parts = c->parts;
 
 #ifdef SANITY_CHECKS
 
@@ -760,7 +866,7 @@ void iact_self_direct(struct cell *c) {
      each of its siblings. */
   if (c->split) {
     for (cp = c->firstchild; cp != c->sibling; cp = cp->sibling) {
-      iact_self_direct(cp);
+      iact_self_direct_dp(cp);
       for (cps = cp->sibling; cps != c->sibling; cps = cps->sibling)
         iact_pair(cp, cps);
     }
@@ -814,6 +920,101 @@ void iact_self_direct(struct cell *c) {
 
     } /* loop over all particles. */
 
+  } /* otherwise, compute interactions directly. */
+}
+
+void iact_self_direct(struct cell *c) {
+  int i, j, k, count = c->count;
+  float xi[3] = {0.0, 0.0, 0.0};
+  float ai[3] = {0.0, 0.0, 0.0}, mi, mj, dx[3] = {0.0, 0.0, 0.0}, r2, ir, w;
+  struct cell *cp, *cps;
+  struct part_local {
+    float x[3];
+    float a[3];
+    float mass;
+  } parts[count] __attribute__((aligned(64)));;
+  double loc[3];
+
+#ifdef SANITY_CHECKS
+
+  /* Early abort? */
+  if (count == 0) error("Empty cell !");
+
+#endif
+
+  /* If the cell is split, interact each progeny with itself, and with
+     each of its siblings. */
+  if (c->split) {
+    for (cp = c->firstchild; cp != c->sibling; cp = cp->sibling) {
+      iact_self_direct(cp);
+      for (cps = cp->sibling; cps != c->sibling; cps = cps->sibling)
+        iact_pair(cp, cps);
+    }
+
+    /* Otherwise, compute the interactions directly. */
+  } else {
+
+    /* Init the local copies of the particles. */
+    loc[0] = c->loc[0]; loc[1] = c->loc[1]; loc[2] = c->loc[2];
+    for (k = 0; k < count; k++) {
+      for (j = 0; j < 3; j++) {
+        parts[k].x[j] = c->parts[k].x[j] - loc[j];
+        parts[k].a[j] = 0.0f;
+      }
+      parts[k].mass = c->parts[k].mass;
+    }
+
+    /* Loop over all particles... */
+    for (i = 0; i < count; i++) {
+
+      /* Init the ith particle's data. */
+      for (k = 0; k < 3; k++) {
+        xi[k] = parts[i].x[k];
+        ai[k] = 0.0;
+      }
+      mi = parts[i].mass;
+
+      /* Loop over every following particle. */
+      for (j = i + 1; j < count; j++) {
+
+        /* Compute the pairwise distance. */
+        for (r2 = 0.0, k = 0; k < 3; k++) {
+          dx[k] = xi[k] - parts[j].x[k];
+          r2 += dx[k] * dx[k];
+        }
+
+        /* Apply the gravitational acceleration. */
+        ir = 1.0f / sqrtf(r2);
+        w = const_G * ir * ir * ir;
+        mj = parts[j].mass;
+        for (k = 0; k < 3; k++) {
+          float wdx = w * dx[k];
+          parts[j].a[k] += wdx * mi;
+          ai[k] -= wdx * mj;
+        }
+
+#if ICHECK >= 0
+        if (parts[i].id == ICHECK)
+          message("[NEW] Interaction with particle id= %d (self i)",
+                  parts[j].id);
+
+        if (parts[j].id == ICHECK)
+          message("[NEW] Interaction with particle id= %d (self j)",
+                  parts[i].id);
+#endif
+
+      } /* loop over every other particle. */
+
+      /* Store the accumulated acceleration on the ith part. */
+      for (k = 0; k < 3; k++) parts[i].a[k] += ai[k];
+
+    } /* loop over all particles. */
+
+    /* Copy the local particle data back. */
+    for (k = 0; k < count; k++) {
+      for (j = 0; j < 3; j++)
+        c->parts[k].a[j] = parts[k].a[j];
+    }
   } /* otherwise, compute interactions directly. */
 }
 
@@ -1212,8 +1413,7 @@ void test_bh(int N, int nr_threads, int runs, char *fileName) {
   for (k = 0; k < task_type_count; k++) task_timers[k] = 0;
 
   /* Initialize the scheduler. */
-  qsched_init(&s, nr_threads, qsched_flag_noreown |
-                              qsched_flag_pthread);
+  qsched_init(&s, nr_threads, qsched_flag_noreown);
 
   /* Init and fill the particle array. */
   if ((parts = (struct part *)malloc(sizeof(struct part) * N)) == NULL)
