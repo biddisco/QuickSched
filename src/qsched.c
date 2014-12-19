@@ -410,12 +410,15 @@ void *qsched_pthread_run ( void *in ) {
   struct qsched *s = r->s;
   int tid = r->tid;
   struct task *t;
-
+  
   /* Main loop. */
   while ( 1 ) {
   
     /* Wait at the barrier. */
     qsched_barrier_wait( s , tid );
+    
+    /* If there is no function to execute, then just quit. */
+    if (s->fun == NULL) pthread_exit(NULL);
   
     /* Loop as long as there are tasks. */
     while ( ( t = qsched_gettask( s , tid ) ) != NULL ) {
@@ -477,6 +480,7 @@ void qsched_run_pthread ( struct qsched *s , int nr_threads , qsched_funtype fun
         s->runners[tid].s = s;
         if ( pthread_create( &s->runners[tid].thread , NULL , qsched_pthread_run , (void *)&s->runners[tid] ) != 0 )
             error( "Failed to create pthread." );
+        s->runners_count += 1;
       }
     }
     
@@ -1517,9 +1521,32 @@ void qsched_free ( struct qsched *s ) {
     
     /* Destroy the mutex and condition. */
     #ifdef HAVE_PTHREAD
+      if ( s->flags & qsched_flag_pthread ) {
+      
+        /* Start all the threads on an empty function, to kill them. */
+        s->fun = NULL;
+        s->barrier_count = s->runners_count;
+        s->barrier_launchcount = s->runners_count;
+        if ( pthread_mutex_unlock( &s->barrier_mutex ) != 0 ||
+             pthread_cond_broadcast( &s->barrier_cond ) != 0 )
+            error( "Failed to open the barrier." );
+            
+        /* Wait for each thread to have terminated. */
+        for (k = 0; k < s->runners_count; k++)
+          if (pthread_join(s->runners[k].thread, NULL) != 0)
+            error("Failed to join on thread %i.", k);
+        
+        /* Clean up the mutexes and barriers. */
         if ( pthread_cond_destroy( &s->cond ) != 0 ||
              pthread_mutex_destroy( &s->mutex ) != 0 )
             error( "Error destroying pthread cond/mutex pair." );
+        if ( pthread_mutex_destroy( &s->barrier_mutex ) != 0 ||
+             pthread_cond_destroy( &s->barrier_cond ) != 0 )
+          error( "Error destroying pthread barrier cond/mutex pair." );
+        free(s->runners);
+        s->runners_size = 0;
+        s->runners_count = 0;
+      }
     #endif
         
     /* Clear the flags. */
@@ -1591,6 +1618,7 @@ void qsched_init ( struct qsched *s , int nr_queues , int flags ) {
     
     /* Init the pthread stuff. */
     #ifdef HAVE_PTHREAD
+      if ( flags & qsched_flag_pthread ) {
         if ( pthread_cond_init( &s->cond , NULL ) != 0 ||
              pthread_mutex_init( &s->mutex , NULL ) != 0 )
             error( "Error initializing yield cond/mutex pair." );
@@ -1606,6 +1634,7 @@ void qsched_init ( struct qsched *s , int nr_queues , int flags ) {
         s->barrier_launchcount = 0;
         if ( pthread_mutex_lock( &s->barrier_mutex ) != 0 )
             error( "Failed to lock barrier mutex." );
+      }
     #endif
     
     /* Clear the timers. */
