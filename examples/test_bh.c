@@ -51,14 +51,20 @@
 /** Data structure for the particles. */
 struct part {
   double x[3];
-  // union {
-  float a[3];
-  float a_legacy[3];
-  float a_exact[3];
-  // };
+  union {
+    float a[3];
+    float a_legacy[3];
+    float a_exact[3];
+  };
   float mass;
   int id;
-};  // __attribute__((aligned(64)));
+};  // __attribute__((aligned(32)));
+
+struct part_local {
+  float x[3];
+  float a[3];
+  float mass;
+} __attribute__((aligned(32)));
 
 struct multipole {
   double com[3];
@@ -384,12 +390,12 @@ void cell_split(struct cell *c, struct qsched *s) {
 /**
  * @brief Interacts all particles in ci with the monopole in cj
  */
-static inline void make_interact_pc(struct cell *leaf, struct cell *cj) {
+static inline void make_interact_pc(struct part_local *parts, int count,
+                                    double *loc, struct cell *cj) {
 
-  int j, k, count = leaf->count;
-  double com[3] = {0.0, 0.0, 0.0};
+  int j, k;
+  float com[3] = {0.0, 0.0, 0.0};
   float mcom, dx[3] = {0.0, 0.0, 0.0}, r2, ir, w;
-  struct part *parts = leaf->parts;
 
 #ifdef SANITY_CHECKS
 
@@ -410,7 +416,7 @@ static inline void make_interact_pc(struct cell *leaf, struct cell *cj) {
 #endif
 
   /* Init the com's data. */
-  for (k = 0; k < 3; k++) com[k] = cj->new.com[k];
+  for (k = 0; k < 3; k++) com[k] = cj->new.com[k] - loc[k];
   mcom = cj->new.mass;
 
   /* Loop over every particle in leaf. */
@@ -456,21 +462,19 @@ static inline int is_inside(struct cell *leaf, struct cell *c) {
 static inline int are_neighbours_different_size(struct cell *ci,
                                                 struct cell *cj) {
 
-  int k;
-  float dx[3];
   double cih = ci->h, cjh = cj->h;
 
   /* Maximum allowed distance */
   float min_dist = 0.5 * (cih + cjh);
 
   /* (Manhattan) Distance between the cells */
-  for (k = 0; k < 3; k++) {
+  for (int k = 0; k < 3; k++) {
     float center_i = ci->loc[k] + 0.5 * cih;
     float center_j = cj->loc[k] + 0.5 * cjh;
-    dx[k] = fabs(center_i - center_j);
+    if (fabsf(center_i - center_j) > min_dist) return 0;
   }
 
-  return (dx[0] <= min_dist) && (dx[1] <= min_dist) && (dx[2] <= min_dist);
+  return 1;
 }
 
 /**
@@ -478,9 +482,6 @@ static inline int are_neighbours_different_size(struct cell *ci,
  * to be of the same size
  */
 static inline int are_neighbours(struct cell *ci, struct cell *cj) {
-
-  int k;
-  float dx[3];
 
 #ifdef SANITY_CHECKS
   if (ci->h != cj->h)
@@ -491,13 +492,13 @@ static inline int are_neighbours(struct cell *ci, struct cell *cj) {
   float min_dist = ci->h;
 
   /* (Manhattan) Distance between the cells */
-  for (k = 0; k < 3; k++) {
+  for (int k = 0; k < 3; k++) {
     float center_i = ci->loc[k];
     float center_j = cj->loc[k];
-    dx[k] = fabs(center_i - center_j);
+    if (fabsf(center_i - center_j) > min_dist) return 0;
   }
 
-  return (dx[0] <= min_dist) && (dx[1] <= min_dist) && (dx[2] <= min_dist);
+  return 1;
 }
 
 /**
@@ -509,7 +510,8 @@ static inline int are_neighbours(struct cell *ci, struct cell *cj) {
  * @param cj The #cell containing the center of mass.
  */
 static inline void iact_pair_pc(struct cell *ci, struct cell *cj,
-                                struct cell *leaf) {
+                                struct cell *leaf, struct part_local *parts,
+                                int count, double *loc) {
 
   struct cell *cp, *cps;
 
@@ -551,11 +553,11 @@ static inline void iact_pair_pc(struct cell *ci, struct cell *cj,
 
         /* We only recurse if the children are split */
         if (cp->split && cps->split) {
-          iact_pair_pc(cp, cps, leaf);
+          iact_pair_pc(cp, cps, leaf, parts, count, loc);
         }
 
       } else {
-        make_interact_pc(leaf, cps);
+        make_interact_pc(parts, count, loc, cps);
       }
     }
   } else {
@@ -564,7 +566,7 @@ static inline void iact_pair_pc(struct cell *ci, struct cell *cj,
      * multipoles */
     for (cps = cj->firstchild; cps != cj->sibling; cps = cps->sibling) {
 
-      make_interact_pc(leaf, cps);
+      make_interact_pc(parts, count, loc, cps);
     }
   }
 }
@@ -576,9 +578,11 @@ static inline void iact_pair_pc(struct cell *ci, struct cell *cj,
  * @param c The #cell containing the monopoles
  * @param leaf The #cell containing the particles
  */
-static inline void iact_self_pc(struct cell *c, struct cell *leaf) {
+static inline void iact_self_pc(struct cell *c, struct cell *leaf,
+                                struct part_local *parts) {
 
   struct cell *cp, *cps;
+  int collect_part_data = 0;
 
 #ifdef SANITY_CHECKS
 
@@ -588,6 +592,23 @@ static inline void iact_self_pc(struct cell *c, struct cell *leaf) {
   if (!c->split) error("Cell is not split !");
 
 #endif
+
+  /* Get local copies of the particle data. */
+  if (parts == NULL) {
+    int count = leaf->count;
+    if ((parts =
+             (struct part_local *)malloc(sizeof(struct part_local) * count)) ==
+        NULL)
+      error("Failed to allocate local parts.");
+    for (int k = 0; k < count; k++) {
+      for (int j = 0; j < 3; j++) {
+        parts[k].x[j] = leaf->parts[k].x[j] - leaf->loc[j];
+        parts[k].a[j] = 0.0f;
+      }
+      parts[k].mass = leaf->parts[k].mass;
+    }
+    collect_part_data = 1;
+  }
 
   /* Find in which subcell of c the leaf is */
   for (cp = c->firstchild; cp != c->sibling; cp = cp->sibling) {
@@ -599,7 +620,7 @@ static inline void iact_self_pc(struct cell *c, struct cell *leaf) {
   if (cp->split) {
 
     /* Recurse if the cell can be split */
-    iact_self_pc(cp, leaf);
+    iact_self_pc(cp, leaf, parts);
 
     /* Now, interact with every other subcell */
     for (cps = c->firstchild; cps != c->sibling; cps = cps->sibling) {
@@ -607,8 +628,17 @@ static inline void iact_self_pc(struct cell *c, struct cell *leaf) {
       /* Since cp and cps will be direct neighbours it is only worth recursing
        */
       /* if the cells can both be split */
-      if (cp != cps && cps->split) iact_pair_pc(cp, cps, leaf);
+      if (cp != cps && cps->split)
+        iact_pair_pc(cp, cps, leaf, parts, leaf->count, leaf->loc);
     }
+  }
+
+  /* Clean up local parts? */
+  if (collect_part_data) {
+    for (int k = 0; k < leaf->count; k++) {
+      for (int j = 0; j < 3; j++) leaf->parts[k].a[j] += parts[k].a[j];
+    }
+    free(parts);
   }
 }
 
@@ -695,12 +725,8 @@ static inline void iact_pair_direct(struct cell *ci, struct cell *cj) {
   float xi[3];
   float dx[3], ai[3], mi, mj, r2, w, ir;
   double com[3];
-  struct part_local {
-    float x[3];
-    float a[3];
-    float mass;
-  } parts_i[count_i], parts_j[count_j] __attribute__((aligned(64)));;
-
+  struct part_local parts_j[count_j];
+  struct part *parts_i = ci->parts;
 
 #ifdef SANITY_CHECKS
 
@@ -716,13 +742,6 @@ static inline void iact_pair_direct(struct cell *ci, struct cell *cj) {
   }
 
   /* Init the local copies of the particles. */
-  for (k = 0; k < count_i; k++) {
-    for (j = 0; j < 3; j++) {
-      parts_i[k].x[j] = ci->parts[k].x[j] - com[j];
-      parts_i[k].a[j] = 0.0f;
-    }
-    parts_i[k].mass = ci->parts[k].mass;
-  }
   for (k = 0; k < count_j; k++) {
     for (j = 0; j < 3; j++) {
       parts_j[k].x[j] = cj->parts[k].x[j] - com[j];
@@ -730,13 +749,13 @@ static inline void iact_pair_direct(struct cell *ci, struct cell *cj) {
     }
     parts_j[k].mass = ci->parts[k].mass;
   }
-  
+
   /* Loop over all particles in ci... */
   for (i = 0; i < count_i; i++) {
 
     /* Init the ith particle's data. */
     for (k = 0; k < 3; k++) {
-      xi[k] = parts_i[i].x[k];
+      xi[k] = parts_i[i].x[k] - com[k];
       ai[k] = 0.0f;
     }
     mi = parts_i[i].mass;
@@ -782,15 +801,10 @@ static inline void iact_pair_direct(struct cell *ci, struct cell *cj) {
     for (k = 0; k < 3; k++) parts_i[i].a[k] += ai[k];
 
   } /* loop over all particles. */
-  
+
   /* Copy the local particle data back. */
-  for (k = 0; k < count_i; k++) {
-    for (j = 0; j < 3; j++)
-      ci->parts[k].a[j] = parts_i[k].a[j];
-  }
   for (k = 0; k < count_j; k++) {
-    for (j = 0; j < 3; j++)
-      cj->parts[k].a[j] = parts_j[k].a[j];
+    for (j = 0; j < 3; j++) cj->parts[k].a[j] = parts_j[k].a[j];
   }
 }
 
@@ -928,12 +942,6 @@ void iact_self_direct(struct cell *c) {
   float xi[3] = {0.0, 0.0, 0.0};
   float ai[3] = {0.0, 0.0, 0.0}, mi, mj, dx[3] = {0.0, 0.0, 0.0}, r2, ir, w;
   struct cell *cp, *cps;
-  struct part_local {
-    float x[3];
-    float a[3];
-    float mass;
-  } parts[count] __attribute__((aligned(64)));;
-  double loc[3];
 
 #ifdef SANITY_CHECKS
 
@@ -955,7 +963,11 @@ void iact_self_direct(struct cell *c) {
   } else {
 
     /* Init the local copies of the particles. */
-    loc[0] = c->loc[0]; loc[1] = c->loc[1]; loc[2] = c->loc[2];
+    double loc[3];
+    struct part_local parts[count];
+    loc[0] = c->loc[0];
+    loc[1] = c->loc[1];
+    loc[2] = c->loc[2];
     for (k = 0; k < count; k++) {
       for (j = 0; j < 3; j++) {
         parts[k].x[j] = c->parts[k].x[j] - loc[j];
@@ -1012,8 +1024,7 @@ void iact_self_direct(struct cell *c) {
 
     /* Copy the local particle data back. */
     for (k = 0; k < count; k++) {
-      for (j = 0; j < 3; j++)
-        c->parts[k].a[j] = parts[k].a[j];
+      for (j = 0; j < 3; j++) c->parts[k].a[j] = parts[k].a[j];
     }
   } /* otherwise, compute interactions directly. */
 }
@@ -1397,7 +1408,7 @@ void test_bh(int N, int nr_threads, int runs, char *fileName) {
         iact_pair(d[0], d[1]);
         break;
       case task_type_self_pc:
-        iact_self_pc(d[0], d[1]);
+        iact_self_pc(d[0], d[1], NULL);
         break;
       case task_type_com:
         comp_com(d[0]);
@@ -1413,7 +1424,7 @@ void test_bh(int N, int nr_threads, int runs, char *fileName) {
   for (k = 0; k < task_type_count; k++) task_timers[k] = 0;
 
   /* Initialize the scheduler. */
-  qsched_init(&s, nr_threads, qsched_flag_noreown);
+  qsched_init(&s, nr_threads, qsched_flag_noreown | qsched_flag_pthread);
 
   /* Init and fill the particle array. */
   if ((parts = (struct part *)malloc(sizeof(struct part) * N)) == NULL)
@@ -1551,7 +1562,7 @@ void test_bh(int N, int nr_threads, int runs, char *fileName) {
       parts[i].a[1] = 0.0;
       parts[i].a[2] = 0.0;
     }
-    
+
     /* Execute the tasks. */
     tic = getticks();
     qsched_run(&s, nr_threads, runner);
