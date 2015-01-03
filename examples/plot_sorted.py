@@ -33,6 +33,9 @@ rcParams.update(params)
 rc('font', family='serif')
 import sys
 import os
+from scipy import stats
+
+dist_cutoff_ratio=1.2
 
 print "Plotting..."
 
@@ -68,19 +71,28 @@ axis = [
 
 #names = ["side", "edge", "corner"]
 
-for orientation in range( 26 ):
-# for jjj in range(2):
-#     if jjj == 0:
-#         orientation = 0
-#     if jjj == 1:
-#         orientation = 8
+#for orientation in range( 26 ):
+for jjj in range(3):
+    if jjj == 0:
+        orientation = 0
+    if jjj == 1:
+        orientation = 1
+    if jjj == 2:
+        orientation = 4
 
+         
     # Read Quickshed accelerations
     data=loadtxt( "interaction_dump_%d.dat"%orientation )
     id = data[:,0]
     pos = data[:,2]
     pos -= mean(pos)
-        
+
+    x = data[:,3]
+    y = data[:,4]
+    z = data[:,5]
+
+    dist = data[:,12]
+    
     accx_u=data[:,6]
     accy_u=data[:,7]
     accz_u=data[:,8]
@@ -112,56 +124,95 @@ for orientation in range( 26 ):
     stdz_s = std(errz_s[abs(errz_s) < 0.1])
     
 
+#     sample_pos = pos[dist<0.2]
+#     sample_x = e_errx_s[dist<0.2]
+#     sample_y = e_erry_s[dist<0.2]
+#     sample_z = e_errz_s[dist<0.2]
+            
 
+#     numBins = 100
+#     binEdges = linspace(-1.5-1.5/numBins, 1.5+1.5/numBins, numBins+2)
+#     bins = linspace(-1.5, 1.5, numBins+1)
+
+#     corr_x, a, b = stats.binned_statistic(sample_pos, sample_x, statistic='mean', bins=binEdges)
+#     corr_y, a, b = stats.binned_statistic(sample_pos, sample_y, statistic='mean', bins=binEdges)
+#     corr_z, a, b = stats.binned_statistic(sample_pos, sample_z, statistic='mean', bins=binEdges)
+
+#     a,b, sample_bin = stats.binned_statistic(pos, pos, statistic='mean', bins=binEdges)
+#     sample_bin -= 2
+
+    
+# #    for j in range(size(pos)):
+# #        e_errx_s /= corr_x[sample_bin[j]]
+# #        e_erry_s /= corr_y[sample_bin[j]]
+# #        e_errz_s /= corr_z[sample_bin[j]]
+            
     # Plot -------------------------------------------------------
     figure(frameon=True)
+
     
     subplot(311, title="Acceleration along X")
-    #plot(id[abs(errx_s) > 0.001], e_errx_s , 'ro')
-    plot(pos, e_errx_s , 'ro')
-    # for j in range(size(pos)):
-    #     if ( pos[j-1] != pos[j] ):
-    #         text(pos[j], e_errx_s[j]-0.005, "%d"%id[j], fontsize=10)
-    #     else:
-    #         text(pos[j], e_errx_s[j]-0.015, "%d"%id[j], fontsize=10)
-    text( 0., 0.1, "axis=( %d %d %d )"%(axis[orientation*3 + 0], axis[orientation*3 + 1], axis[orientation*3 + 2]) , ha='center', backgroundcolor='w', fontsize=14)
+    scatter(pos[dist<1.], e_errx_s[dist<1.] ,c=dist[dist<1.], marker='o', s=1, linewidth=0, cmap='jet')
+    plot([-dist_cutoff_ratio/2., -dist_cutoff_ratio/2.],  [-0.01, 0.01], 'k--')
+    plot([dist_cutoff_ratio/2., dist_cutoff_ratio/2.],  [-0.01, 0.01], 'k--')
+    text( 0., 0.005, "axis=( %d %d %d )"%(axis[orientation*3 + 0], axis[orientation*3 + 1], axis[orientation*3 + 2]) , ha='center', backgroundcolor='w', fontsize=14)
     xlim(-1.2*max(abs(pos)), 1.2*max(abs(pos)))
-    ylim(-0.05, 0.05)
+    ylim(-0.03, 0.03)
     grid()
     
     subplot(312, title="Acceleration along Y")
-    #plot(id[abs(erry_s) > 0.001], e_erry_s , 'ro')
-    plot(pos, e_erry_s , 'ro')
-    # for j in range(size(pos)):
-    #     if ( pos[j-1] != pos[j] ):
-    #         text(pos[j], e_errx_s[j]-0.005, "%d"%id[j], fontsize=10)
-    #     else:
-    #         text(pos[j], e_errx_s[j]-0.015, "%d"%id[j], fontsize=10)
-    text( 0., 0.1, "axis=( %d %d %d )"%(axis[orientation*3 + 0], axis[orientation*3 + 1], axis[orientation*3 + 2]) , ha='center', backgroundcolor='w', fontsize=14)
+    scatter(pos[dist<1.], e_erry_s[dist<1.] , c=dist[dist<1.], marker='o', s=1, linewidth=0, cmap='jet')
+    plot([-dist_cutoff_ratio/2., -dist_cutoff_ratio/2.],  [-0.03, 0.03], 'k--')
+    plot([dist_cutoff_ratio/2., dist_cutoff_ratio/2.],  [-0.03, 0.03], 'k--')
+    text( 0., 0.005, "axis=( %d %d %d )"%(axis[orientation*3 + 0], axis[orientation*3 + 1], axis[orientation*3 + 2]) , ha='center', backgroundcolor='w', fontsize=14)
     xlim(-1.2*max(abs(pos)), 1.2*max(abs(pos)))
-    ylim(-0.05, 0.05)  
+    ylim(-0.03, 0.03)  
     grid()
     
     subplot(313, title="Acceleration along Z")
-    #plot(id[abs(errz_s) > 0.001], e_errz_s , 'ro', label="Sorted")
-    plot(pos, e_errz_s , 'ro', label="Sorted")
-    # for j in range(size(pos)):
-    #     if ( pos[j-1] != pos[j] ):
-    #         text(pos[j], e_errx_s[j]-0.005, "%d"%id[j], fontsize=10)
-    #     else:
-    #         text(pos[j], e_errx_s[j]-0.015, "%d"%id[j], fontsize=10)
-    text( 0., 0.1, "axis=( %d %d %d )"%(axis[orientation*3 + 0], axis[orientation*3 + 1], axis[orientation*3 + 2]) , ha='center', backgroundcolor='w', fontsize=14)
-
-    legend(loc="upper right")
+    scatter(pos[dist<1.], e_errz_s[dist<1.] , c=dist[dist<1.], label="Sorted", marker='o', s=1, linewidth=0, cmap='jet')
+    plot([-dist_cutoff_ratio/2., -dist_cutoff_ratio/2.],  [-0.03, 0.03], 'k--')
+    plot([dist_cutoff_ratio/2., dist_cutoff_ratio/2.],  [-0.03, 0.03], 'k--')
+    text( 0., 0.005, "axis=( %d %d %d )"%(axis[orientation*3 + 0], axis[orientation*3 + 1], axis[orientation*3 + 2]) , ha='center', backgroundcolor='w', fontsize=14)
+    #legend(loc="upper right")
     xlim(-1.2*max(abs(pos)), 1.2*max(abs(pos)))
-    ylim(-0.05, 0.05)
-    #xlim(0, size(id)-1)
+    ylim(-0.03, 0.03)
     grid()
 
-    savefig("1quadrupole_accelerations_relative_%d.png"%orientation)
+    savefig("quadrupole_accelerations_relative_%d.png"%orientation)
     close()
 
 
+
+    figure(frameon=True)
+    
+    subplot(311, title="Acceleration along X")
+    scatter(dist, e_errx_s )
+    text( 0., 0.005, "axis=( %d %d %d )"%(axis[orientation*3 + 0], axis[orientation*3 + 1], axis[orientation*3 + 2]) , ha='center', backgroundcolor='w', fontsize=14)
+    #xlim(-1.2*max(abs(pos)), 1.2*max(abs(pos)))
+    #ylim(-0.01, 0.01)
+    grid()
+    
+    subplot(312, title="Acceleration along Y")
+    scatter(dist, e_erry_s )
+    text( 0., 0.005, "axis=( %d %d %d )"%(axis[orientation*3 + 0], axis[orientation*3 + 1], axis[orientation*3 + 2]) , ha='center', backgroundcolor='w', fontsize=14)
+    #xlim(-1.2*max(abs(pos)), 1.2*max(abs(pos)))
+    #ylim(-0.01, 0.01)  
+    grid()
+    
+    subplot(313, title="Acceleration along Z")
+    scatter(dist, e_errz_s , label="Sorted")
+    text( 0., 0.005, "axis=( %d %d %d )"%(axis[orientation*3 + 0], axis[orientation*3 + 1], axis[orientation*3 + 2]) , ha='center', backgroundcolor='w', fontsize=14)
+    #legend(loc="upper right")
+    #xlim(-1.2*max(abs(pos)), 1.2*max(abs(pos)))
+    #ylim(-0.01, 0.01)
+    grid()
+
+    savefig("error_distance_%d.png"%orientation)
+    close()
+
+
+    
     # # Plot -------------------------------------------------------
     # figure(frameon=True)
     
@@ -207,22 +258,22 @@ for orientation in range( 26 ):
     
     
     
-    # figure(frameon=True)
-    # subplot(311, title="Acceleration along X")
-    # hist(e_errx_s, bins=bins, normed=1, histtype='step', rwidth=0.01, color='r', label="Sorted")
-    # legend(loc="upper right")
-    # xlim(-0.12, 0.12)
+    figure(frameon=True)
+    subplot(311, title="Acceleration along X")
+    hist(e_errx_s, bins=bins, normed=1, histtype='step', rwidth=0.01, color='r', label="Sorted")
+    legend(loc="upper right")
+    xlim(-0.12, 0.12)
     
-    # subplot(312, title="Acceleration along Y")
-    # hist(e_erry_s, bins=bins, normed=1, histtype='step', rwidth=0.01, color='r')
-    # xlim(-0.12, 0.12)
+    subplot(312, title="Acceleration along Y")
+    hist(e_erry_s, bins=bins, normed=1, histtype='step', rwidth=0.01, color='r')
+    xlim(-0.12, 0.12)
 
-    # subplot(313, title="Acceleration along Z")
-    # hist(e_errz_s, bins=bins, normed=1, histtype='step', rwidth=0.01, color='r')
-    # xlim(-0.12, 0.12)
+    subplot(313, title="Acceleration along Z")
+    hist(e_errz_s, bins=bins, normed=1, histtype='step', rwidth=0.01, color='r')
+    xlim(-0.12, 0.12)
     
-    # savefig("histogram_%d.png"%orientation)
-    # close()
+    savefig("histogram_%d.png"%orientation)
+    close()
 
 
 

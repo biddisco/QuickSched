@@ -190,6 +190,7 @@ static inline void multipole_iact(struct multipole *d, const float *x, float* a)
   w = const_G * ir * ir * ir * d->mass;
   for (k = 0; k < 3; k++) a[k] -= w * dx[k];
 
+
   /* Compute some helpful terms */
   float w1 = const_G * ir * ir * ir * ir * ir; 
   float w2 = -2.5f * const_G * ir * ir * ir * ir * ir * ir * ir;
@@ -2207,18 +2208,30 @@ void test_direct_neighbour(int N_parts, int orientation) {
   }
 
   /* Position along the axis */
-  double *position;
+  double *position, *ortho_dist;
   if ((position = (double *)malloc(sizeof(double) * N_parts * 2)) == NULL)
     error("Failed to allocate position buffer.");
+  if ((ortho_dist = (double *)malloc(sizeof(double) * N_parts * 2)) == NULL)
+    error("Failed to allocate orthogonal distance buffer.");
 
   float w = 1.0f / sqrtf(shift[0]*shift[0] + shift[1]*shift[1] + shift[2]*shift[2]);
   shift[0] *= w;
   shift[1] *= w;
   shift[2] *= w;
 
-  for (k = 0; k < 2 * N_parts; ++k)
-    position[k] = parts[k].x[0] * shift[0] + parts[k].x[1] * shift[1] +
-      parts[k].x[2] * shift[2];
+  for (k = 0; k < 2 * N_parts; ++k) {
+    float dx = parts[k].x[0] * shift[0];
+    float dy = parts[k].x[1] * shift[1];
+    float dz = parts[k].x[2] * shift[2];
+
+    position[k] =  dx + dy + dz;
+
+    dx = (parts[k].x[1] - 0.5f)*shift[2] - (parts[k].x[2] - 0.5f)*shift[1];
+    dy = (parts[k].x[2] - 0.5f)*shift[0] - (parts[k].x[0] - 0.5f)*shift[2];
+    dz = (parts[k].x[0] - 0.5f)*shift[1] - (parts[k].x[1] - 0.5f)*shift[0];
+
+    ortho_dist[k] = sqrtf(dx*dx + dy*dy + dz*dz);
+  }
 
   /* Now, output everything */
   char fileName[100];
@@ -2226,12 +2239,13 @@ void test_direct_neighbour(int N_parts, int orientation) {
   message("Writing file '%s'", fileName);
   FILE *file = fopen(fileName, "w");
   fprintf(file,
-          "# ID m r x y z a_u.x   a_u.y    a_u.z    a_s.x    a_s.y    a_s.z\n");
+          "# ID m r x y z a_u.x   a_u.y    a_u.z    a_s.x    a_s.y    a_s.z    ortho\n");
   for (k = 0; k < 2 * N_parts; k++) {
-    fprintf(file, "%d %e %e %e %e %e %e %e %e %e %e %e\n", parts[k].id,
+    fprintf(file, "%d %e %e %e %e %e %e %e %e %e %e %e %e\n", parts[k].id,
             parts[k].mass, position[k], parts[k].x[0], parts[k].x[1],
             parts[k].x[2], parts[k].a_exact[0], parts[k].a_exact[1],
-            parts[k].a_exact[2], parts[k].a[0], parts[k].a[1], parts[k].a[2]);
+            parts[k].a_exact[2], parts[k].a[0], parts[k].a[1], parts[k].a[2],
+	    ortho_dist[k]);
   }
   fclose(file);
 
@@ -2490,11 +2504,11 @@ int main(int argc, char *argv[]) {
             N_parts);
 
     /* Run the test */
-    for (k = 0; k < 26; ++k) test_direct_neighbour(N_parts, k);
-    /* k++; */
-    /* test_direct_neighbour(N_parts, 0); */
-    /* test_direct_neighbour(N_parts, 8); */
-
+    //for (k = 0; k < 26; ++k) test_direct_neighbour(N_parts, k);
+    test_direct_neighbour(N_parts, 0);
+    test_direct_neighbour(N_parts, 1);
+    test_direct_neighbour(N_parts, 4);
+    k++;
 
     /* Dump arguments */
     message("Interacting one cell with %d particles with its 27 neighbours"
