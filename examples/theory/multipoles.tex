@@ -30,19 +30,19 @@ centre of mass.\\
 The quadrupole moment $\overline{\overline{Q}}$ of this mass distribution is then written as
 
 \begin{eqnarray}
- Q_{11} &=& \sum_i m_i \left( 3(x_i-\mu_x)^2 - r_i^2\right) \\
- Q_{12} &=& \sum_i m_i 3(x_i-\mu_x)(y_i-\mu_y) \\
- Q_{13} &=& \sum_i m_i 3(x_i-\mu_x)(z_i-\mu_z) \\
+ Q_{xx} &=& \sum_i m_i \left( 3(x_i-\mu_x)^2 - r_i^2\right) \\
+ Q_{xy} &=& \sum_i m_i 3(x_i-\mu_x)(y_i-\mu_y) \\
+ Q_{xz} &=& \sum_i m_i 3(x_i-\mu_x)(z_i-\mu_z) \\
  ~& & \nonumber\\
- Q_{21} &=& \sum_i m_i 3(y_i-\mu_y)(x_i-\mu_x) \\
- Q_{22} &=& \sum_i m_i \left( 3(y_i-\mu_y)^2 - r_i^2\right) \\
- Q_{23} &=& \sum_i m_i 3(y_i-\mu_y)(z_i-\mu_z) \\
+ Q_{yx} &=& \sum_i m_i 3(y_i-\mu_y)(x_i-\mu_x) \\
+ Q_{yy} &=& \sum_i m_i \left( 3(y_i-\mu_y)^2 - r_i^2\right) \\
+ Q_{yz} &=& \sum_i m_i 3(y_i-\mu_y)(z_i-\mu_z) \\
  ~& &\nonumber\\
- Q_{31} &=& \sum_i m_i 3(z_i-\mu_z)(x_i-\mu_x)  \\
- Q_{32} &=& \sum_i m_i 3(z_i-\mu_z)(y_i-\mu_y) \\
- Q_{33} &=& \sum_i m_i \left( 3(z_i-\mu_z)^2 - r_i^2\right)
+ Q_{zx} &=& \sum_i m_i 3(z_i-\mu_z)(x_i-\mu_x)  \\
+ Q_{zy} &=& \sum_i m_i 3(z_i-\mu_z)(y_i-\mu_y) \\
+ Q_{zz} &=& \sum_i m_i \left( 3(z_i-\mu_z)^2 - r_i^2\right)
 \end{eqnarray}
-Note that this matrix is symmetric and traceless ($Q_{11}+Q_{22}+Q_{33}=0$), so only $5$ components need to be 
+Note that this matrix is symmetric and traceless ($Q_{xx}+Q_{yy}+Q_{zz}=0$), so only $5$ components need to be 
 computed. \\
 
 \pagebreak
@@ -65,18 +65,18 @@ Taking the gradient of this expression to get the acceleration, we obtain:
 Writing this explicitly for each coordinate (using the symmetry of $\overline{\overline{Q}}$), we get:
 
 \begin{eqnarray}
- a_x &=& -\frac{Gr_x}{|\rr|^3}M + \frac{1}{2} \frac{G}{|\rr|^5}\left[2r_x Q_{11} + 2r_yQ_{12} + 2r_z Q_{13}\right] - 
+ a_x &=& -\frac{Gr_x}{|\rr|^3}M + \frac{1}{2} \frac{G}{|\rr|^5}\left[2r_x Q_{xx} + 2r_yQ_{xy} + 2r_z Q_{xz}\right] - 
 \frac{5}{2} \frac{G r_x}{|\rr|^7} \Xi, \\
- a_y &=& -\frac{Gr_y}{|\rr|^3}M + \frac{1}{2} \frac{G}{|\rr|^5}\left[2r_x Q_{21} + 2r_yQ_{22} + 2r_z Q_{23}\right] - 
+ a_y &=& -\frac{Gr_y}{|\rr|^3}M + \frac{1}{2} \frac{G}{|\rr|^5}\left[2r_x Q_{yx} + 2r_yQ_{yy} + 2r_z Q_{yz}\right] - 
 \frac{5}{2} \frac{G r_y}{|\rr|^7} \Xi, \\
- a_y &=& -\frac{Gr_z}{|\rr|^3}M + \frac{1}{2} \frac{G}{|\rr|^5}\left[2r_x Q_{31} + 2r_yQ_{32} + 2r_z Q_{33}\right] - 
+ a_y &=& -\frac{Gr_z}{|\rr|^3}M + \frac{1}{2} \frac{G}{|\rr|^5}\left[2r_x Q_{zx} + 2r_yQ_{zy} + 2r_z Q_{zz}\right] - 
 \frac{5}{2} \frac{G r_z}{|\rr|^7} \Xi, \\
 \end{eqnarray}
 with the common coefficient $\Xi$ defined as:
 
 \begin{equation*}
- \Xi = \rr\cdot(\overline{\overline{Q}}\cdot \rr) = r_x^2Q_{11} + r_y^2Q_{22} + r_z^2Q_{33} + 2r_xr_yQ_{12} + 
-2r_xr_zQ_{13} + 2r_yr_zQ_{23}
+ \Xi = \rr\cdot(\overline{\overline{Q}}\cdot \rr) = r_x^2Q_{xx} + r_y^2Q_{yy} + r_z^2Q_{zz} + 2r_xr_yQ_{xy} + 
+2r_xr_zQ_{xz} + 2r_yr_zQ_{yz}
 \end{equation*}
 
 
