@@ -104,7 +104,7 @@ struct cell {
 enum task_type {
   task_type_self = 0,
   task_type_pair,
-  task_type_self_pc,
+  //task_type_self_pc,
   task_type_pair_direct,
   task_type_com,
   task_type_count
@@ -724,15 +724,8 @@ void cell_split(struct cell *c, struct qsched *s) {
 #endif
 
     /* Otherwise, we're at a leaf, so create the cell's particle-cell task. */
-  } else {
-    struct cell *data[2] = {root, c};
-    int tid = qsched_addtask(s, task_type_self_pc, task_flag_none, data,
-                             2 * sizeof(struct cell *), 1);
-    qsched_addlock(s, tid, c->res);
-#ifdef COM_AS_TASK
-    qsched_addunlock(s, root->com_tid, tid);
-#endif
-  } /* does the cell need to be split? */
+  }
+
 
 /* Compute the cell's center of mass. */
 #ifndef COM_AS_TASK
@@ -916,129 +909,129 @@ static inline int are_neighbours(struct cell *ci, struct cell *cj) {
   return (dx[0] <= min_dist) && (dx[1] <= min_dist) && (dx[2] <= min_dist);
 }
 
-/**
- * @brief Compute the interactions between all particles in a cell leaf
- *        and the center of mass of all the cells in a part of the tree
-* described by ci and cj
- *
- * @param ci The #cell containing the particle
- * @param cj The #cell containing the center of mass.
- */
-static inline void iact_pair_pc(struct cell *ci, struct cell *cj,
-                                struct cell *leaf) {
+/* /\** */
+/*  * @brief Compute the interactions between all particles in a cell leaf */
+/*  *        and the center of mass of all the cells in a part of the tree */
+/* * described by ci and cj */
+/*  * */
+/*  * @param ci The #cell containing the particle */
+/*  * @param cj The #cell containing the center of mass. */
+/*  *\/ */
+/* static inline void iact_pair_pc(struct cell *ci, struct cell *cj, */
+/*                                 struct cell *leaf) { */
 
-  struct cell *cp, *cps;
+/*   struct cell *cp, *cps; */
 
-#ifdef SANITY_CHECKS
+/* #ifdef SANITY_CHECKS */
 
-  /* Early abort? */
-  if (ci->count == 0 || cj->count == 0) error("Empty cell !");
+/*   /\* Early abort? *\/ */
+/*   if (ci->count == 0 || cj->count == 0) error("Empty cell !"); */
 
-  /* Sanity check */
-  if (ci == cj)
-    error("The impossible has happened: pair interaction between a cell and "
-          "itself.");
+/*   /\* Sanity check *\/ */
+/*   if (ci == cj) */
+/*     error("The impossible has happened: pair interaction between a cell and " */
+/*           "itself."); */
 
-  /* Sanity check */
-  if (!is_inside(leaf, ci))
-    error("The impossible has happened: The leaf is not within ci");
+/*   /\* Sanity check *\/ */
+/*   if (!is_inside(leaf, ci)) */
+/*     error("The impossible has happened: The leaf is not within ci"); */
 
-  /* Are the cells direct neighbours? */
-  if (!are_neighbours(ci, cj)) error("Cells are not neighours");
+/*   /\* Are the cells direct neighbours? *\/ */
+/*   if (!are_neighbours(ci, cj)) error("Cells are not neighours"); */
 
-  /* Are both cells split ? */
-  if (!ci->split || !cj->split) error("One of the cells is not split !");
-#endif
+/*   /\* Are both cells split ? *\/ */
+/*   if (!ci->split || !cj->split) error("One of the cells is not split !"); */
+/* #endif */
 
-  /* Let's find in which subcell of ci the leaf is */
-  for (cp = ci->firstchild; cp != ci->sibling; cp = cp->sibling) {
+/*   /\* Let's find in which subcell of ci the leaf is *\/ */
+/*   for (cp = ci->firstchild; cp != ci->sibling; cp = cp->sibling) { */
 
-    if (is_inside(leaf, cp)) break;
-  }
+/*     if (is_inside(leaf, cp)) break; */
+/*   } */
 
-  if (are_neighbours_different_size(cp, cj)) {
+/*   if (are_neighbours_different_size(cp, cj)) { */
 
-    /* Now interact this subcell with all subcells of cj */
-    for (cps = cj->firstchild; cps != cj->sibling; cps = cps->sibling) {
+/*     /\* Now interact this subcell with all subcells of cj *\/ */
+/*     for (cps = cj->firstchild; cps != cj->sibling; cps = cps->sibling) { */
 
-      /* Check whether we have to recurse or can directly jump to the multipole
-       * calculation */
-      if (are_neighbours(cp, cps)) {
+/*       /\* Check whether we have to recurse or can directly jump to the multipole */
+/*        * calculation *\/ */
+/*       if (are_neighbours(cp, cps)) { */
 
-        /* We only recurse if the children are split */
-        if (cp->split && cps->split) {
-          iact_pair_pc(cp, cps, leaf);
-        }
+/*         /\* We only recurse if the children are split *\/ */
+/*         if (cp->split && cps->split) { */
+/*           iact_pair_pc(cp, cps, leaf); */
+/*         } */
 
-      } else {
-        make_interact_pc(leaf, cps);
-      }
-    }
-  } else {
+/*       } else { */
+/*         make_interact_pc(leaf, cps); */
+/*       } */
+/*     } */
+/*   } else { */
 
-    /* If cp is not a neoghbour of cj, we can directly interact with the
-     * multipoles */
-    for (cps = cj->firstchild; cps != cj->sibling; cps = cps->sibling) {
+/*     /\* If cp is not a neoghbour of cj, we can directly interact with the */
+/*      * multipoles *\/ */
+/*     for (cps = cj->firstchild; cps != cj->sibling; cps = cps->sibling) { */
 
-      make_interact_pc(leaf, cps);
-    }
-  }
-}
+/*       make_interact_pc(leaf, cps); */
+/*     } */
+/*   } */
+/* } */
 
-/**
- * @brief Compute the interactions between all particles in a leaf and
- *        and all the monopoles in the cell c
- *
- * @param c The #cell containing the monopoles
- * @param leaf The #cell containing the particles
- */
-static inline void iact_self_pc(struct cell *c, struct cell *leaf) {
+/* /\** */
+/*  * @brief Compute the interactions between all particles in a leaf and */
+/*  *        and all the monopoles in the cell c */
+/*  * */
+/*  * @param c The #cell containing the monopoles */
+/*  * @param leaf The #cell containing the particles */
+/*  *\/ */
+/* static inline void iact_self_pc(struct cell *c, struct cell *leaf) { */
 
-  struct cell *cp, *cps;
+/*   struct cell *cp, *cps; */
 
-#ifdef SANITY_CHECKS
+/* #ifdef SANITY_CHECKS */
 
-  /* Early abort? */
-  if (c->count == 0) error("Empty cell !");
+/*   /\* Early abort? *\/ */
+/*   if (c->count == 0) error("Empty cell !"); */
 
-  if (!c->split) error("Cell is not split !");
+/*   if (!c->split) error("Cell is not split !"); */
 
-#endif
+/* #endif */
 
-  /* Find in which subcell of c the leaf is */
-  for (cp = c->firstchild; cp != c->sibling; cp = cp->sibling) {
+/*   /\* Find in which subcell of c the leaf is *\/ */
+/*   for (cp = c->firstchild; cp != c->sibling; cp = cp->sibling) { */
 
-    /* Only recurse if the leaf is in this part of the tree */
-    if (is_inside(leaf, cp)) break;
-  }
+/*     /\* Only recurse if the leaf is in this part of the tree *\/ */
+/*     if (is_inside(leaf, cp)) break; */
+/*   } */
 
-  if (cp->split) {
+/*   if (cp->split) { */
 
-    /* Recurse if the cell can be split */
-    iact_self_pc(cp, leaf);
+/*     /\* Recurse if the cell can be split *\/ */
+/*     iact_self_pc(cp, leaf); */
 
-    /* Now, interact with every other subcell */
-    for (cps = c->firstchild; cps != c->sibling; cps = cps->sibling) {
+/*     /\* Now, interact with every other subcell *\/ */
+/*     for (cps = c->firstchild; cps != c->sibling; cps = cps->sibling) { */
 
-      /* Since cp and cps will be direct neighbours it is only worth recursing
-       */
-      /* if the cells can both be split */
-      if (cp != cps && cps->split) iact_pair_pc(cp, cps, leaf);
-    }
-  }
-}
+/*       /\* Since cp and cps will be direct neighbours it is only worth recursing */
+/*        *\/ */
+/*       /\* if the cells can both be split *\/ */
+/*       if (cp != cps && cps->split) iact_pair_pc(cp, cps, leaf); */
+/*     } */
+/*   } */
+/* } */
 
-/**
- * @brief Starts the recursive tree walk of a given leaf
- */
-void init_multipole_walk(struct cell *root, struct cell *leaf) {
+/* /\** */
+/*  * @brief Starts the recursive tree walk of a given leaf */
+/*  *\/ */
+/* void init_multipole_walk(struct cell *root, struct cell *leaf) { */
 
-  /* Pre-fetch the leaf's particles */
-  __builtin_prefetch(leaf->parts, 1, 3);
+/*   /\* Pre-fetch the leaf's particles *\/ */
+/*   __builtin_prefetch(leaf->parts, 1, 3); */
 
-  /* Start the recursion */
-  iact_self_pc(root, leaf);
-}
+/*   /\* Start the recursion *\/ */
+/*   iact_self_pc(root, leaf); */
+/* } */
 
 /**
  * @brief Compute the interactions between all particles in a cell
@@ -1550,6 +1543,8 @@ void create_tasks(struct qsched *s, struct cell *ci, struct cell *cj) {
   }   /* Otherwise it's a pair */
 }
 
+
+
 /* -------------------------------------------------------------------------- */
 /* Legacy tree walk */
 /* -------------------------------------------------------------------------- */
@@ -1835,9 +1830,9 @@ void test_bh(int N, int nr_threads, int runs, char *fileName) {
       case task_type_pair_direct:
         iact_pair_direct(d[0], d[1]);
         break;
-      case task_type_self_pc:
-        init_multipole_walk(d[0], d[1]);
-        break;
+      /* case task_type_self_pc: */
+      /*   init_multipole_walk(d[0], d[1]); */
+      /*   break; */
       case task_type_com:
         comp_com(d[0]);
         break;
