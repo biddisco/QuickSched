@@ -25,6 +25,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <strings.h>
 #include <unistd.h>
 #include <math.h>
 #include <float.h>
@@ -37,7 +38,7 @@
 
 /* Some local constants. */
 #define cell_pool_grow 1000
-#define cell_maxparts 1
+#define cell_maxparts 100
 #define task_limit 1e8
 #define const_G 1    // 6.6738e-8
 #define dist_min 0.5 /* Used for legacy walk only */
@@ -60,6 +61,13 @@ struct part {
   float mass;
   int id;
 };  // __attribute__((aligned(64)));
+
+struct part_local {
+  float x[3];
+  float a[3];
+  float mass;
+  float d;
+} __attribute__((aligned(32)));
 
 /** Data structure for the sorted particle positions. */
 struct index {
@@ -121,31 +129,21 @@ struct multipole {
 };
 
 static inline void multipole_reset(struct multipole *d) {
-  d->mu[0] = 0.0;
-  d->mu[1] = 0.0;
-  d->mu[2] = 0.0;
-
-  d->sigma_00 = 0.0;
-  d->sigma_11 = 0.0;
-  d->sigma_22 = 0.0;
-  d->sigma_01 = 0.0;
-  d->sigma_02 = 0.0;
-  d->sigma_12 = 0.0;
-
-  d->mass = 0.0;
+  bzero(d, sizeof(struct multipole));
 }
 
 static inline void multipole_add(struct multipole *d, const float *x, float mass) {
-  d->mu[0] += x[0] * mass;
-  d->mu[1] += x[1] * mass;
-  d->mu[2] += x[2] * mass;
+  float xm[3] = { x[0] * mass, x[1] * mass, x[2] * mass };
+  d->mu[0] += xm[0];
+  d->mu[1] += xm[1];
+  d->mu[2] += xm[2];
   
-  d->sigma_00 += mass * x[0] * x[0];
-  d->sigma_11 += mass * x[1] * x[1];
-  d->sigma_22 += mass * x[2] * x[2];
-  d->sigma_01 += mass * x[0] * x[1];
-  d->sigma_02 += mass * x[0] * x[2];
-  d->sigma_12 += mass * x[1] * x[2];
+  d->sigma_00 += xm[0] * x[0];
+  d->sigma_11 += xm[1] * x[1];
+  d->sigma_22 += xm[2] * x[2];
+  d->sigma_01 += xm[0] * x[1];
+  d->sigma_02 += xm[0] * x[2];
+  d->sigma_12 += xm[1] * x[2];
 
   d->mass += mass;
 }
@@ -154,47 +152,48 @@ static inline void multipole_add(struct multipole *d, const float *x, float mass
 static inline void multipole_iact(struct multipole *d, const float *x, float* a) {
 
   int k;
-  float r2,ir,w, dx[3];
+  float r2,ir, dx[3];
 
   /* early abort */
-  if (d->mass == 0.) return;
+  if (d->mass == 0.0f) return;
 
-  float inv_mass = 1. / d->mass;
+  float inv_mass = 1.0f / d->mass;
+  float mu[3] = {d->mu[0], d->mu[1], d->mu[2]};
   
-  /* Temporary quantity */
-  dx[0] = d->sigma_00 - inv_mass*d->mu[0]*d->mu[0];  /* Abusing a so far unused */
-  dx[1] = d->sigma_11 - inv_mass*d->mu[1]*d->mu[1];  /* variable temporarily... */
-  dx[2] = d->sigma_22 - inv_mass*d->mu[2]*d->mu[2];
+  /* Temporary quantities. */
+  dx[0] = d->sigma_00 - inv_mass*mu[0]*mu[0];  /* Abusing a so far unused */
+  dx[1] = d->sigma_11 - inv_mass*mu[1]*mu[1];  /* variable temporarily... */
+  dx[2] = d->sigma_22 - inv_mass*mu[2]*mu[2];
 
   /* Construct quadrupole matrix */
   float Q_00 = 2.0f*dx[0] - dx[1] - dx[2]; 
   float Q_11 = 2.0f*dx[1] - dx[0] - dx[2]; 
-  float Q_22 = Q_00 + Q_11; /* Q_ij is traceless */
-  Q_22 *= -1.0f;
+  float Q_22 = -(Q_00 + Q_11); /* Q_ij is traceless */
+  // Q_22 *= -1.0f;
 
-  float Q_01 = d->sigma_01 - inv_mass*d->mu[0]*d->mu[1];
-  float Q_02 = d->sigma_02 - inv_mass*d->mu[0]*d->mu[2];
-  float Q_12 = d->sigma_12 - inv_mass*d->mu[1]*d->mu[2];
+  float Q_01 = d->sigma_01 - inv_mass*mu[0]*mu[1];
+  float Q_02 = d->sigma_02 - inv_mass*mu[0]*mu[2];
+  float Q_12 = d->sigma_12 - inv_mass*mu[1]*mu[2];
   Q_01 *= 3.0f;
   Q_02 *= 3.0f;
   Q_12 *= 3.0f;
 
   /* Compute the distance to the CoM. */
   for (r2 = 0.0f, k = 0; k < 3; k++) {
-    dx[k] = x[k] - d->mu[k] * inv_mass;
+    dx[k] = x[k] - mu[k] * inv_mass;
     r2 += dx[k] * dx[k];
   }
   ir = 1.0f / sqrtf(r2);
 
   /* Compute the acceleration from the monopole */
-  w = const_G * ir * ir * ir * d->mass;
-  for (k = 0; k < 3; k++) a[k] -= w * dx[k];
+  float ir2 = ir * ir;
+  float ir3G = ir * ir2 * const_G;
+  // float w0 = ir3G * d->mass;
 
 
   /* Compute some helpful terms */
-  float w1 = const_G * ir * ir * ir * ir * ir; 
-  float w2 = -2.5f * const_G * ir * ir * ir * ir * ir * ir * ir;
-  float xi = 0.;
+  float w1 = ir3G * ir2; 
+  float xi = 0.0f;
 
   xi += dx[0] * dx[0] * Q_00;
   xi += dx[1] * dx[1] * Q_11;
@@ -202,11 +201,13 @@ static inline void multipole_iact(struct multipole *d, const float *x, float* a)
   xi += 2.f * dx[0] * dx[1] * Q_01;
   xi += 2.f * dx[0] * dx[2] * Q_02;
   xi += 2.f * dx[1] * dx[2] * Q_12;
+  
+  float w2 = ir3G * (-2.5f * ir2 * ir2 * xi - d->mass);
 
   /* Compute the acceleration from the quadrupole */    
-  a[0] += w2 * xi * dx[0] + w1 * (dx[0]*Q_00 + dx[1]*Q_01 + dx[2]*Q_02);
-  a[1] += w2 * xi * dx[1] + w1 * (dx[0]*Q_01 + dx[1]*Q_11 + dx[2]*Q_12);
-  a[2] += w2 * xi * dx[2] + w1 * (dx[0]*Q_02 + dx[1]*Q_12 + dx[2]*Q_22);
+  a[0] += w2 * dx[0] + w1 * (dx[0]*Q_00 + dx[1]*Q_01 + dx[2]*Q_02);
+  a[1] += w2 * dx[1] + w1 * (dx[0]*Q_01 + dx[1]*Q_11 + dx[2]*Q_12);
+  a[2] += w2 * dx[2] + w1 * (dx[0]*Q_02 + dx[1]*Q_12 + dx[2]*Q_22);
 
 }
 
@@ -802,10 +803,11 @@ void comp_com(struct cell *c) {
 /**
  * @brief Interacts all particles in ci with the monopole in cj
  */
-static inline void make_interact_pc(struct cell *leaf, struct cell *cj) {
+static inline void make_interact_pc(struct part_local *parts, int count,
+                                    double *loc, struct cell *cj) {
 
   int j, k;
-  double com[3] = {0.0, 0.0, 0.0};
+  float com[3] = {0.0, 0.0, 0.0};
   float mcom, dx[3] = {0.0, 0.0, 0.0}, r2, ir, w;
 
 #ifdef SANITY_CHECKS
@@ -827,22 +829,22 @@ static inline void make_interact_pc(struct cell *leaf, struct cell *cj) {
 #endif
 
   /* Init the com's data. */
-  for (k = 0; k < 3; k++) com[k] = cj->new.com[k];
+  for (k = 0; k < 3; k++) com[k] = cj->new.com[k] - loc[k];
   mcom = cj->new.mass;
 
   /* Loop over every particle in leaf. */
-  for (j = 0; j < leaf->count; j++) {
+  for (j = 0; j < count; j++) {
 
     /* Compute the pairwise distance. */
     for (r2 = 0.0, k = 0; k < 3; k++) {
-      dx[k] = com[k] - leaf->parts[j].x[k];
+      dx[k] = com[k] - parts[j].x[k];
       r2 += dx[k] * dx[k];
     }
 
     /* Apply the gravitational acceleration. */
     ir = 1.0f / sqrtf(r2);
     w = mcom * const_G * ir * ir * ir;
-    for (k = 0; k < 3; k++) leaf->parts[j].a[k] += w * dx[k];
+    for (k = 0; k < 3; k++) parts[j].a[k] += w * dx[k];
 
 #if ICHECK >= 0
     if (leaf->parts[j].id == ICHECK)
@@ -873,21 +875,19 @@ static inline int is_inside(struct cell *leaf, struct cell *c) {
 static inline int are_neighbours_different_size(struct cell *ci,
                                                 struct cell *cj) {
 
-  int k;
-  float dx[3];
   double cih = ci->h, cjh = cj->h;
 
   /* Maximum allowed distance */
   float min_dist = 0.5 * (cih + cjh);
 
   /* (Manhattan) Distance between the cells */
-  for (k = 0; k < 3; k++) {
+  for (int k = 0; k < 3; k++) {
     float center_i = ci->loc[k] + 0.5 * cih;
     float center_j = cj->loc[k] + 0.5 * cjh;
-    dx[k] = fabs(center_i - center_j);
+    if (fabsf(center_i - center_j) > min_dist) return 0;
   }
 
-  return (dx[0] <= min_dist) && (dx[1] <= min_dist) && (dx[2] <= min_dist);
+  return 1;
 }
 
 /**
@@ -895,9 +895,6 @@ static inline int are_neighbours_different_size(struct cell *ci,
  * to be of the same size
  */
 static inline int are_neighbours(struct cell *ci, struct cell *cj) {
-
-  int k;
-  float dx[3];
 
 #ifdef SANITY_CHECKS
   if (ci->h != cj->h)
@@ -908,25 +905,26 @@ static inline int are_neighbours(struct cell *ci, struct cell *cj) {
   float min_dist = ci->h;
 
   /* (Manhattan) Distance between the cells */
-  for (k = 0; k < 3; k++) {
+  for (int k = 0; k < 3; k++) {
     float center_i = ci->loc[k];
     float center_j = cj->loc[k];
-    dx[k] = fabs(center_i - center_j);
+    if (fabsf(center_i - center_j) > min_dist) return 0;
   }
 
-  return (dx[0] <= min_dist) && (dx[1] <= min_dist) && (dx[2] <= min_dist);
+  return 1;
 }
 
 /**
  * @brief Compute the interactions between all particles in a cell leaf
  *        and the center of mass of all the cells in a part of the tree
-* described by ci and cj
+ * described by ci and cj
  *
  * @param ci The #cell containing the particle
  * @param cj The #cell containing the center of mass.
  */
 static inline void iact_pair_pc(struct cell *ci, struct cell *cj,
-                                struct cell *leaf) {
+                                struct cell *leaf, struct part_local *parts,
+                                int count, double *loc) {
 
   struct cell *cp, *cps;
 
@@ -968,11 +966,11 @@ static inline void iact_pair_pc(struct cell *ci, struct cell *cj,
 
         /* We only recurse if the children are split */
         if (cp->split && cps->split) {
-          iact_pair_pc(cp, cps, leaf);
+          iact_pair_pc(cp, cps, leaf, parts, count, loc);
         }
 
       } else {
-        make_interact_pc(leaf, cps);
+        make_interact_pc(parts, count, loc, cps);
       }
     }
   } else {
@@ -981,7 +979,7 @@ static inline void iact_pair_pc(struct cell *ci, struct cell *cj,
      * multipoles */
     for (cps = cj->firstchild; cps != cj->sibling; cps = cps->sibling) {
 
-      make_interact_pc(leaf, cps);
+      make_interact_pc(parts, count, loc, cps);
     }
   }
 }
@@ -993,9 +991,11 @@ static inline void iact_pair_pc(struct cell *ci, struct cell *cj,
  * @param c The #cell containing the monopoles
  * @param leaf The #cell containing the particles
  */
-static inline void iact_self_pc(struct cell *c, struct cell *leaf) {
+static inline void iact_self_pc(struct cell *c, struct cell *leaf,
+                                struct part_local *parts) {
 
   struct cell *cp, *cps;
+  int collect_part_data = 0;
 
 #ifdef SANITY_CHECKS
 
@@ -1005,6 +1005,23 @@ static inline void iact_self_pc(struct cell *c, struct cell *leaf) {
   if (!c->split) error("Cell is not split !");
 
 #endif
+
+  /* Get local copies of the particle data. */
+  if (parts == NULL) {
+    int count = leaf->count;
+    if ((parts =
+             (struct part_local *)malloc(sizeof(struct part_local) * count)) ==
+        NULL)
+      error("Failed to allocate local parts.");
+    for (int k = 0; k < count; k++) {
+      for (int j = 0; j < 3; j++) {
+        parts[k].x[j] = leaf->parts[k].x[j] - leaf->loc[j];
+        parts[k].a[j] = 0.0f;
+      }
+      parts[k].mass = leaf->parts[k].mass;
+    }
+    collect_part_data = 1;
+  }
 
   /* Find in which subcell of c the leaf is */
   for (cp = c->firstchild; cp != c->sibling; cp = cp->sibling) {
@@ -1016,7 +1033,7 @@ static inline void iact_self_pc(struct cell *c, struct cell *leaf) {
   if (cp->split) {
 
     /* Recurse if the cell can be split */
-    iact_self_pc(cp, leaf);
+    iact_self_pc(cp, leaf, parts);
 
     /* Now, interact with every other subcell */
     for (cps = c->firstchild; cps != c->sibling; cps = cps->sibling) {
@@ -1024,8 +1041,17 @@ static inline void iact_self_pc(struct cell *c, struct cell *leaf) {
       /* Since cp and cps will be direct neighbours it is only worth recursing
        */
       /* if the cells can both be split */
-      if (cp != cps && cps->split) iact_pair_pc(cp, cps, leaf);
+      if (cp != cps && cps->split)
+        iact_pair_pc(cp, cps, leaf, parts, leaf->count, leaf->loc);
     }
+  }
+
+  /* Clean up local parts? */
+  if (collect_part_data) {
+    for (int k = 0; k < leaf->count; k++) {
+      for (int j = 0; j < 3; j++) leaf->parts[k].a[j] += parts[k].a[j];
+    }
+    free(parts);
   }
 }
 
@@ -1038,7 +1064,7 @@ void init_multipole_walk(struct cell *root, struct cell *leaf) {
   __builtin_prefetch(leaf->parts, 1, 3);
 
   /* Start the recursion */
-  iact_self_pc(root, leaf);
+  iact_self_pc(root, leaf, NULL);
 }
 
 /**
@@ -1125,12 +1151,6 @@ static inline void iact_pair_direct_unsorted(struct cell *ci, struct cell *cj) {
 static inline void iact_pair_direct_sorted_multipole(struct cell *ci,
 						     struct cell *cj) {
 
-  struct part_local {
-    float x[3];
-    float a[3];
-    float mass, d;
-  };
-
   int i, j, k;
   int count_i, count_j;
   struct part_local *parts_i, *parts_j;
@@ -1163,11 +1183,12 @@ static inline void iact_pair_direct_sorted_multipole(struct cell *ci,
            (struct part_local *)alloca(sizeof(struct part_local) * count_j)) ==
           NULL)
     error("Failed to allocate local part arrays.");
+  float midpoint[3] = { cj->loc[0] , cj->loc[1], cj->loc[2] };
   for (i = 0; i < count_i; i++) {
     int pid = ind_i[i].ind;
     parts_i[i].d = ind_i[i].d;
     for (k = 0; k < 3; k++) {
-      parts_i[i].x[k] = ci->parts[pid].x[k] - cj->loc[k];
+      parts_i[i].x[k] = ci->parts[pid].x[k] - midpoint[k];
       parts_i[i].a[k] = 0.0f;
     }
     parts_i[i].mass = ci->parts[pid].mass;
@@ -1176,7 +1197,7 @@ static inline void iact_pair_direct_sorted_multipole(struct cell *ci,
     int pjd = ind_j[j].ind;
     parts_j[j].d = ind_j[j].d;
     for (k = 0; k < 3; k++) {
-      parts_j[j].x[k] = cj->parts[pjd].x[k] - cj->loc[k];
+      parts_j[j].x[k] = cj->parts[pjd].x[k] - midpoint[k];
       parts_j[j].a[k] = 0.0f;
     }
     parts_j[j].mass = cj->parts[pjd].mass;
@@ -1204,7 +1225,7 @@ static inline void iact_pair_direct_sorted_multipole(struct cell *ci,
   for (i = count_i - 1; i >= 0; i--) {
 
     /* Get a local copy of the distance along the axis. */
-    float di = parts_i[i].d;
+    float di = parts_i[i].d + d_max;
 
     /* Init the ith particle's data. */
     for (k = 0; k < 3; k++) {
@@ -1214,7 +1235,7 @@ static inline void iact_pair_direct_sorted_multipole(struct cell *ci,
     mi = parts_i[i].mass;
 
     /* Loop over every following particle within d_max along the axis. */
-    for (j = 0; j < count_j && (parts_j[j].d - di) < d_max; j++) {
+    for (j = 0; j < count_j && parts_j[j].d < di; j++) {
 
       /* Compute the pairwise distance. */
       for (r2 = 0.0, k = 0; k < 3; k++) {
@@ -1292,10 +1313,10 @@ static inline void iact_pair_direct_sorted_multipole(struct cell *ci,
   for (j = 0; j < count_j; j++) {
 
     /* Get the sorted index. */
-    float dj = parts_j[j].d;
+    float dj = parts_j[j].d - d_max;
 
     /* Fill the COM with any new particles. */
-    for (i = last_i; i < count_i && (dj - parts_i[i].d) > d_max; i++) {
+    for (i = last_i; i < count_i && dj > parts_i[i].d; i++) {
       multipole_add(&multi, parts_i[i].x, parts_i[i].mass);
     }
 
@@ -1382,9 +1403,8 @@ void iact_pair(struct cell *ci, struct cell *cj) {
  */
 void iact_self_direct(struct cell *c) {
   int i, j, k, count = c->count;
-  double xi[3] = {0.0, 0.0, 0.0};
+  float xi[3] = {0.0, 0.0, 0.0};
   float ai[3] = {0.0, 0.0, 0.0}, mi, mj, dx[3] = {0.0, 0.0, 0.0}, r2, ir, w;
-  struct part *parts = c->parts;
   struct cell *cp, *cps;
 
 #ifdef SANITY_CHECKS
@@ -1405,6 +1425,20 @@ void iact_self_direct(struct cell *c) {
 
     /* Otherwise, compute the interactions directly. */
   } else {
+
+    /* Init the local copies of the particles. */
+    double loc[3];
+    struct part_local parts[count];
+    loc[0] = c->loc[0];
+    loc[1] = c->loc[1];
+    loc[2] = c->loc[2];
+    for (k = 0; k < count; k++) {
+      for (j = 0; j < 3; j++) {
+        parts[k].x[j] = c->parts[k].x[j] - loc[j];
+        parts[k].a[j] = 0.0f;
+      }
+      parts[k].mass = c->parts[k].mass;
+    }
 
     /* Loop over all particles... */
     for (i = 0; i < count; i++) {
@@ -1452,8 +1486,13 @@ void iact_self_direct(struct cell *c) {
 
     } /* loop over all particles. */
 
+    /* Copy the local particle data back. */
+    for (k = 0; k < count; k++) {
+      for (j = 0; j < 3; j++) c->parts[k].a[j] = parts[k].a[j];
+    }
   } /* otherwise, compute interactions directly. */
 }
+
 
 /**
  * @brief Create the tasks for the cell pair/self.
@@ -1992,14 +2031,14 @@ void test_bh(int N, int nr_threads, int runs, char *fileName) {
       parts[i].a[2] = 0.0;
     }
 
-    struct cell *finger = root;
+    /* struct cell *finger = root;
     while (finger != NULL) {
       finger->sorted = 0;
       if (finger->split)
         finger = finger->firstchild;
       else
         finger = finger->sibling;
-    }
+    } */
 
     /* Execute the tasks. */
     tic = getticks();
