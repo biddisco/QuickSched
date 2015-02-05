@@ -433,19 +433,6 @@ static inline void make_interact_pc(struct part_local *parts, int count,
     w = mcom * const_G * ir * ir * ir;
     for (k = 0; k < 3; k++) parts[j].a[k] += w * dx[k];
 
-#if ICHECK >= 0
-    if (leaf->parts[j].id == ICHECK)
-      printf("[DEBUG] cell [%f,%f,%f] interacting with cj->loc=[%f,%f,%f] "
-             "m=%f h=%f\n",
-             leaf->loc[0], leaf->loc[1], leaf->loc[2], cj->loc[0], cj->loc[1],
-             cj->loc[2], mcom, cj->h);
-
-    if (leaf->parts[j].id == ICHECK)
-      printf("[NEW] Interaction with monopole a=( %e %e %e ) h= %f Nj= %d m_j= "
-             "%f\n",
-             w * dx[0], w * dx[1], w * dx[2], cj->h, cj->count, mcom);
-#endif
-
   } /* loop over every particle. */
 }
 
@@ -738,7 +725,7 @@ static inline void iact_pair_direct(struct cell *ci, struct cell *cj) {
 
   /* Find the center point of the interaction. */
   for (k = 0; k < 3; k++) {
-    com[k] = 0.5 * (ci->loc[k] + cj->loc[k] + ci->h);
+    com[k] = 0.5 * (ci->loc[k] + cj->loc[k]);
   }
 
   /* Init the local copies of the particles. */
@@ -747,7 +734,7 @@ static inline void iact_pair_direct(struct cell *ci, struct cell *cj) {
       parts_j[k].x[j] = cj->parts[k].x[j] - com[j];
       parts_j[k].a[j] = 0.0f;
     }
-    parts_j[k].mass = ci->parts[k].mass;
+    parts_j[k].mass = cj->parts[k].mass;
   }
 
   /* Loop over all particles in ci... */
@@ -1006,13 +993,13 @@ void iact_self_direct(struct cell *c) {
         }
 
 #if ICHECK >= 0
-        if (parts[i].id == ICHECK)
+        if (c->parts[i].id == ICHECK)
           message("[NEW] Interaction with particle id= %d (self i)",
-                  parts[j].id);
+                  c->parts[j].id);
 
-        if (parts[j].id == ICHECK)
+        if (c->parts[j].id == ICHECK)
           message("[NEW] Interaction with particle id= %d (self j)",
-                  parts[i].id);
+                  c->parts[i].id);
 #endif
 
       } /* loop over every other particle. */
@@ -1024,7 +1011,7 @@ void iact_self_direct(struct cell *c) {
 
     /* Copy the local particle data back. */
     for (k = 0; k < count; k++) {
-      for (j = 0; j < 3; j++) c->parts[k].a[j] = parts[k].a[j];
+      for (j = 0; j < 3; j++) c->parts[k].a[j] += parts[k].a[j];
     }
   } /* otherwise, compute interactions directly. */
 }
@@ -1543,8 +1530,8 @@ void test_bh(int N, int nr_threads, int runs, char *fileName) {
 
 #if ICHECK >= 0
   message("[check] accel of part %i is [%.3e,%.3e,%.3e]", ICHECK,
-          root->parts[ICHECK].a[0], root->parts[ICHECK].a[1],
-          root->parts[ICHECK].a[2]);
+          root->parts[ICHECK].a_legacy[0], root->parts[ICHECK].a_legacy[1],
+          root->parts[ICHECK].a_legacy[2]);
 #endif
   printf("task counts: [ %8s %8s %8s %8s %8s ]\n", "self", "pair", "m-poles",
          "direct", "CoMs");
