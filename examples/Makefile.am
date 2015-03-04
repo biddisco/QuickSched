@@ -16,9 +16,6 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-# Automake stuff
-AUTOMAKE_OPTIONS=gnu
-
 # Add the source directory and debug to CFLAGS
 AM_CFLAGS = -g -O3 -Wall -Werror -I../src -ffast-math -fstrict-aliasing \
     -ftree-vectorize -funroll-loops $(SIMD_FLAGS) $(OPENMP_CFLAGS) \

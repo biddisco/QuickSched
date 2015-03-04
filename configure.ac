@@ -16,10 +16,10 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 # init the project
-AC_INIT(src/qsched.c)
-VERSION="0.1.0"
-AC_SUBST(VERSION)
-AM_INIT_AUTOMAKE(QUICKSCHED,VERSION)
+AC_INIT([QUICKSCHED],[0.1.0])
+AC_CONFIG_SRCDIR([src/qsched.c])
+AM_INIT_AUTOMAKE([gnu])
+
 AC_GNU_SOURCE
 AC_PROG_LIBTOOL
 
@@ -78,10 +78,11 @@ AC_TRY_LINK([#ifdef HAVE_INTRINSICS_H
 #endif], [_rtc()], [AC_DEFINE(HAVE__RTC,1,[Define if you have the UNICOS _rtc() intrinsic.])], [rtc_ok=no])
 AC_MSG_RESULT($rtc_ok)
 
-
 # make the documentation
-DX_INIT_DOXYGEN(libchebfun,doc/Doxyfile,doc/)
+DX_INIT_DOXYGEN(libquicksched,doc/Doxyfile,doc/)
 
-# generate the Makefiles
-AC_OUTPUT(Makefile src/Makefile examples/Makefile doc/Makefile)
+# .in files.
+AC_CONFIG_FILES([Makefile src/Makefile examples/Makefile doc/Makefile doc/Doxyfile])
 
+# generate output.
+AC_OUTPUT
