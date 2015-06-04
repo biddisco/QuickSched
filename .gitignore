@@ -17,6 +17,8 @@ doc/latex/
 doc/man/
 doc/Doxyfile
 
+src/version.h
+
 examples/test
 examples/test_bh
 examples/test_bh_sorted
