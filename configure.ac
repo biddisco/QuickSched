@@ -143,6 +143,11 @@ AC_MSG_RESULT($rtc_ok)
 # Check for feenableexcept, should be present in C99, also checks for -lm.
 AC_CHECK_LIB([m],[feenableexcept])
 
+# Some examples require CBLAS and LAPACK, check for that and set conditional.
+AC_CHECK_HEADER([cblas.h])
+AC_CHECK_HEADER([lapacke.h])
+AM_CONDITIONAL([HAVECBLAS], [test $ac_cv_header_cblas_h = "yes" -a $ac_cv_header_lapacke_h = "yes"])
+
 # Check for git, needed for revision stamps.
 AC_PATH_PROG([GIT_CMD], [git])
 AC_SUBST([GIT_CMD])
