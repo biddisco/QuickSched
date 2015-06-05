@@ -17,8 +17,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  * 
  ******************************************************************************/
-#ifndef SWIFT_VERSION_H
-#define SWIFT_VERSION_H
+#ifndef QUICKSCHED_VERSION_H
+#define QUICKSCHED_VERSION_H
 
 /**
  * @file version.h
@@ -32,4 +32,4 @@ const char* package_description( void );
 const char* package_version(void);
 const char* git_revision(void);
 
-#endif /* SWIFT_VERSION_H */
+#endif /* QUICKSCHED_VERSION_H */
