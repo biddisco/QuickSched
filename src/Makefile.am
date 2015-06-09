@@ -16,12 +16,13 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 # Add the debug flag to the whole thing
-AM_CFLAGS = -g -O3 -Wall -Werror -ffast-math -fstrict-aliasing -ftree-vectorize \
-    -funroll-loops $(SIMD_FLAGS) $(OPENMP_CFLAGS) -DTIMERS \
-    # -fsanitize=address -fno-omit-frame-pointer
+AM_CFLAGS = -DTIMERS
 
 # Assign a "safe" version number
 AM_LDFLAGS = -version-info 0:0:0
+
+# The git command, if available.
+GIT_CMD = @GIT_CMD@
 
 # Build the libquicksched library
 lib_LTLIBRARIES = libquicksched.la
@@ -32,3 +33,19 @@ include_HEADERS = atomic.h lock.h queue.h qsched.h task.h res.h error.h
 
 # Private headers.
 noinst_HEADERS = cycle.h quicksched.h
+
+# Versioning. If any sources change then update the version.h file with
+# the current git revision and package version.
+version.h: version.h.in $(AM_SOURCES) $(include_HEADERS) $(noinst_HEADERS)
+	if test "X$(GIT_CMD)" != "X"; then \
+	    GIT_REVISION=`git describe --abbrev=8  --always --tags --dirty`; \
+	    sed -e "s,@PACKAGE_VERSION\@,$(PACKAGE_VERSION)," \
+	        -e "s,@GIT_REVISION\@,$${GIT_REVISION}," version.h.in > version.h; \
+	fi
+
+#  Make sure version.h is built first.
+BUILT_SOURCES = version.h
+
+#  And distribute the built files.
+EXTRA_DIST = version.h version.h.in
+

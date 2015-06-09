@@ -17,18 +17,15 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 # Add the source directory and debug to CFLAGS
-AM_CFLAGS = -g -O3 -Wall -Werror -I../src -ffast-math -fstrict-aliasing \
-    -ftree-vectorize -funroll-loops $(SIMD_FLAGS) $(OPENMP_CFLAGS) \
-    -DCPU_TPS=2.67e9 -DTIMERS \
-    # -fsanitize=address -fno-omit-frame-pointer
-# AM_CFLAGS = -g -O0 -Wall -Werror -I../src \
-#     -DCPU_TPS=2.67e9 -DTIMERS $(OPENMP_CFLAGS) \
-#     -fsanitize=address -fno-omit-frame-pointer
+AM_CFLAGS = -I../src -DCPU_TPS=2.67e9 -DTIMERS 
 
-AM_LDFLAGS = -lm # -fsanitize=address
+AM_LDFLAGS =
 
 # Set-up the library
-bin_PROGRAMS = test test_qr test_bh test_bh_sorted test_fmm_sorted
+bin_PROGRAMS = test test_bh test_bh_sorted test_fmm_sorted
+if HAVECBLAS
+bin_PROGRAMS += test_qr 
+endif
 
 # Sources for test
 test_SOURCES = test.c
