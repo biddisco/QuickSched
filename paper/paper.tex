@@ -66,7 +66,8 @@ programming with the concept of task conflicts, i.e.~sets of tasks
 that can be executed in any order, yet not concurrently.
 These conflicts are modelled using exclusively lockable
 hierarchical resources.
-The scheduler is shown to perform and scale well on a 64-core parallel
+The scheduler itself prioritizes tasks along the critical path
+of execution and is shown to perform and scale well on a 64-core parallel
 shared-memory machine for two example problems: A tiled QR
 decomposition and a task-based Barnes-Hut tree code.
 \end{abstract}
@@ -108,8 +109,8 @@ Several factors may limit the maximum degree of parallelism, e.g.~the
 structure of the task dependency DAG itself, or the order in which
 available tasks are executed.
 
-\fig{Tasks} shows such a DAG for a set of tasks.
-The arrows indicate the direction of the dependency, i.e.~an
+\fig{Tasks} shows such a DAG for a set of tasks with
+arrows indicating the direction of the dependencies, i.e.~an
 arrow from task $A$ to task $B$ indicates that task $B$ depends
 on task $A$.
 In a parallel setting, tasks $A$, $G$, and $J$ can be
@@ -196,6 +197,14 @@ this problem in their respective implementations of the Fast Multipole
 Method (FMM), in which forces computed in different tasks are
 accumulated on a set of particles.
 
+Several libraries provide some mechanism to model such
+conflicts, either directly or indirectly.
+In the QUARK scheduler, conflicts can be modeled by explicitly
+marking dependencies as concurrent.
+KAAPI and OmpSS, on the other hand, allow marking access to
+certain variables as reductions, yet only for basic operations,
+e.g.~summation or maximum/minimum.
+
 This paper presents QuickSched, a framework for task-based
 parallel programming with constraints, which aims to achieve
 the following goals:
@@ -207,7 +216,8 @@ the following goals:
     \item {\em Memory/cache efficiency}: Tasks accessing similar
         sets of data should be preferentially executed on the
         same core to preserve memory/cache locality as far as possible, and
-    \item {\em Parallel efficiency}: Tasks should be executed in an order
+    \item {\em Parallel efficiency}: The order in which the tasks
+        are executed should be chosen such
         that sufficient work is available for all computational
         threads at all times.
 \end{itemize}
@@ -248,9 +258,9 @@ From a programmer's perspective, there are two main paradigms for generating
 task dependencies:
 \begin{itemize}
   \item Implicitly via spawning and waiting, e.g.~as is done in Cilk
-    \citep{ref:Blumofe1995}, or
-  \item Automatic extraction from data dependencies, e.g.~as is done in OmpSs
-    \citep{ref:Duran2011}.
+    and OpenMP~3.0, or
+  \item Automatic extraction from data dependencies, e.g.~as is done in
+    StarPU, QUARK, and OmpSs.
 \end{itemize}
 
 The first scheme, spawning and waiting, is arguably the simplest to
@@ -382,6 +392,9 @@ The parameters controlling the size of the tasks in the examples,
 i.e.~the tile size in the QR decomposition and the limits $n_\mathsf{max}$
 and $n_\mathsf{task}$ were determined empirically and only optimized
 to the closest power of two or rough power of ten, respectively.
+Further tuning these parameters could very likely lead to further
+performance gains, but such an effort would go beyond the scope,
+and point, of this paper.
 
 
 \section{Data Structures and Algorithms}
@@ -467,7 +480,7 @@ struct task {
 and {\tt uses} arrays are pointers to the contents of other
 arrays, i.e.~they are not allocated individually.
 
-What the task does is determined by the {\tt type}
+{\em What} the task does is determined by the {\tt type}
 field, e.g.~which can be mapped to any particular function,
 and the {\tt data} pointer which points to an array of
 {\tt size\_data} bytes containing data specific to the task,
@@ -507,7 +520,8 @@ The task cost can be either a rough estimate provided by the user,
 or the actual cost of the same task last time it was executed.
 The task weights are computed by traversing
 the tasks DAG in reverse topological order following their dependencies,
-e.g.~as per \cite{ref:Kahn1962}, and computing each task's weight, e.g.
+e.g.~as per \cite{ref:Kahn1962} in $\mathcal O(n)$ for $n$ tasks,
+and computing each task's weight, e.g.
 \begin{equation*}
   \mbox{weight}_i = \mbox{cost}_i + \max_{j \in \mbox{\small unlocks}_i}\left\{\mbox{weight}_j\right\}.
 \end{equation*}
@@ -669,7 +683,7 @@ operations for both insertion and deletion, i.e. for the
 bubble-up and trickle-down operations respectively.
 
 Unfortunately, there is no way of efficiently traversing all
-the elements in the heap in decreasing order.
+the elements in such a heap in decreasing order.
 The array of tasks is therefore traversed as if it were sorted,
 returning the first task that can be locked.
 Although the first task in the array will be the task with
@@ -735,7 +749,7 @@ struct task *queue_get(struct queue *q) {
 }
     \end{lstlisting}
 \end{minipage}\end{center}
-\noindent where as with the queue insertion, the queue is first
+\noindent where, as with the queue insertion, the queue is first
 locked for exclusive access (line~4).
 The array of task pointers is then traversed (line~5),
 locking the resources of each task (lines~6--7).
@@ -745,8 +759,8 @@ are released (lines~9--10), otherwise, the traversal is aborted
 If all the locks on a task could be obtained (line~14), the
 task pointer is replaced by the last pointer in the heap (line~16)
 and the heap order is restored (line~17).
-Finally, the queue lock is released (line~19) and the locked task
-or, if no lockable task could be found, {\tt NULL} is returned.
+Finally, the queue lock is released (line~19) and the locked task,
+or {\tt NULL} if no lockable task could be found, is returned.
 
 Note that this approach of sequentially locking multiple resources
 is prone to the so-called ``dining philosophers'' problem, i.e.~if
@@ -757,14 +771,15 @@ This type of deadlock, however, is easily avoided by sorting the
 resources in each task according to some global criteria, e.g.~the
 resource ID or the address in memory of the resource.
 
-Note also that although protecting the entire queue with a mutex
-is not particularly scalable, and several authors, e.g.~REFS,
+Note also that protecting the entire queue with a mutex
+is not particularly scalable, and several authors, e.g.~\cite{ref:Sundell2003},
 have presented concurrent data structures that avoid this type
 of locking.
 However, since we normally use one queue per computational thread,
 contention will only happens due to work-stealing, i.e.~when
 another idle computational thread tries to poach tasks.
 Since this happens only rarely, we opt for the simpler locking approach.
+This decision is backed by the results in Section~5.
 
 \subsection{Scheduler}
 
@@ -814,7 +829,8 @@ in which the code between lines~4 and~11 is executed
 concurrently.
 A version using {\tt pthreads} \citep{ref:Pthreads1995}
 directly\footnote{In most environments, OpenMP is implemented
-on top of {\tt pthreads}, e.g. gcc's libgomp.} is also available.
+on top of {\tt pthreads}, e.g. the {\tt gcc} compiler's libgomp.}
+is also available.
 The parallel section consists of a loop (lines~7--10) in
 which a task is acquired via {\tt qsched\_gettask}
 and its type and data are passed to a user-supplied
