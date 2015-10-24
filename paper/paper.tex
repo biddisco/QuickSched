@@ -1038,7 +1038,7 @@ the runtime parameters
 \end{quote}
 \noindent Several different schedulers and parameterizations
 were discussed with the authors of OmpSs and tested, with
-the above settings produced the best results.
+the above settings producing the best results.
 
 The scaling and efficiency relative to QuickSched are 
 shown in \fig{QRResults}.
@@ -1056,7 +1056,7 @@ Since in QuickSched the entire task structure is known explicitly
 in advance, the scheduler ``knows'' that the DGEQRF tasks all
 lie on the longest critical path and therefore executes them as
 soon as possible.
-OmpSs, does not exploit this knowledge, resulting in the less efficient
+OmpSs does not exploit this knowledge, resulting in the less efficient
 scheduling seen in \fig{QRTasks}.
 
 \begin{figure}
@@ -1087,7 +1087,7 @@ The Barnes-Hut tree-code \citep{ref:Barnes1986}
 is an algorithm to approximate the
 solution of an $N$-body problem, i.e.~computing all the
 pairwise interactions between a set of $N$ particles,
-in \oh{N\log N} operations, as opposed to the \oh{N^2}
+in \oh{N\log N} operations, as opposed to in \oh{N^2} for the
 naive direct computation.
 The algorithm is based on a recursive octree decomposition:
 Starting from a cubic cell containing all the particles,
@@ -1166,18 +1166,18 @@ The function recurses as follows (line numbers refer to \fig{MakeTasks}:
         recurse over all pairs of sub-cells spanning
         both cells (lines~24--26), and
     \item If called with two neighbouring cells
-        and one of the cells are not split, create
+        and at least one of the cells is not split, create
         a particle-particle pair task over both cells (line~29),
     \item If called with two non-neighbouring cells,
         do nothing, as these interactions
         will be computed by the particle-cell task.
 \end{itemize}
-\noindent where every interaction task additionally locks
+\noindent Every interaction task additionally locks
 the cells on which it operates (lines~17, 20, and 32--33).
 In order to prevent generating
 a large number of very small tasks, the task generation only recurses
 if the cells contain more than a minimum number $n_\mathsf{task}$
-of threads each (lines~7 and~23).
+of particles each (lines~7 and~23).
 
 As shown in \fig{BHTasks}, the particle-self and particle-particle pair
 interaction tasks are implemented
@@ -1256,7 +1256,7 @@ to the MPI-based parallelism in Gadget-2.
     \caption{Strong scaling and parallel efficiency of the Barnes-Hut tree-code
         computed over 1\,000\,000 particles.
         Solving the N-Body problem takes 323\,ms, achieving 75\% parallel
-        efficiency, over all 64 cores.
+        efficiency over all 64 cores.
         For comparison, timings are shown for the same computation using
         the popular astrophysics code Gadget-2.
         The scaling for Gadget-2 (left) is shown relative to the performance of
@@ -1287,16 +1287,22 @@ At 64 cores, the scheduler overheads account for only $\sim 1$\% of
 the total computational cost, whereas,
 as of 32 cores, the cost of both pair types grow by up to
 40\%.
-This is due to memory bandwidth restrictions, as
-the cost of the particle-cell interaction tasks, which do significantly more
-computation per memory access, only grow by up to 10\%.
+This is due to the cache hierarchy of the AMD Opteron 6376 in which
+pairs of cores share a comon 2\,MB L2 cache.
+When using half the cores or less, each core has its L@ cache to
+itself, whereas beyond 32 cores they are shared, resulting in more
+frequent cache misses.
+This cen be seen when comparing the costs of the particle-particle
+interaction and particle-cell interaction tasks: while the former grow by
+roughly 30\%, the latter grow by only 10\% as they do much more
+computation per memory access.
 
 \begin{figure}
     \centerline{\epsfig{file=figures/BH_times.pdf,width=0.8\textwidth}}
     \caption{Accumulated cost of each task type and of the overheads
         associated with {\tt qsched\_gettask}, summed over all cores.
         As of 32 cores, the cost of both pair interaction task
-        types grow by up to 40\%.
+        types grow by up to 30\%.
         The cost of the particle-cell interactions, which entail significantly more
         computation per memory access, grow only by at most 10\%.
         The scheduler overheads, i.e.~{\tt qsched\_gettask},
@@ -1389,11 +1395,12 @@ v\,3.0 and is available for download via
 
 % Acknowledgments
 \section*{Acknowledgments}
-The authors would like to thank Lydia Heck of the Institute for
-Computational Cosmology at Durham University for providing access
-to, and expertise on, the COSMA cluster used in the performance
-evaluation.
-This work was supported by a Durham University Seedcorn Grant.
+The authors would like to thank Tom Theuns and Richard Bowers of the
+Institute for Computational Cosmology at Durham University for the
+helpful discussions.
+This work was supported by a Durham University Seedcorn Grant
+number 21.12.080130 from
+which the hardware used in the experiments was purchased.
 
 
 % Bibliography
