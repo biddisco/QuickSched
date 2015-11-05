@@ -62,7 +62,7 @@ int nr_timers = 0;
 double* columnToTile(double* columnMatrix, int size, int m, int n,
                      int tilesize) {
   double* TileMatrix;
-  TileMatrix = malloc(sizeof(double) * size);
+  TileMatrix = (double *)malloc(sizeof(double) * size);
   if (TileMatrix == NULL) error("failed to allocate TileMatrix");
   int i, j, k, l;
 
@@ -130,7 +130,8 @@ double* tileToColumn(double* tileMatrix, int size, int m, int n, int tilesize) {
  *
  *
  */
-#pragma omp task inout(cornerTile[0]) out(tauMatrix[0])
+#pragma omp task inout(cornerTile[0]) 
+// out(tauMatrix[0])
 void DGEQRF(double* restrict cornerTile, int tileSize,
             double* restrict tauMatrix, int k, int tauNum) {
   int i, j, n;
@@ -215,7 +216,8 @@ void DGEQRF(double* restrict cornerTile, int tileSize,
  *
  *
  */
-#pragma omp task in(cornerTile[0]) inout(rowTile[0]) in(tauMatrix[0])
+#pragma omp task in(cornerTile[0]) inout(rowTile[0]) 
+// in(tauMatrix[0])
 void DLARFT(double* restrict cornerTile, double* restrict rowTile, int tileSize,
             int jj, int kk, double* restrict tauMatrix, int tauNum) {
   int i, j, n;
@@ -269,7 +271,8 @@ void DLARFT(double* restrict cornerTile, double* restrict rowTile, int tileSize,
  *
  *
  */
-#pragma omp task inout(cornerTile[0]) inout(columnTile[0]) out(tauMatrix[0])
+#pragma omp task inout(cornerTile[0]) inout(columnTile[0]) 
+// out(tauMatrix[0])
 void DTSQRF(double* restrict cornerTile, double* restrict columnTile,
             int tilesize, int ii, int kk, double* restrict tauMatrix,
             int tauNum) {
@@ -362,7 +365,8 @@ void DTSQRF(double* restrict cornerTile, double* restrict columnTile,
  *
  *
  */
-#pragma omp task inout(cornerTile[0]) in(columnTile[0]) inout(rowTile[0]) in(tauMatrix[0])
+#pragma omp task inout(cornerTile[0]) in(columnTile[0]) inout(rowTile[0]) 
+// in(tauMatrix[0])
 void DSSRFT(double* restrict cornerTile, double* restrict columnTile,
             double* restrict rowTile, int tilesize, int ii, int jj, int kk,
             double* restrict tauMatrix, int tauNum) {
@@ -449,12 +453,10 @@ void test_qr(int m, int n, int K, int nr_threads, int runs) {
     for (k = 0; k < m && k < n; k++) {
 
       /* Add kth corner task. */
-      // #pragma omp task inout( tid[ k*m + k ] )
       DGEQRF(&A[(k * m + k) * K * K], K, tau, k, m);
 
       /* Add column tasks on kth row. */
       for (j = k + 1; j < n; j++) {
-        // #pragma omp task inout( tid[ j*m + k ] ) in( tid[ k*m + k ] )
         DLARFT(&A[(k * m + k) * K * K], &A[(j * m + k) * K * K], K, j, k, tau,
                m);
       }
@@ -463,14 +465,11 @@ void test_qr(int m, int n, int K, int nr_threads, int runs) {
       for (i = k + 1; i < m; i++) {
 
         /* Add the row taks for the kth column. */
-        // #pragma omp task inout( tid[ k*m + i ] ) in( tid[ k*m + k ] )
         DTSQRF(&A[(k * m + k) * K * K], &A[(k * m + i) * K * K], K, i, k, tau,
                m);
 
         /* Add the inner tasks. */
         for (j = k + 1; j < n; j++) {
-          // #pragma omp task inout( tid[ j*m + i ] ) in( tid[ k*m + i ] , tid[
-          // j*m + k ] )
           DSSRFT(&A[(j * m + i) * K * K], &A[(k * m + i) * K * K],
                  &A[(j * m + k) * K * K], K, i, j, k, tau, m);
         }
@@ -491,7 +490,7 @@ void test_qr(int m, int n, int K, int nr_threads, int runs) {
   /* Dump the tasks. */
   /* for ( k = 0 ; k < nr_timers ; k++ )
       printf( "%i %i %lli %lli\n" , timers[k].threadID , timers[k].type ,
-     timers[k].tic , timers[k].toc ); */
+     timers[k].tic , timers[k].toc );  */
 }
 
 /**
@@ -500,14 +499,8 @@ void test_qr(int m, int n, int K, int nr_threads, int runs) {
 
 int main(int argc, char* argv[]) {
 
-  int c, nr_threads;
+  int c, nr_threads = 1;
   int M = 4, N = 4, runs = 1, K = 32;
-
-/* Get the number of threads. */
-#pragma omp parallel shared(nr_threads)
-  {
-    if (omp_get_thread_num() == 0) nr_threads = omp_get_num_threads();
-  }
 
   /* Parse the options */
   while ((c = getopt(argc, argv, "m:n:k:r:t:")) != -1) switch (c) {
@@ -548,4 +541,6 @@ int main(int argc, char* argv[]) {
     error("Failed to allocate timers.");
 
   test_qr(M, N, K, nr_threads, runs);
+  abort();
+  return 0;
 }
