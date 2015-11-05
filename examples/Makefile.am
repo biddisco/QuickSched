@@ -19,7 +19,7 @@
 # Add the source directory and debug to CFLAGS
 AM_CFLAGS = -I../src -DCPU_TPS=2.67e9 -DTIMERS 
 
-AM_LDFLAGS =
+AM_LDFLAGS = -lcblas
 
 # Set-up the library
 bin_PROGRAMS = test test_bh test_bh_sorted test_fmm_sorted
