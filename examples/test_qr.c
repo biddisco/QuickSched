@@ -585,8 +585,8 @@ void test_qr(int m, int n, int K, int nr_threads, int runs, double* matrix) {
                                  sizeof(int) * 3, 5);
         qsched_addlock(&s, tid_new, rid[j * m + i]);
         qsched_adduse(&s, tid_new, rid[k * m + i]);
-        qsched_adduse(&s, tid_new, rid[j * m + k]);
-        // qsched_addunlock(&s, tid[k * m + i], tid_new);
+        qsched_addlock(&s, tid_new, rid[j * m + k]);
+        qsched_addunlock(&s, tid[k * m + i], tid_new);
         qsched_addunlock(&s, tid[j * m + i - 1], tid_new);
         if (tid[j * m + i] != -1) qsched_addunlock(&s, tid[j * m + i], tid_new);
 
