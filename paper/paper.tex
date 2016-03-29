@@ -1,4 +1,4 @@
-\documentclass[preprint]{elsarticle}
+\documentclass[fleqn,10pt]{wlpeerj}
 
 % Package to generate and customize Algorithm as per ACM style
 \usepackage[ruled]{algorithm2e}
@@ -47,18 +47,16 @@
     {\textbf{\textsf{#1}}}
 
 
-% Document starts
-\begin{document}
-
 % Title portion
 \title{QuickSched: Task-based parallelism with dependencies and conflicts}
-\author[ecs,ggl]{Pedro Gonnet\corref{cor}} \ead{pedro.gonnet@durham.ac.uk}
-\author[ecs]{Aidan B. G. Chalk} \ead{aidan.chalk@durham.ac.uk}
-\author[icc]{Matthieu Schaller} \ead{matthieu.schaller@durham.ac.uk}
-\cortext[cor]{Corresponding author}
-\address[ecs]{School of Engineering and Computing Sciences, Durham University, South Road, Durham DH1 3LE, United Kingdom.}
-\address[icc]{Institute for Computational Cosmology, Durham University, South Road, Durham DH1 3LE, United Kingdom.}
-\address[ggl]{Google Switzerland GmbH, Brandshenkestr. 110, 8002 Z\"urich, Switzerland.}
+\author[1,3]{Pedro Gonnet}
+\author[1]{Aidan B. G. Chalk}
+\author[2]{Matthieu Schaller}
+\affil[1]{School of Engineering and Computing Sciences, Durham University, United Kingdom.}
+\affil[2]{Institute for Computational Cosmology, Durham University, United Kingdom.}
+\affil[3]{Google Switzerland GmbH, Z\"urich, Switzerland.}
+
+\keywords{task-based parallelism, shared-memory parallelism, high performance computing, parallel computing}
 
 \begin{abstract}
 This paper describes QuickSched, a compact and efficient Open-Source
@@ -68,16 +66,18 @@ programming with the concept of task conflicts, i.e.~sets of tasks
 that can be executed in any order, yet not concurrently.
 These conflicts are modelled using exclusively lockable
 hierarchical resources.
-The scheduler is shown to perform and scale well on a 64-core parallel
+The scheduler itself prioritizes tasks along the critical path
+of execution and is shown to perform and scale well on a 64-core parallel
 shared-memory machine for two example problems: A tiled QR
 decomposition and a task-based Barnes-Hut tree code.
 \end{abstract}
 
-\begin{keyword}
-    task-based parallelism \sep shared-memory parallelism \sep high performance computing \sep parallel computing
-\end{keyword}
+% Document starts
+\begin{document}
 
+\flushbottom
 \maketitle
+\thispagestyle{empty}
 
 
 \section{Introduction}
@@ -95,21 +95,29 @@ respectively, of a Directed Acyclic Graph (DAG) which can be
 traversed in topological order, executing the tasks at the nodes
 on the way down.
 
-This computational model is trivial to parallelize.
-Given a set of inter-dependent tasks and a set of computational
+Once modelled in such a way, the computation is somewhat trivial
+to parallelize:
+given a set of inter-dependent tasks and a set of computational
 threads, each thread repeatedly selects a task with no
 unsatisfied dependencies from the DAG and executes it.
 If no tasks are available, the thread waits until any other
 thread finishes executing a task, thus potentially releasing
 new tasks, or until all tasks in the DAG have been executed.
-\fig{Tasks} shows such a DAG for a set of tasks.
-The arrows indicate the direction of the dependency, i.e.~an
+Note that although the parallel execution
+itself is trivial, it does not always guaranteed to be efficient.
+Several factors may limit the maximum degree of parallelism, e.g.~the
+structure of the task dependency DAG itself, or the order in which
+available tasks are executed.
+
+\fig{Tasks} shows such a DAG for a set of tasks with
+arrows indicating the direction of the dependencies, i.e.~an
 arrow from task $A$ to task $B$ indicates that task $B$ depends
 on task $A$.
 In a parallel setting, tasks $A$, $G$, and $J$ can be
 executed concurrently.
 Once task $G$ has completed, tasks $F$ and $H$ become available
 and can be executed by any other computational thread.
+
 
 \begin{figure}
     \centerline{\epsfig{file=figures/Tasks.pdf,width=0.5\textwidth}}
@@ -126,15 +134,15 @@ and can be executed by any other computational thread.
 \end{figure}
 
 One of the first implementations of a task-based parallel programming
-systems is Cilk \cite{ref:Blumofe1995}, an extension to the C
+systems is Cilk \citep{ref:Blumofe1995}, an extension to the C
 programming language which allows function calls to be ``spawned''
 as new tasks.
 Dependencies are enforced by the {\tt sync} keyword, which
 forces a thread to wait for all the tasks that it spawned
 to complete.
 
-In SMP superscalar \cite{ref:Perez2008}, StarPU \cite{ref:Augonnet2011},
-QUARK \cite{ref:Yarkhan2011}, and KAAPI \cite{ref:Gautier2007}
+In SMP superscalar \citep{ref:Perez2008}, StarPU \citep{ref:Augonnet2011},
+QUARK \citep{ref:Yarkhan2011}, and KAAPI \citep{ref:Gautier2007}
 the programmer specifies
 what shared data each task will access, and how that data will
 be accessed, e.g.~read, write, or read-write access.
@@ -145,7 +153,7 @@ the tasks are generated.
 StarPU also provides an interface for specifying additional
 dependencies explicitly.
 Intel's Threading Building Blocks (TBB)
-\cite{ref:Reinders2010}
+\citep{ref:Reinders2010}
 provide task-based parallelism using C++ templates in which
 dependencies are handled either by explicitly waiting
 for spawned tasks, or by explicitly manipulating
@@ -153,8 +161,8 @@ task reference counters.
 
 Finally, the very popular OpenMP standard provides some basic support
 for spawning tasks, similar to Cilk, as of version 3.0
-\cite{ref:OpenMP2008}.
-OmpSs \cite{ref:Duran2011} extends this scheme with automatic
+\citep{ref:OpenMP2008}.
+OmpSs \citep{ref:Duran2011} extends this scheme with automatic
 dependency generation as in SMP superscalar, of which it
 is a direct descendant, along with
 the ability to explicitly wait on certain tasks.
@@ -168,7 +176,7 @@ Consider the case of two tasks that update some shared resource
 in an order-independent way, e.g. when accumulating a result in
 a shared variable, or exclusively writing to an output file.
 In order to avoid concurrent access to that resource, it is
-imperative that the execution of both tasks do not overlap,
+imperative that the execution of both tasks does not overlap,
 yet the order in which the tasks are executed is irrelevant.
 In the following, such a relationship will be referred to
 as a {\em conflict} between two tasks.
@@ -189,6 +197,14 @@ this problem in their respective implementations of the Fast Multipole
 Method (FMM), in which forces computed in different tasks are
 accumulated on a set of particles.
 
+Several libraries provide some mechanism to model such
+conflicts, either directly or indirectly.
+In the QUARK scheduler, conflicts can be modeled by explicitly
+marking dependencies as concurrent.
+KAAPI and OmpSS, on the other hand, allow marking access to
+certain variables as reductions, yet only for basic operations,
+e.g.~summation or maximum/minimum.
+
 This paper presents QuickSched, a framework for task-based
 parallel programming with constraints, which aims to achieve
 the following goals:
@@ -200,7 +216,8 @@ the following goals:
     \item {\em Memory/cache efficiency}: Tasks accessing similar
         sets of data should be preferentially executed on the
         same core to preserve memory/cache locality as far as possible, and
-    \item {\em Parallel efficiency}: Tasks should be executed in an order
+    \item {\em Parallel efficiency}: The order in which the tasks
+        are executed should be chosen such
         that sufficient work is available for all computational
         threads at all times.
 \end{itemize}
@@ -241,9 +258,9 @@ From a programmer's perspective, there are two main paradigms for generating
 task dependencies:
 \begin{itemize}
   \item Implicitly via spawning and waiting, e.g.~as is done in Cilk
-    \cite{ref:Blumofe1995}, or
-  \item Automatic extraction from data dependencies, e.g.~as is done in OmpSs
-    \cite{ref:Duran2011}.
+    and OpenMP~3.0, or
+  \item Automatic extraction from data dependencies, e.g.~as is done in
+    StarPU, QUARK, and OmpSs.
 \end{itemize}
 
 The first scheme, spawning and waiting, is arguably the simplest to
@@ -371,13 +388,18 @@ and granularity such that
 \end{itemize}
 \noindent The first critera is biased towards bigger tasks, while the
 second limits their size.
-The criteria are thus used to optimize the
-cache efficiency of the computation.
+The parameters controlling the size of the tasks in the examples, 
+i.e.~the tile size in the QR decomposition and the limits $n_\mathsf{max}$
+and $n_\mathsf{task}$ were determined empirically and only optimized
+to the closest power of two or rough power of ten, respectively.
+Further tuning these parameters could very likely lead to further
+performance gains, but such an effort would go beyond the scope,
+and point, of this paper.
 
 
 \section{Data Structures and Algorithms}
 
-The QuickSched task scheduler consist of four main
+The QuickSched task scheduler consists of four main
 objects types: {\em task}, {\em resource}, {\em scheduler},
 and {\em queue}.
 The task and resource objects are used
@@ -458,7 +480,7 @@ struct task {
 and {\tt uses} arrays are pointers to the contents of other
 arrays, i.e.~they are not allocated individually.
 
-What the task does is determined by the {\tt type}
+{\em What} the task does is determined by the {\tt type}
 field, e.g.~which can be mapped to any particular function,
 and the {\tt data} pointer which points to an array of
 {\tt size\_data} bytes containing data specific to the task,
@@ -494,10 +516,19 @@ for the relative computational cost of this task, and the
 relative cost of the critical path following the
 dependencies of this task, respectively, i.e.~the task's cost
 plus the maximum dependent task's weight (see \fig{TaskWeight}).
+The task cost can be either a rough estimate provided by the user,
+or the actual cost of the same task last time it was executed.
 The task weights are computed by traversing
-the tasks in reverse topological order following their dependencies, i.e.
-as per \cite{ref:Kahn1962}, and computing each task's weight
-up the task DAG.
+the tasks DAG in reverse topological order following their dependencies,
+e.g.~as per \cite{ref:Kahn1962} in $\mathcal O(n)$ for $n$ tasks,
+and computing each task's weight, e.g.
+\begin{equation*}
+  \mbox{weight}_i = \mbox{cost}_i + \max_{j \in \mbox{\small unlocks}_i}\left\{\mbox{weight}_j\right\}.
+\end{equation*}
+\noindent where $\mbox{weight}_i$ and $\mbox{cost}_i$ are the
+weight and cost of the $i$th task, respectively, and 
+$\mbox{unlocks}_i$ is the set of tasks that the $i$th task
+unlocks.
 
 \begin{figure}
     \centerline{\epsfig{file=figures/TaskWeight.pdf,height=0.4\textwidth}}
@@ -652,7 +683,7 @@ operations for both insertion and deletion, i.e. for the
 bubble-up and trickle-down operations respectively.
 
 Unfortunately, there is no way of efficiently traversing all
-the elements in the heap in decreasing order.
+the elements in such a heap in decreasing order.
 The array of tasks is therefore traversed as if it were sorted,
 returning the first task that can be locked.
 Although the first task in the array will be the task with
@@ -718,7 +749,7 @@ struct task *queue_get(struct queue *q) {
 }
     \end{lstlisting}
 \end{minipage}\end{center}
-\noindent where as with the queue insertion, the queue is first
+\noindent where, as with the queue insertion, the queue is first
 locked for exclusive access (line~4).
 The array of task pointers is then traversed (line~5),
 locking the resources of each task (lines~6--7).
@@ -728,8 +759,8 @@ are released (lines~9--10), otherwise, the traversal is aborted
 If all the locks on a task could be obtained (line~14), the
 task pointer is replaced by the last pointer in the heap (line~16)
 and the heap order is restored (line~17).
-Finally, the queue lock is released (line~19) and the locked task
-or, if no lockable task could be found, {\tt NULL} is returned.
+Finally, the queue lock is released (line~19) and the locked task,
+or {\tt NULL} if no lockable task could be found, is returned.
 
 Note that this approach of sequentially locking multiple resources
 is prone to the so-called ``dining philosophers'' problem, i.e.~if
@@ -739,6 +770,16 @@ to {\tt queue\_get} will potentially fail perpetually.
 This type of deadlock, however, is easily avoided by sorting the
 resources in each task according to some global criteria, e.g.~the
 resource ID or the address in memory of the resource.
+
+Note also that protecting the entire queue with a mutex
+is not particularly scalable, and several authors, e.g.~\cite{ref:Sundell2003},
+have presented concurrent data structures that avoid this type
+of locking.
+However, since we normally use one queue per computational thread,
+contention will only happens due to work-stealing, i.e.~when
+another idle computational thread tries to poach tasks.
+Since this happens only rarely, we opt for the simpler locking approach.
+This decision is backed by the results in Section~5.
 
 \subsection{Scheduler}
 
@@ -782,13 +823,14 @@ void qsched_run(qsched *s, void (*fun)(int, void *)) {
 \end{minipage}\end{center}
 \noindent where {\tt qsched\_start} initializes the tasks and
 fills the queues (line~1).
-For simplicity, OpenMP \cite{ref:Dagum1998}, which is available
+For simplicity, OpenMP \citep{ref:Dagum1998}, which is available
 for most compilers, is used to create a parallel section
 in which the code between lines~4 and~11 is executed
 concurrently.
-A version using {\tt pthreads} \cite{ref:Pthreads1995}
+A version using {\tt pthreads} \citep{ref:Pthreads1995}
 directly\footnote{In most environments, OpenMP is implemented
-on top of {\tt pthreads}, e.g. gcc's libgomp.} is also available.
+on top of {\tt pthreads}, e.g. the {\tt gcc} compiler's libgomp.}
+is also available.
 The parallel section consists of a loop (lines~7--10) in
 which a task is acquired via {\tt qsched\_gettask}
 and its type and data are passed to a user-supplied
@@ -864,7 +906,7 @@ i.e.~it loops over all other queues
 in a random order (line~6) and tries to get a task from them
 (line~7).
 If a task could be obtained from any queue and task re-owning
-is switched on (line~12),
+is enabled (line~12),
 the resources it locks and uses are marked as now being owned
 by the preferred queue (lines~13--16).
 Finally, the task, or {\tt NULL} if no task could be obtained,
@@ -886,7 +928,7 @@ how QuickSched can be used in real-world applications, and
 provides benchmarks to assess its efficiency and scalability.
 The first test is the tiled QR decomposition originally
 described in \cite{ref:Buttari2009}, which has been used as a benchmark
-by other authors \cite{ref:Agullo2009b,ref:Badia2009,ref:Bosilca2012}.
+by other authors \citep{ref:Agullo2009b,ref:Badia2009,ref:Bosilca2012}.
 This example only requires dependencies and is presented 
 as a point of comparison to existing task-based parallel
 programming infrastructures.
@@ -912,10 +954,10 @@ parallelism for tile-based algorithms in numerical linear algebra,
 presenting parallel codes for the Cholesky, LU, and QR
 decompositions.
 These algorithms are now part of the PLASMA and MAGMA
-libraries for parallel linear algebra \cite{ref:Agullo2009}.
+libraries for parallel linear algebra \citep{ref:Agullo2009}.
 The former uses the QUARK task scheduler, which was originally
 designed for this specific task, while the latter currently uses
-the StarPU task scheduler \cite{ref:Agullo2011}.
+the StarPU task scheduler \citep{ref:Agullo2011}.
 
 \begin{figure}
     \centerline{\epsfig{file=figures/QR.pdf,width=0.9\textwidth}}
@@ -958,16 +1000,22 @@ previous level, i.e.~the task $(i,j,k)$ always depends on
 $(i,j,k-1)$ for $k>1$.
 Each task also modifies its own tile $(i,j)$, and the DTSQRF
 task additionally modifies the lower triangular part of the $(j,j)$th tile.
+
 Although the tile-based QR decomposition requires only dependencies,
 i.e.~no additional conflicts are needed to avoid concurrent access to
 the matrix tiles, we still model each tile as a separate resource
 in QuickSched such that the scheduler can preferrentially assign
 tasks using the same tiles to the same thread.
+The resources/tiles are initially assigned to the queues in column-major
+order, i.e.~the first $\lfloor n_\mathsf{tiles}/n_\mathsf{queues}\rfloor$
+are assigned to the first queue, and so on.
 
 The QR decomposition was computed for a $2048\times 2048$
 random matrix using tiles of size $64\times 64$ floats using QuickSched
 as described above.
-For this matrix, a total of 11440 tasks with 32240 dependencies
+The task costs were initialized to the asymptotic cost of the underlying
+operations.
+For this matrix, a total of 11\,440 tasks with 32\,240 dependencies
 were generated.
 
 For these tests, {\tt pthread} parallelism and resource re-owning
@@ -978,16 +1026,21 @@ efficiency results in \fig{QRResults}.
 The timings are for {\tt qsched\_run}, including the cost of
 {\tt qsched\_start}, which does not run in parallel.
 Setting up the scheduler, tasks, and resources took, in all
-cases, an average of 7.2\,ms.
+cases, an average of 7.2\,ms, i.e.~at most 3\% of the total
+computational cost.
 
 The same decomposition was implemented using OmpSs v.\,1.99.0,
 calling the kernels directly using {\tt \#pragma omp task}
 annotations with the respective dependencies, and
 the runtime parameters
 \begin{quote}
-    \tt --disable-yield --schedule=socket --cores-per-socket=16 \\--num-sockets=4
+  \tt --disable-yield --schedule=socket --cores-per-socket=16 \\--num-sockets=4
 \end{quote}
-\noindent The scaling and efficiency relative to QuickSched are 
+\noindent Several different schedulers and parameterizations
+were discussed with the authors of OmpSs and tested, with
+the above settings producing the best results.
+
+The scaling and efficiency relative to QuickSched are 
 shown in \fig{QRResults}.
 The difference in timings is the result of the different
 task scheduling policies, as well as a smaller lag between the
@@ -1003,7 +1056,7 @@ Since in QuickSched the entire task structure is known explicitly
 in advance, the scheduler ``knows'' that the DGEQRF tasks all
 lie on the longest critical path and therefore executes them as
 soon as possible.
-OmpSs, does not exploit this knowledge, resulting in the less efficient
+OmpSs does not exploit this knowledge, resulting in the less efficient
 scheduling seen in \fig{QRTasks}.
 
 \begin{figure}
@@ -1030,11 +1083,11 @@ scheduling seen in \fig{QRTasks}.
 
 \subsection{Task-Based Barnes-Hut N-Body Solver}
 
-The Barnes-Hut tree-code \cite{ref:Barnes1986}
+The Barnes-Hut tree-code \citep{ref:Barnes1986}
 is an algorithm to approximate the
 solution of an $N$-body problem, i.e.~computing all the
 pairwise interactions between a set of $N$ particles,
-in \oh{N\log N} operations, as opposed to the \oh{N^2}
+in \oh{N\log N} operations, as opposed to in \oh{N^2} for the
 naive direct computation.
 The algorithm is based on a recursive octree decomposition:
 Starting from a cubic cell containing all the particles,
@@ -1070,7 +1123,7 @@ The current approach, illustrated in \fig{CellParts} is not
 only more compact, it also allows a direct and more cache-efficient access
 to the list of particles for any inner node of the tree.
 The cost of sorting the particles, with a recursive
-partitioning similar to QuickSort \cite{ref:Hoare1962},
+partitioning similar to QuickSort \citep{ref:Hoare1962},
 is in \oh{N\log N}.
 
 \begin{figure}
@@ -1113,18 +1166,18 @@ The function recurses as follows (line numbers refer to \fig{MakeTasks}:
         recurse over all pairs of sub-cells spanning
         both cells (lines~24--26), and
     \item If called with two neighbouring cells
-        and one of the cells are not split, create
+        and at least one of the cells is not split, create
         a particle-particle pair task over both cells (line~29),
     \item If called with two non-neighbouring cells,
         do nothing, as these interactions
         will be computed by the particle-cell task.
 \end{itemize}
-\noindent where every interaction task additionally locks
+\noindent Every interaction task additionally locks
 the cells on which it operates (lines~17, 20, and 32--33).
 In order to prevent generating
 a large number of very small tasks, the task generation only recurses
 if the cells contain more than a minimum number $n_\mathsf{task}$
-of threads each (lines~7 and~23).
+of particles each (lines~7 and~23).
 
 As shown in \fig{BHTasks}, the particle-self and particle-particle pair
 interaction tasks are implemented
@@ -1163,6 +1216,11 @@ Using the above scheme generated 97\,553 tasks, of which
 512 self-interaction tasks, 5\,068 particle-particle interaction
 task, and 32\,768 particle-cell interaction tasks.
 A total of 43\,416 locks on 37\,449 resources were generated.
+Setting up the tasks took, on average XXX\,ms, i.e.~at most
+XXX\% of the total computation time.
+Storing the tasks, resources, and dependencies required XXX\,MB,
+which is only XX\% of the XXX\,MB required to store the particle
+data.
 
 For these tests, {\tt pthread}s parallelism was used and resource
 re-owning was switched off.
@@ -1179,10 +1237,10 @@ Setting up the scheduler, tasks, and resources took, in all
 cases, an average of 51.3\,ms.
 
 For comparison, the same computations were run using the popular
-astrophysics simulation software Gadget-2 \cite{ref:Springel2005},
+astrophysics simulation software Gadget-2 \citep{ref:Springel2005},
 using a traditional Barnes-Hut implementation based on octrees
 and distributed-memory parallelism based on domain decompositions
-and MPI \cite{ref:Snir1998}.
+and MPI \citep{ref:Snir1998}.
 To achieve the same accuracy, an opening angle of 0.5 was used.
 On a single core, the task-based tree traversal is already 1.9$\times$
 faster than Gadget-2, due to the cache efficiency of the task-based
@@ -1198,7 +1256,7 @@ to the MPI-based parallelism in Gadget-2.
     \caption{Strong scaling and parallel efficiency of the Barnes-Hut tree-code
         computed over 1\,000\,000 particles.
         Solving the N-Body problem takes 323\,ms, achieving 75\% parallel
-        efficiency, over all 64 cores.
+        efficiency over all 64 cores.
         For comparison, timings are shown for the same computation using
         the popular astrophysics code Gadget-2.
         The scaling for Gadget-2 (left) is shown relative to the performance of
@@ -1229,16 +1287,22 @@ At 64 cores, the scheduler overheads account for only $\sim 1$\% of
 the total computational cost, whereas,
 as of 32 cores, the cost of both pair types grow by up to
 40\%.
-This is due to memory bandwidth restrictions, as
-the cost of the particle-cell interaction tasks, which do significantly more
-computation per memory access, only grow by up to 10\%.
+This is due to the cache hierarchy of the AMD Opteron 6376 in which
+pairs of cores share a comon 2\,MB L2 cache.
+When using half the cores or less, each core has its L@ cache to
+itself, whereas beyond 32 cores they are shared, resulting in more
+frequent cache misses.
+This cen be seen when comparing the costs of the particle-particle
+interaction and particle-cell interaction tasks: while the former grow by
+roughly 30\%, the latter grow by only 10\% as they do much more
+computation per memory access.
 
 \begin{figure}
     \centerline{\epsfig{file=figures/BH_times.pdf,width=0.8\textwidth}}
     \caption{Accumulated cost of each task type and of the overheads
         associated with {\tt qsched\_gettask}, summed over all cores.
         As of 32 cores, the cost of both pair interaction task
-        types grow by up to 40\%.
+        types grow by up to 30\%.
         The cost of the particle-cell interactions, which entail significantly more
         computation per memory access, grow only by at most 10\%.
         The scheduler overheads, i.e.~{\tt qsched\_gettask},
@@ -1331,15 +1395,16 @@ v\,3.0 and is available for download via
 
 % Acknowledgments
 \section*{Acknowledgments}
-The authors would like to thank Lydia Heck of the Institute for
-Computational Cosmology at Durham University for providing access
-to, and expertise on, the COSMA cluster used in the performance
-evaluation.
-This work was supported by a Durham University Seedcorn Grant.
+The authors would like to thank Tom Theuns and Richard Bowers of the
+Institute for Computational Cosmology at Durham University for the
+helpful discussions.
+This work was supported by a Durham University Seedcorn Grant
+number 21.12.080130 from
+which the hardware used in the experiments was purchased.
 
 
 % Bibliography
-\bibliographystyle{elsarticle-num}
+% \bibliographystyle{elsarticle-num}
 \bibliography{quicksched}
 
 
@@ -1529,7 +1594,7 @@ Similarly, {\tt rid} stores the handles of the resources for each
 tile of the matrix, which are allocated in line~8.
 
 The following loops mirror the task generation described in
-Algorithm~2 of \cite{ref:Buttari2009}.
+Algorithm~2 of \citep{ref:Buttari2009}.
 For each level {\tt k} (line~10), a DGEQRF task is created
 for tile $(k,k)$ (lines~13--14).
 A lock is added for the newly created task on the
@@ -1584,7 +1649,7 @@ struct cell {
   struct cell *progeny[8];
   qsched_res_t res;
   qsched_task_t task_com;
-  };
+};
     \end{lstlisting}
 \end{minipage}\end{center}
 \noindent where {\tt loc} and {\tt h} are the location
@@ -1606,7 +1671,7 @@ data of the form:
 struct part {
   double x[3], a[3], mass;
   int id;
-  };
+};
     \end{lstlisting}
 \end{minipage}\end{center}
 \noindent i.e.~the particle position, acceleration, mass,
