@@ -810,7 +810,8 @@ struct task *qsched_gettask ( struct qsched *s , int qid ) {
 
     int naq, k, tid, qids[ s->nr_queues ];
     struct task *t;
-    
+    unsigned int seed = qid;
+
     TIMER_TIC
 
     /* Check if the sched is ok. */
@@ -836,7 +837,7 @@ struct task *qsched_gettask ( struct qsched *s , int qid ) {
                     if ( k != qid && s->queues[k].count > 0 )
                         qids[ naq++ ] = k;
                 while ( naq > 0 ) {
-                    k = rand() % naq;
+                    k = rand_r(&seed) % naq;
                     TIMER_TIC2
                     tid = queue_get( &s->queues[ qids[k] ] , s , 0 );
                     TIMER_TOC( s , qsched_timer_queue )
