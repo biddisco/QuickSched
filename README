@@ -1,1 +1,4 @@
-Should add some content about QuickSched.
+GSoC 2024 QuickSched
+
+This is a clone of QuickSched from https://gitlab.cosma.dur.ac.uk/swift/quicksched
+Added CMake support, some "config.h" paths changed to support out of source build, so autoconf build may not work
