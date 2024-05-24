@@ -2,3 +2,29 @@ GSoC 2024 QuickSched
 
 This is a clone of QuickSched from https://gitlab.cosma.dur.ac.uk/swift/quicksched
 Added CMake support, some "config.h" paths changed to support out of source build, so autoconf build may not work
+
+# --------------------------
+Install spack (spack website has instructions)
+
+e.g. bashrc
+
+if [ -f $SPACK_ROOT/share/spack/setup-env.sh ]; then
+  echo "Initializing spack"
+  source $SPACK_ROOT/share/spack/setup-env.sh >/dev/null 2>&1
+fi
+
+git clone http:// .... quicksched
+
+# add quicksched package to spack
+spack repo add /path/to/quicksched/spack
+
+# install all dependencies we need
+spack install --only=dependecies quicksched
+
+# create an environment to build quicksched manually
+spack build-env quicksched -- bash
+
+# now build it
+cmake ~/src/quicksched 
+
+
