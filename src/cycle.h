@@ -171,14 +171,7 @@ INLINE_ELAPSED(__inline__)
 #if (defined(__GNUC__) || defined(__ICC)) && defined(__i386__)  && !defined(HAVE_TICK_COUNTER)
 typedef unsigned long long ticks;
 
-#ifndef INLINE
-# if __GNUC__ && !__GNUC_STDC_INLINE__
-#  define INLINE extern inline
-# else
-#  define INLINE inline
-# endif
-#endif
-INLINE static ticks getticks(void)
+static __inline__ ticks getticks(void)
 {
      ticks ret;
 
@@ -227,14 +220,7 @@ static __inline double elapsed(ticks t1, ticks t0)
 #if (defined(__GNUC__) || defined(__ICC) || defined(__SUNPRO_C)) && defined(__x86_64__)  && !defined(HAVE_TICK_COUNTER)
 typedef unsigned long long ticks;
 
-#ifndef INLINE
-# if __GNUC__ && !__GNUC_STDC_INLINE__
-#  define INLINE extern inline
-# else
-#  define INLINE inline
-# endif
-#endif
-INLINE ticks getticks(void)
+static __inline__ ticks getticks(void)
 {
      unsigned a, d; 
      asm volatile("rdtsc" : "=a" (a), "=d" (d)); 
