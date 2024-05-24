@@ -181,3 +181,7 @@ sympy-plots-for-*.tex/
 
 # vscode support
 .vscode
+
+# python cache (spack)
+__pycache__
+
