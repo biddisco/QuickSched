@@ -4,14 +4,19 @@ This is a clone of QuickSched from https://gitlab.cosma.dur.ac.uk/swift/quicksch
 Added CMake support, some "config.h" paths changed to support out of source build, so autoconf build may not work
 
 # --------------------------
-Install spack (spack website has instructions)
+# Install spack (spack website has instructions)
 
-e.g. bashrc
+# setup spack in bashrc if you want it always availablle e.g.
 
+SPACK_ROOT=/path/to/where/you/install/spack
 if [ -f $SPACK_ROOT/share/spack/setup-env.sh ]; then
   echo "Initializing spack"
   source $SPACK_ROOT/share/spack/setup-env.sh >/dev/null 2>&1
 fi
+
+# When spack is set up. 
+# Do an external find to save building simple packages already on the system
+spack external find
 
 git clone http:// .... quicksched
 
