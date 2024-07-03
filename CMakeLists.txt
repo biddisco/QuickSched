@@ -30,6 +30,8 @@ SET (CMAKE_ARCHIVE_OUTPUT_DIRECTORY
 # Custom cmake modules should go here
 #------------------------------------------------------------------------------
 list(APPEND CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake")
+# add simple target properties printout utility
+include(Utilities)
 
 #------------------------------------------------------------------------------
 # Enable testing
@@ -70,9 +72,8 @@ endif()
 # ------------------------------------------------------------------------------
 # lapack/blas
 # ------------------------------------------------------------------------------
-set(BLA_VENDOR OpenBLAS)
-find_package(BLAS REQUIRED)
-message(STATUS "BLAS found version ${BLAS_VERSION}")
+set(BLA_VENDOR "OpenBLAS")
+find_package(BLAS2 REQUIRED)
 list(APPEND QUICKSCHED_LIBS BLAS::BLAS)
 
 #------------------------------------------------------------------------------
